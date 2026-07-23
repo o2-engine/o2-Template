@@ -1,6 +1,7 @@
 name: macOS CMake
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - master
