@@ -1,0 +1,444 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "cmake-configure",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--preset", "mac"],
+            "windows": {
+                "command": "cmake",
+                "args": ["--preset", "windows"]
+            },
+            "linux": {
+                "command": "cmake",
+                "args": ["--preset", "linux"]
+            },
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "cmake-build-all",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "--preset", "mac", "-j", "8"],
+            "windows": {
+                "command": "cmake",
+                "args": ["--build", "--preset", "windows", "-j", "8"]
+            },
+            "linux": {
+                "command": "cmake",
+                "args": ["--build", "--preset", "linux", "-j", "8"]
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": ["$gcc"],
+            "dependsOn": "cmake-configure"
+        },
+        {
+            "label": "build",
+            "dependsOn": "cmake-build-all"
+        },
+        {
+            "label": "cmake-build-game",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "--preset", "mac", "--target", "Game", "-j", "8"],
+            "windows": {
+                "command": "cmake",
+                "args": ["--build", "--preset", "windows", "--target", "Game", "-j", "8"]
+            },
+            "linux": {
+                "command": "cmake",
+                "args": ["--build", "--preset", "linux", "--target", "Game", "-j", "8"]
+            },
+            "group": "build",
+            "problemMatcher": ["$gcc", "$msCompile"],
+            "dependsOn": "cmake-configure"
+        },
+        {
+            "label": "cmake-build-editor",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "--preset", "mac", "--target", "Editor", "-j", "8"],
+            "windows": {
+                "command": "cmake",
+                "args": ["--build", "--preset", "windows", "--target", "Editor", "-j", "8"]
+            },
+            "linux": {
+                "command": "cmake",
+                "args": ["--build", "--preset", "linux", "--target", "Editor", "-j", "8"]
+            },
+            "group": "build",
+            "problemMatcher": ["$gcc", "$msCompile"],
+            "dependsOn": "cmake-configure"
+        },
+        {
+            "label": "cmake-build-assets-builder",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "--preset", "mac", "--target", "AssetsBuilder", "-j", "8"],
+            "windows": {
+                "command": "cmake",
+                "args": ["--build", "--preset", "windows", "--target", "AssetsBuilder", "-j", "8"]
+            },
+            "linux": {
+                "command": "cmake",
+                "args": ["--build", "--preset", "linux", "--target", "AssetsBuilder", "-j", "8"]
+            },
+            "group": "build",
+            "problemMatcher": ["$gcc", "$msCompile"],
+            "dependsOn": "cmake-configure"
+        },
+        {
+            "label": "cmake-build-tests",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "--preset", "mac", "--target", "GameTests", "GameUITests", "-j", "8"],
+            "windows": {
+                "command": "cmake",
+                "args": ["--build", "--preset", "windows", "--target", "GameTests", "GameUITests", "-j", "8"]
+            },
+            "linux": {
+                "command": "cmake",
+                "args": ["--build", "--preset", "linux", "--target", "GameTests", "GameUITests", "-j", "8"]
+            },
+            "group": "build",
+            "problemMatcher": ["$gcc", "$msCompile"],
+            "dependsOn": "cmake-configure"
+        },
+        {
+            "label": "cmake-run-tests",
+            "type": "shell",
+            "command": "ctest",
+            "args": ["--test-dir", "build", "--output-on-failure", "-C", "Debug", "--parallel", "4"],
+            "group": "test",
+            "problemMatcher": [],
+            "dependsOn": "cmake-build-all"
+        },
+        {
+            "label": "cmake-clean",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "build", "--target", "clean"],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "cmake-configure-ios-sim",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--preset", "ios-sim"],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "cmake-build-ios-sim",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "--preset", "ios-sim", "-j", "8"],
+            "group": "build",
+            "problemMatcher": ["$gcc"],
+            "dependsOn": "cmake-configure-ios-sim"
+        },
+        {
+            "label": "iOS Sim: Run",
+            "type": "shell",
+            "command": "xcrun simctl shutdown all 2>/dev/null; xcrun simctl boot 'iPhone 16 Pro'; open -a Simulator; xcrun simctl bootstatus 'iPhone 16 Pro' -b 2>/dev/null; xcrun simctl terminate booted com.o2.template 2>/dev/null; xcrun simctl install booted ${workspaceFolder}/Bin/iOS/Game.app && xcrun simctl launch --console booted com.o2.template",
+            "group": "test",
+            "isBackground": true,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated"
+            },
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^__NEVER_MATCH__$"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^com\\.o2\\.template:",
+                    "endsPattern": "^com\\.o2\\.template:"
+                }
+            },
+            "dependsOn": "cmake-build-ios-sim"
+        },
+        {
+            "label": "iOS Sim: Debug",
+            "type": "shell",
+            "command": "${workspaceFolder}/.vscode/ios-sim-debug.sh '${workspaceFolder}/Bin/iOS/Game.app'",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated"
+            },
+            "isBackground": true,
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^__NEVER_MATCH__$"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^=== Attaching",
+                    "endsPattern": "^=== Attaching"
+                }
+            },
+            "dependsOn": "cmake-build-ios-sim"
+        },
+        {
+            "label": "wasm-prebuild-native",
+            "type": "shell",
+            "command": "cmake --build --preset mac -j 8 --target AssetsBuilder && ${workspaceFolder}/Bin/Mac/AssetsBuilder -platform WebAssembly -source ${workspaceFolder}/Assets/ -target ${workspaceFolder}/BuiltAssets/WebAssembly/Data/ -target-tree ${workspaceFolder}/BuiltAssets/WebAssembly/Data.json -compressor-config ${workspaceFolder}/o2/CompressToolsConfig.json",
+            "windows": {
+                "command": "${workspaceFolder}\\.vscode\\wasm-prebuild-native.cmd",
+                "args": ["${workspaceFolder}"]
+            },
+            "linux": {
+                "command": "cmake --build --preset linux -j 8 --target AssetsBuilder && ${workspaceFolder}/Bin/Linux/AssetsBuilder -platform WebAssembly -source ${workspaceFolder}/Assets/ -target ${workspaceFolder}/BuiltAssets/WebAssembly/Data/ -target-tree ${workspaceFolder}/BuiltAssets/WebAssembly/Data.json -compressor-config ${workspaceFolder}/o2/CompressToolsConfig.json"
+            },
+            "group": "build",
+            "problemMatcher": [],
+            "dependsOn": "cmake-configure"
+        },
+        {
+            "label": "cmake-configure-wasm",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-c",
+                "if [ -z \"$EMSDK\" ] && [ -f \"$HOME/emsdk/emsdk_env.sh\" ]; then source \"$HOME/emsdk/emsdk_env.sh\"; fi; cmake --preset wasm"
+            ],
+            "windows": {
+                "command": "cmake",
+                "args": ["--preset", "wasm-windows"]
+            },
+            "group": "build",
+            "problemMatcher": [],
+            "dependsOn": "wasm-prebuild-native"
+        },
+        {
+            "label": "cmake-build-wasm",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-c",
+                "if [ -z \"$EMSDK\" ] && [ -f \"$HOME/emsdk/emsdk_env.sh\" ]; then source \"$HOME/emsdk/emsdk_env.sh\"; fi; cmake --build --preset wasm -j 8"
+            ],
+            "windows": {
+                "command": "cmake",
+                "args": ["--build", "--preset", "wasm-windows", "-j", "8"]
+            },
+            "group": "build",
+            "problemMatcher": ["$gcc"],
+            "dependsOn": "cmake-configure-wasm"
+        },
+        {
+            "label": "cmake-build-wasm-game",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-c",
+                "if [ -z \"$EMSDK\" ] && [ -f \"$HOME/emsdk/emsdk_env.sh\" ]; then source \"$HOME/emsdk/emsdk_env.sh\"; fi; cmake --build --preset wasm --target Game -j 8"
+            ],
+            "windows": {
+                "command": "cmake",
+                "args": ["--build", "--preset", "wasm-windows", "--target", "Game", "-j", "8"]
+            },
+            "group": "build",
+            "problemMatcher": ["$gcc"],
+            "dependsOn": "cmake-configure-wasm"
+        },
+        {
+            "label": "cmake-configure-wasm-debug",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-c",
+                "if [ -z \"$EMSDK\" ] && [ -f \"$HOME/emsdk/emsdk_env.sh\" ]; then source \"$HOME/emsdk/emsdk_env.sh\"; fi; cmake --preset wasm-debug"
+            ],
+            "windows": {
+                "command": "cmake",
+                "args": ["--preset", "wasm-debug-windows"]
+            },
+            "group": "build",
+            "problemMatcher": [],
+            "dependsOn": "wasm-prebuild-native"
+        },
+        {
+            "label": "cmake-build-wasm-debug",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-c",
+                "if [ -z \"$EMSDK\" ] && [ -f \"$HOME/emsdk/emsdk_env.sh\" ]; then source \"$HOME/emsdk/emsdk_env.sh\"; fi; cmake --build --preset wasm-debug --target Game -j 8"
+            ],
+            "windows": {
+                "command": "cmake",
+                "args": ["--build", "--preset", "wasm-debug-windows", "--target", "Game", "-j", "8"]
+            },
+            "group": "build",
+            "problemMatcher": ["$gcc"],
+            "dependsOn": "cmake-configure-wasm-debug"
+        },
+        {
+            "label": "WASM: Serve",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-c",
+                "lsof -ti tcp:8090 | xargs kill 2>/dev/null; sleep 0.2; exec python3 '${workspaceFolder}/Platforms/WebAssembly/serve.py' 8090 '${workspaceFolder}/Bin/WebAssembly'"
+            ],
+            "windows": {
+                "command": "python",
+                "args": ["${workspaceFolder}/Platforms/WebAssembly/serve.py", "8090", "${workspaceFolder}/Bin/WebAssembly"]
+            },
+            "isBackground": true,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated"
+            },
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^__NEVER_MATCH__$"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "Serving HTTP",
+                    "endsPattern": "Serving HTTP"
+                }
+            }
+        },
+        {
+            "label": "WASM: Open",
+            "type": "shell",
+            "command": "open",
+            "args": ["http://localhost:8090/Game.html"],
+            "windows": {
+                "command": "cmd",
+                "args": ["/c", "start", "", "http://localhost:8090/Game.html"]
+            },
+            "linux": {
+                "command": "xdg-open",
+                "args": ["http://localhost:8090/Game.html"]
+            },
+            "problemMatcher": [],
+            "dependsOn": "WASM: Serve"
+        },
+        {
+            "label": "WASM: Build + Serve",
+            "dependsOrder": "sequence",
+            "dependsOn": ["cmake-build-wasm-game", "WASM: Serve"],
+            "problemMatcher": []
+        },
+        {
+            "label": "android-prebuild-native",
+            "type": "shell",
+            "command": "cmake --build --preset mac -j 8 --target AssetsBuilder && mkdir -p ${workspaceFolder}/BuiltAssets/Android && rsync -a --delete ${workspaceFolder}/BuiltAssets/Mac/ ${workspaceFolder}/BuiltAssets/Android/",
+            "group": "build",
+            "problemMatcher": [],
+            "dependsOn": "cmake-configure"
+        },
+        {
+            "label": "cmake-configure-android",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-c",
+                "export ANDROID_NDK_HOME=\"${ANDROID_NDK_HOME:-$HOME/Library/Android/sdk/ndk/28.2.13676358}\"; cmake --preset android"
+            ],
+            "group": "build",
+            "problemMatcher": [],
+            "dependsOn": "android-prebuild-native"
+        },
+        {
+            "label": "cmake-build-android",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-c",
+                "export ANDROID_NDK_HOME=\"${ANDROID_NDK_HOME:-$HOME/Library/Android/sdk/ndk/28.2.13676358}\"; cmake --build --preset android -j 8 --target Game"
+            ],
+            "group": "build",
+            "problemMatcher": ["$gcc"],
+            "dependsOn": "cmake-configure-android"
+        },
+        {
+            "label": "cmake-configure-android-release",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-c",
+                "export ANDROID_NDK_HOME=\"${ANDROID_NDK_HOME:-$HOME/Library/Android/sdk/ndk/28.2.13676358}\"; cmake --preset android-release"
+            ],
+            "group": "build",
+            "problemMatcher": [],
+            "dependsOn": "android-prebuild-native"
+        },
+        {
+            "label": "cmake-build-android-release",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-c",
+                "export ANDROID_NDK_HOME=\"${ANDROID_NDK_HOME:-$HOME/Library/Android/sdk/ndk/28.2.13676358}\"; cmake --build --preset android-release -j 8 --target Game"
+            ],
+            "group": "build",
+            "problemMatcher": ["$gcc"],
+            "dependsOn": "cmake-configure-android-release"
+        },
+        {
+            "label": "android-copy-lib-to-gradle",
+            "type": "shell",
+            "command": "mkdir -p ${workspaceFolder}/Platforms/Android/app/src/main/jniLibs/arm64-v8a && cp ${workspaceFolder}/build-android/libGame.so ${workspaceFolder}/Platforms/Android/app/src/main/jniLibs/arm64-v8a/libGame.so",
+            "group": "build",
+            "problemMatcher": [],
+            "dependsOn": "cmake-build-android"
+        },
+        {
+            "label": "android-assemble-debug",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-c",
+                "export JAVA_HOME=\"${JAVA_HOME:-/Applications/Android Studio.app/Contents/jbr/Contents/Home}\"; export ANDROID_NDK_HOME=\"${ANDROID_NDK_HOME:-$HOME/Library/Android/sdk/ndk/28.2.13676358}\"; cd ${workspaceFolder}/Platforms/Android && ./gradlew :app:assembleDebug"
+            ],
+            "group": "build",
+            "problemMatcher": ["$gcc"],
+            "dependsOn": "android-prebuild-native"
+        },
+        {
+            "label": "Android: Run",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-c",
+                "export PATH=$PATH:$HOME/Library/Android/sdk/platform-tools; APK=${workspaceFolder}/Platforms/Android/app/build/outputs/apk/debug/app-debug.apk; adb install -r \"$APK\" && adb shell am force-stop com.o2.template && adb logcat -c && adb shell am start -n com.o2.template/.MainActivity && for _ in $(seq 1 20); do PID=$(adb shell pidof -s com.o2.template | tr -d '\\r\\n'); [ -n \"$PID\" ] && break; sleep 0.2; done; echo \"=== launched; PID=$PID; streaming logcat ===\" && adb logcat --pid=\"$PID\""
+            ],
+            "isBackground": true,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated"
+            },
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^__NEVER_MATCH__$"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^=== launched;",
+                    "endsPattern": "^=== launched;"
+                }
+            },
+            "dependsOn": "android-assemble-debug"
+        }
+    ]
+}

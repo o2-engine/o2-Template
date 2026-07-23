@@ -1,0 +1,228 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "JS Debugger: Attach",
+            "type": "node",
+            "request": "attach",
+            "address": "localhost",
+            "port": 5001,
+            "localRoot": "${workspaceRoot}",
+            "stopOnEntry": false
+        },
+        {
+            "name": "Game (Mac, Debug)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/Bin/Mac/Game",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/Bin/Mac",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "setupCommands": [
+                {
+                    "description": "Load o2 LLDB formatters",
+                    "text": "command script import ${workspaceFolder}/o2/Framework/Platforms/o2_lldb_formatters.py",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "cmake-build-game"
+        },
+        {
+            "name": "Game (Windows, Debug)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/Bin/Windows/Game.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/Bin/Windows",
+            "environment": [],
+            "console": "internalConsole",
+            "visualizerFile": "${workspaceFolder}/o2/Framework/Platforms/Windows/Framework.natvis",
+            "preLaunchTask": "cmake-build-game"
+        },
+        {
+            "name": "Editor (Mac, Debug)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/Bin/Mac/Editor",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/Bin/Mac",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "setupCommands": [
+                {
+                    "description": "Load o2 LLDB formatters",
+                    "text": "command script import ${workspaceFolder}/o2/Framework/Platforms/o2_lldb_formatters.py",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "cmake-build-editor"
+        },
+        {
+            "name": "Editor (Windows, Debug)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/Bin/Windows/Editor.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/Bin/Windows",
+            "environment": [],
+            "console": "internalConsole",
+            "visualizerFile": "${workspaceFolder}/o2/Framework/Platforms/Windows/Framework.natvis",
+            "preLaunchTask": "cmake-build-editor"
+        },
+        {
+            "name": "GameTests (Mac, Debug)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/Bin/Mac/GameTests",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/Bin/Mac",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "setupCommands": [
+                {
+                    "description": "Load o2 LLDB formatters",
+                    "text": "command script import ${workspaceFolder}/o2/Framework/Platforms/o2_lldb_formatters.py",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "cmake-build-tests"
+        },
+        {
+            "name": "GameTests (Windows, Debug)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/Bin/Windows/GameTests.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/Bin/Windows",
+            "environment": [],
+            "console": "internalConsole",
+            "visualizerFile": "${workspaceFolder}/o2/Framework/Platforms/Windows/Framework.natvis",
+            "preLaunchTask": "cmake-build-tests"
+        },
+        {
+            "name": "GameUITests (Mac, Debug)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/Bin/Mac/GameUITests",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/Bin/Mac",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "setupCommands": [
+                {
+                    "description": "Load o2 LLDB formatters",
+                    "text": "command script import ${workspaceFolder}/o2/Framework/Platforms/o2_lldb_formatters.py",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "cmake-build-tests"
+        },
+        {
+            "name": "GameUITests (Windows, Debug)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/Bin/Windows/GameUITests.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/Bin/Windows",
+            "environment": [],
+            "console": "internalConsole",
+            "visualizerFile": "${workspaceFolder}/o2/Framework/Platforms/Windows/Framework.natvis",
+            "preLaunchTask": "cmake-build-tests"
+        },
+        {
+            "name": "AssetsBuilder (Mac, Debug)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/Bin/Mac/AssetsBuilder",
+            "args": [
+                "-platform", "Mac",
+                "-source", "${workspaceFolder}/Assets/",
+                "-target", "${workspaceFolder}/BuiltAssets/Mac/Data/",
+                "-target-tree", "${workspaceFolder}/BuiltAssets/Mac/Data.json",
+                "-compressor-config", "${workspaceFolder}/o2/CompressToolsConfig.json"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "preLaunchTask": "cmake-build-assets-builder"
+        },
+        {
+            "name": "AssetsBuilder (Windows, Debug)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/Bin/Windows/AssetsBuilder.exe",
+            "args": [
+                "-platform", "Windows",
+                "-source", "${workspaceFolder}/Assets/",
+                "-target", "${workspaceFolder}/BuiltAssets/Windows/Data/",
+                "-target-tree", "${workspaceFolder}/BuiltAssets/Windows/Data.json",
+                "-compressor-config", "${workspaceFolder}/o2/CompressToolsConfig.json"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "internalConsole",
+            "visualizerFile": "${workspaceFolder}/o2/Framework/Platforms/Windows/Framework.natvis",
+            "preLaunchTask": "cmake-build-assets-builder"
+        },
+        {
+            "name": "Game iOS Sim",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/usr/bin/true",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "preLaunchTask": "iOS Sim: Run"
+        },
+        {
+            "name": "Game WASM (Browser)",
+            "type": "chrome",
+            "request": "launch",
+            "url": "http://localhost:8090/Game.html",
+            "webRoot": "${workspaceFolder}/Bin/WebAssembly",
+            "sourceMaps": true,
+            "preLaunchTask": "WASM: Build + Serve"
+        },
+        {
+            "name": "Game WASM Debug (Browser)",
+            "type": "chrome",
+            "request": "launch",
+            "url": "http://localhost:8090/Game.html",
+            "webRoot": "${workspaceFolder}/Bin/WebAssembly",
+            "sourceMaps": true,
+            "preLaunchTask": "cmake-build-wasm-debug"
+        },
+        {
+            "name": "Game Android",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/usr/bin/true",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "preLaunchTask": "Android: Run"
+        }
+    ]
+}
