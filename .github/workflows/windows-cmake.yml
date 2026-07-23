@@ -1,0 +1,94 @@
+name: Windows CMake
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    # Pinned: the "Visual Studio 17 2022" generator below needs VS 2022, which the
+    # rolling windows-latest image no longer ships.
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Build Game
+            target: Game
+            build_config: Debug
+            o2_editor: OFF
+            o2_tests: OFF
+            run_ctest: false
+          - name: Build Editor
+            target: Editor
+            build_config: Debug
+            o2_editor: ON
+            o2_tests: OFF
+            run_ctest: false
+          - name: Build & Run Tests
+            target: o2UtilTests o2SystemTests o2RenderTests o2EditorTests GameTests
+            build_config: Debug
+            o2_editor: ON
+            o2_tests: ON
+            run_ctest: true
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Increase pagefile
+      uses: al-cheb/configure-pagefile-action@v1.4
+      with:
+        minimum-size: 16GB
+        maximum-size: 16GB
+        disk-root: "D:"
+
+    - name: Set up Visual Studio
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+
+    - name: Configure CMake
+      run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=${{ matrix.build_config }} -DO2_TESTS=${{ matrix.o2_tests }} -DO2_EDITOR=${{ matrix.o2_editor }}
+
+    - name: Build with CMake
+      run: cmake --build build --config ${{ matrix.build_config }} --parallel --target ${{ matrix.target }}
+
+    # GitHub-hosted Windows VMs only ship with the Microsoft Basic Display
+    # Adapter (OpenGL 1.1). Install Mesa3D system-wide so the test exe gets a
+    # software-rendered OpenGL 3.3+ context via llvmpipe.
+    - name: Install Mesa software OpenGL for tests
+      if: matrix.run_ctest
+      shell: pwsh
+      run: |
+        $tag = (Invoke-RestMethod "https://api.github.com/repos/pal1000/mesa-dist-win/releases/latest").tag_name
+        $file = "mesa3d-$tag-release-msvc.7z"
+        $url  = "https://github.com/pal1000/mesa-dist-win/releases/download/$tag/$file"
+        Write-Host "Downloading $url"
+        Invoke-WebRequest -Uri $url -OutFile $file
+        New-Item -ItemType Directory -Force -Path mesa | Out-Null
+        7z x $file -omesa -y | Out-Null
+        Write-Host "Mesa archive contents:"
+        Get-ChildItem -Recurse mesa | Select-Object -First 30 FullName
+        $deploy = Get-ChildItem -Recurse mesa -Filter systemwidedeploy.cmd | Select-Object -First 1
+        if (-not $deploy) { throw "systemwidedeploy.cmd not found in archive" }
+        Push-Location $deploy.Directory.FullName
+        # 1 = core desktop OpenGL (llvmpipe). Non-interactive admin-deploy.
+        cmd /c "systemwidedeploy.cmd 1"
+        Pop-Location
+
+    - name: Run tests
+      if: matrix.run_ctest
+      # ctest -E excludes two things on this CI runner (locally, on a real GPU, nothing is excluded):
+      #  - *_NOT_BUILT: placeholder tests for targets this job intentionally doesn't build
+      #    (GameUITests renders the deferred 3D scene, so it stays local/mac-CI only).
+      #  - the 3D / deferred render suites: they don't render correctly on the runner's software
+      #    OpenGL (Mesa llvmpipe). They pass on real GPUs (local runs, macOS CI).
+      run: ctest --test-dir build --build-config ${{ matrix.build_config }} --output-on-failure --parallel 4 -E '_NOT_BUILT$|^o2RenderTests/(Render3D|RenderChunkedDraw|Mesh3DDraw|RenderPipelineDraw)$'

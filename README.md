@@ -1,3 +1,10 @@
+[![Windows](https://github.com/o2-engine/o2-Template/actions/workflows/windows-cmake.yml/badge.svg?branch=master)](https://github.com/o2-engine/o2-Template/actions/workflows/windows-cmake.yml)
+[![Linux](https://github.com/o2-engine/o2-Template/actions/workflows/linux-cmake.yml/badge.svg?branch=master)](https://github.com/o2-engine/o2-Template/actions/workflows/linux-cmake.yml)
+[![macOS](https://github.com/o2-engine/o2-Template/actions/workflows/mac-cmake.yml/badge.svg?branch=master)](https://github.com/o2-engine/o2-Template/actions/workflows/mac-cmake.yml)
+[![iOS](https://github.com/o2-engine/o2-Template/actions/workflows/ios-cmake.yml/badge.svg?branch=master)](https://github.com/o2-engine/o2-Template/actions/workflows/ios-cmake.yml)
+[![WebAssembly](https://github.com/o2-engine/o2-Template/actions/workflows/wasm-cmake.yml/badge.svg?branch=master)](https://github.com/o2-engine/o2-Template/actions/workflows/wasm-cmake.yml)
+[![Android](https://github.com/o2-engine/o2-Template/actions/workflows/android-cmake.yml/badge.svg?branch=master)](https://github.com/o2-engine/o2-Template/actions/workflows/android-cmake.yml)
+
 # o2-Template
 
 Minimal project template for the [o2 engine](https://github.com/zenkovich/o2). Fork or copy it to
@@ -7,7 +14,7 @@ tests, and the sample scene shows a deferred 3D layer with a 2D overlay on top.
 ## Getting started
 
 ```sh
-git clone --recursive https://github.com/zenkovich/o2-Template.git
+git clone --recursive https://github.com/o2-engine/o2-Template.git
 cd o2-Template
 
 # Configure + build (presets: mac / windows / linux, *-release variants)
