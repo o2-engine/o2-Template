@@ -59,6 +59,23 @@
             "dependsOn": "cmake-configure"
         },
         {
+            "label": "start-tracy",
+            "type": "shell",
+            "command": "pkill -f 'Tools/Tracy/Tracy' 2>/dev/null; sleep 0.2; nohup \"${workspaceFolder}/Tools/Tracy/Tracy\" -a 127.0.0.1 </dev/null >/dev/null 2>&1 & disown; exit 0",
+            "presentation": { "reveal": "silent", "panel": "dedicated", "close": true },
+            "problemMatcher": []
+        },
+        {
+            "label": "profile-game",
+            "dependsOrder": "sequence",
+            "dependsOn": ["cmake-build-game", "start-tracy"]
+        },
+        {
+            "label": "profile-editor",
+            "dependsOrder": "sequence",
+            "dependsOn": ["cmake-build-editor", "start-tracy"]
+        },
+        {
             "label": "cmake-build-editor",
             "type": "shell",
             "command": "cmake",

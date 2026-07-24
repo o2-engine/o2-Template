@@ -31,6 +31,46 @@
             "preLaunchTask": "cmake-build-game"
         },
         {
+            "name": "Profile Game (Mac + Tracy)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/Bin/Mac/Game",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/Bin/Mac",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "setupCommands": [
+                {
+                    "description": "Load o2 LLDB formatters",
+                    "text": "command script import ${workspaceFolder}/o2/Framework/Platforms/o2_lldb_formatters.py",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "profile-game"
+        },
+        {
+            "name": "Profile Editor (Mac + Tracy)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/Bin/Mac/Editor",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/Bin/Mac",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "setupCommands": [
+                {
+                    "description": "Load o2 LLDB formatters",
+                    "text": "command script import ${workspaceFolder}/o2/Framework/Platforms/o2_lldb_formatters.py",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "profile-editor"
+        },
+        {
             "name": "Game (Windows, Debug)",
             "type": "cppvsdbg",
             "request": "launch",

@@ -1,6 +1,7 @@
 # CMake build trees
 /build
 /build-release
+/build-tracy
 /build-ios
 /build-ios-sim
 /build-wasm
@@ -8,6 +9,9 @@
 /build-android
 /build-android-release
 cmake-build-*
+
+# Locally built Tracy profiler GUI (13 MB binary, rebuild from the vendored 0.9.1 source)
+/Tools/Tracy/Tracy
 
 # Build outputs
 /Bin
