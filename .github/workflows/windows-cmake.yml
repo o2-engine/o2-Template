@@ -90,6 +90,7 @@ jobs:
       # ctest -E excludes two things on this CI runner (locally, on a real GPU, nothing is excluded):
       #  - *_NOT_BUILT: placeholder tests for targets this job intentionally doesn't build
       #    (GameUITests renders the deferred 3D scene, so it stays local/mac-CI only).
-      #  - the 3D / deferred render suites: they don't render correctly on the runner's software
-      #    OpenGL (Mesa llvmpipe). They pass on real GPUs (local runs, macOS CI).
-      run: ctest --test-dir build --build-config ${{ matrix.build_config }} --output-on-failure --parallel 4 -E '_NOT_BUILT$|^o2RenderTests/(Render3D|RenderChunkedDraw|Mesh3DDraw|RenderPipelineDraw)$'
+      #  - the GPU-dependent render suites (3D / deferred draw, texture copy readback): they don't
+      #    work correctly on the runner's software OpenGL (Mesa llvmpipe). They pass on real GPUs
+      #    (local runs, macOS CI).
+      run: ctest --test-dir build --build-config ${{ matrix.build_config }} --output-on-failure --parallel 4 -E '_NOT_BUILT$|^o2RenderTests/(Render3D|RenderChunkedDraw|Mesh3DDraw|RenderPipelineDraw|TextureCopy)$'
