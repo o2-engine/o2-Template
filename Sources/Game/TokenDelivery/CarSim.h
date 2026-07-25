@@ -8,9 +8,8 @@ namespace td
 	{
 		float maxSpeed = 3.0f;        // cells per second
 		float accel = 2.5f;           // cells per second^2
-		float brakeDecel = 2.5f;      // used when the speed target drops (boost end, fuel out)
+		float brakeDecel = 2.5f;      // used when the speed target drops (fuel out)
 		float turnSpeedLoss = 0.18f;  // fraction of speed lost on a turn
-		float boostFactor = 1.5f;     // speed cap multiplier while boosting
 		float driftTime = 0.4f;       // seconds of the sideways slide after a turn
 		float driftAmount = 0.4f;     // max sideways offset in cells at full speed
 		float angleSpeed = 9.0f;      // visual heading exponential lerp rate, 1/sec
@@ -20,7 +19,6 @@ namespace td
 	{
 		bool  hasDesired = false;
 		Dir   desired = Dir::N;
-		bool  boost = false;
 		bool  fuelEmpty = false;
 	};
 

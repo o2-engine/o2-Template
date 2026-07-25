@@ -512,6 +512,16 @@
     118
    ]
   },
+  "UI/blue_btn.png": {
+   "pivot": [
+    201,
+    75
+   ],
+   "size": [
+    403,
+    150
+   ]
+  },
   "UI/boost_btn.png": {
    "pivot": [
     82,
@@ -632,6 +642,136 @@
     96
    ]
   },
+  "UI/prog_part_left.png": {
+   "pivot": [
+    38,
+    50
+   ],
+   "size": [
+    77,
+    100
+   ]
+  },
+  "UI/prog_part_middle.png": {
+   "pivot": [
+    38,
+    50
+   ],
+   "size": [
+    77,
+    100
+   ]
+  },
+  "UI/prog_part_right.png": {
+   "pivot": [
+    38,
+    50
+   ],
+   "size": [
+    77,
+    100
+   ]
+  },
+  "UI/settings_btn.png": {
+   "pivot": [
+    50,
+    50
+   ],
+   "size": [
+    100,
+    100
+   ]
+  },
+  "UI/task_check.png": {
+   "pivot": [
+    25,
+    22
+   ],
+   "size": [
+    50,
+    45
+   ]
+  },
+  "UI/task_panel.png": {
+   "pivot": [
+    250,
+    132
+   ],
+   "size": [
+    500,
+    264
+   ]
+  },
+  "UI/token_tooltip.png": {
+   "pivot": [
+    100,
+    55
+   ],
+   "size": [
+    200,
+    110
+   ]
+  },
+  "UI/ui_accept_btn.png": {
+   "pivot": [
+    125,
+    70
+   ],
+   "size": [
+    251,
+    140
+   ]
+  },
+  "UI/ui_chips_panel.png": {
+   "pivot": [
+    150,
+    55
+   ],
+   "size": [
+    300,
+    110
+   ]
+  },
+  "UI/ui_fuel_panel.png": {
+   "pivot": [
+    150,
+    41
+   ],
+   "size": [
+    300,
+    83
+   ]
+  },
+  "UI/ui_fuel_panel_fill.png": {
+   "pivot": [
+    150,
+    41
+   ],
+   "size": [
+    300,
+    83
+   ]
+  },
+  "UI/ui_on_off_bg.png": {
+   "pivot": [
+    125,
+    61
+   ],
+   "size": [
+    250,
+    122
+   ]
+  },
+  "UI/ui_on_off_knob.png": {
+   "pivot": [
+    75,
+    75
+   ],
+   "size": [
+    150,
+    150
+   ]
+  },
   "UI/window.png": {
    "pivot": [
     380,
@@ -640,6 +780,36 @@
    "size": [
     760,
     520
+   ]
+  },
+  "UI/wnd_loose_bg.png": {
+   "pivot": [
+    549,
+    374
+   ],
+   "size": [
+    1099,
+    749
+   ]
+  },
+  "UI/wnd_settings_bg.png": {
+   "pivot": [
+    350,
+    282
+   ],
+   "size": [
+    700,
+    565
+   ]
+  },
+  "UI/wnd_success_bg.png": {
+   "pivot": [
+    555,
+    371
+   ],
+   "size": [
+    1111,
+    743
    ]
   },
   "backdrop.png": {

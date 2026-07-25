@@ -26,9 +26,7 @@ namespace td
 				   mCity.playerStartDir);
 		mState = SessionState::Playing;
 		mFuel = tuning.fuelTime;
-		mBoostLeft = tuning.boostReserve;
 		mTokens = 0.0f;
-		mBoosting = false;
 		mFilling = false;
 		mCompleted.Clear();
 		mCompleted.resize(mCity.orders.Count(), false);
@@ -49,10 +47,6 @@ namespace td
 		if (mState != SessionState::Playing)
 			return;
 
-		mBoosting = input.boost && mBoostLeft > 0.0f;
-		if (mBoosting)
-			mBoostLeft = Math::Max(0.0f, mBoostLeft - dt);
-
 		mFuel = Math::Max(0.0f, mFuel - dt);
 
 		CarInput carInput;
@@ -60,7 +54,6 @@ namespace td
 		if (input.right) { carInput.hasDesired = true; carInput.desired = Dir::E; }
 		if (input.down)  { carInput.hasDesired = true; carInput.desired = Dir::S; }
 		if (input.left)  { carInput.hasDesired = true; carInput.desired = Dir::W; }
-		carInput.boost = mBoosting;
 		carInput.fuelEmpty = mFuel <= 0.0f;
 
 		mCar.Tick(dt, carInput, mCity);

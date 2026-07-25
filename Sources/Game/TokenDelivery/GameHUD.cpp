@@ -2,8 +2,11 @@
 #include "TokenDelivery/GameHUD.h"
 
 #include "TokenDelivery/CityViewBuilder.h"
+#include "TokenDelivery/GameUIStyle.h"
+#include "o2/Render/FontStyle.h"
 #include "o2/Render/Sprite.h"
 #include "o2/Render/Text.h"
+#include "o2/Render/VectorFontEffects.h"
 #include "o2/Scene/Scene.h"
 #include "o2/Scene/UI/UIManager.h"
 #include "o2/Scene/UI/WidgetLayer.h"
@@ -11,17 +14,37 @@
 
 namespace td
 {
+	// task panel slide-in x offsets (root-relative), see Update()
+	static const float kTaskPanelHiddenX = -380.0f;
+	static const float kTaskPanelShownX = 0.0f; // flush with the screen edge
+	static const float kTaskPanelWidth = 350.0f;
+
 	Ref<Label> GameHUD::MakeLabel(const Ref<Widget>& parent, const WString& text, int height,
-								  bool dark)
+								  const String& style)
 	{
-		auto label = o2UI.CreateLabel(text);
+		auto label = o2UI.CreateLabel(text, style);
 		if (auto drawable = label->GetLayerDrawable<Text>("text"))
 		{
+			// widget style cloning resets the Text drawable (font, color, aligns, font
+			// style) to engine defaults — reapply everything here
+			drawable->SetFontAsset(GameUIFont());
 			drawable->SetHeight(height);
-			if (dark)
+			drawable->SetHorAlign(HorAlign::Middle);
+			drawable->SetVerAlign(VerAlign::Middle);
+			drawable->SetColor(style == "dark" ? Color4(34, 41, 65, 255)
+							 : style == "quest" ? Color4(248, 240, 216, 255)
+							 : Color4(255, 255, 255, 255));
+			if (style == "quest")
 			{
-				drawable->SetColor(Color4(58, 70, 94, 255));
-				drawable->SetFontStyle(nullptr);
+				auto fontStyle = mmake<FontStyle>();
+				fontStyle->AddEffect<FontStrokeEffect>(2.5f, Color4(44, 58, 82, 220), 100);
+				drawable->SetFontStyle(fontStyle);
+			}
+			else if (style == "standard")
+			{
+				auto fontStyle = mmake<FontStyle>();
+				fontStyle->AddEffect<FontShadowEffect>(2.0f, Vec2I(1, -2), Color4(30, 40, 60, 90));
+				drawable->SetFontStyle(fontStyle);
 			}
 		}
 		parent->AddChild(label);
@@ -42,117 +65,95 @@ namespace td
 		mRoot->layout->offsetMax = Vec2F(640.0f, 400.0f);
 		mRoot->SetDrawingDepth(10.0f);
 
-		// token counter pill, top-left; the big chip icon overlaps its left edge
-		auto pill = o2UI.CreateImage("Game/UI/pill.png");
-		mRoot->AddChild(pill);
-		pill->layout->anchorMin = Vec2F(0.0f, 1.0f);
-		pill->layout->anchorMax = Vec2F(0.0f, 1.0f);
-		pill->layout->offsetMin = Vec2F(42.0f, -92.0f);
-		pill->layout->offsetMax = Vec2F(290.0f, -24.0f);
+		// token counter panel, top-left; the chip icon is baked into the sprite
+		auto tokensPanel = o2UI.CreateImage("Game/UI/ui_chips_panel.png");
+		mRoot->AddChild(tokensPanel);
+		tokensPanel->layout->anchorMin = Vec2F(0.0f, 1.0f);
+		tokensPanel->layout->anchorMax = Vec2F(0.0f, 1.0f);
+		tokensPanel->layout->offsetMin = Vec2F(24.0f, -104.0f);
+		tokensPanel->layout->offsetMax = Vec2F(242.0f, -24.0f);
 
-		auto chip = o2UI.CreateImage("Game/Props/chip.png");
-		pill->AddChild(chip);
-		chip->layout->anchorMin = Vec2F(0.0f, 0.5f);
-		chip->layout->anchorMax = Vec2F(0.0f, 0.5f);
-		chip->layout->offsetMin = Vec2F(-34.0f, -40.0f);
-		chip->layout->offsetMax = Vec2F(46.0f, 40.0f);
-
-		mTokensLabel = MakeLabel(pill, L"0", 36, true);
+		// centered in the white part of the panel, right of the baked chip
+		mTokensLabel = MakeLabel(tokensPanel, L"0", 34, "dark");
 		mTokensLabel->layout->anchorMin = Vec2F(0.0f, 0.0f);
 		mTokensLabel->layout->anchorMax = Vec2F(1.0f, 1.0f);
-		mTokensLabel->layout->offsetMin = Vec2F(56.0f, 0.0f);
-		mTokensLabel->layout->offsetMax = Vec2F(-12.0f, 0.0f);
+		mTokensLabel->layout->offsetMin = Vec2F(73.0f, 17.0f);
+		mTokensLabel->layout->offsetMax = Vec2F(-12.0f, -10.0f);
 
-		// fuel bar, bottom-left: dark capsule image under the fill progress
-		auto fuelBack = o2UI.CreateImage("Game/UI/fuel_bg.png");
-		mRoot->AddChild(fuelBack);
-		fuelBack->layout->anchorMin = Vec2F(0.0f, 0.0f);
-		fuelBack->layout->anchorMax = Vec2F(0.0f, 0.0f);
-		fuelBack->layout->offsetMin = Vec2F(76.0f, 17.0f);
-		fuelBack->layout->offsetMax = Vec2F(429.0f, 96.0f);
+		// fuel panel, bottom-left: pump icon and bar slot are baked into the sprite
+		auto fuelPanel = o2UI.CreateImage("Game/UI/ui_fuel_panel.png");
+		mRoot->AddChild(fuelPanel);
+		fuelPanel->layout->anchorMin = Vec2F(0.0f, 0.0f);
+		fuelPanel->layout->anchorMax = Vec2F(0.0f, 0.0f);
+		fuelPanel->layout->offsetMin = Vec2F(24.0f, 20.0f);
+		fuelPanel->layout->offsetMax = Vec2F(264.0f, 86.0f);
 
-		mFuelBar = o2UI.CreateHorProgress("fuel");
-		mRoot->AddChild(mFuelBar);
-		mFuelBar->layout->anchorMin = Vec2F(0.0f, 0.0f);
-		mFuelBar->layout->anchorMax = Vec2F(0.0f, 0.0f);
-		mFuelBar->layout->offsetMin = Vec2F(85.0f, 25.0f);
-		mFuelBar->layout->offsetMax = Vec2F(420.0f, 88.0f);
-		mFuelBar->SetInteractable(false);
-		mFuelBar->SetValueForcible(1.0f);
-
-		auto fuelIcon = o2UI.CreateImage("Game/UI/fuel_icon.png");
-		mRoot->AddChild(fuelIcon);
-		fuelIcon->layout->anchorMin = Vec2F(0.0f, 0.0f);
-		fuelIcon->layout->anchorMax = Vec2F(0.0f, 0.0f);
-		fuelIcon->layout->offsetMin = Vec2F(20.0f, 22.0f);
-		fuelIcon->layout->offsetMax = Vec2F(88.0f, 90.0f);
-
-		// wide Acceleration Boost button (cut from the reference) + reserve bar, bottom-right
-		mBoostButton = o2UI.CreateWidget<Button>("boost");
-		mRoot->AddChild(mBoostButton);
-		mBoostButton->layout->anchorMin = Vec2F(1.0f, 0.0f);
-		mBoostButton->layout->anchorMax = Vec2F(1.0f, 0.0f);
-		mBoostButton->layout->offsetMin = Vec2F(-372.0f, 44.0f);
-		mBoostButton->layout->offsetMax = Vec2F(-32.0f, 173.0f);
-
-		mBoostReserveBar = o2UI.CreateHorProgress("fuel");
-		mRoot->AddChild(mBoostReserveBar);
-		mBoostReserveBar->layout->anchorMin = Vec2F(1.0f, 0.0f);
-		mBoostReserveBar->layout->anchorMax = Vec2F(1.0f, 0.0f);
-		mBoostReserveBar->layout->offsetMin = Vec2F(-340.0f, 14.0f);
-		mBoostReserveBar->layout->offsetMax = Vec2F(-64.0f, 42.0f);
-		mBoostReserveBar->SetInteractable(false);
-		mBoostReserveBar->SetValueForcible(1.0f);
-
-		// touch arrows cross, bottom-center
-		struct ArrowDef { Dir dir; const char* style; Vec2F center; };
-		const ArrowDef arrows[] = {
-			{ Dir::N, "arrow_n", Vec2F(0.0f, 160.0f) }, { Dir::S, "arrow_s", Vec2F(0.0f, 68.0f) },
-			{ Dir::W, "arrow_w", Vec2F(-92.0f, 114.0f) }, { Dir::E, "arrow_e", Vec2F(92.0f, 114.0f) }
-		};
-		for (auto& def : arrows)
+		// six fuel segments in the panel slot; the rightmost drains first
+		mFuelSegments.Clear();
+		const float segLeft = 63.0f, segRight = 226.0f, segBottom = 19.0f, segTop = 45.0f;
+		const float segGap = 2.0f;
+		const float segWidth = (segRight - segLeft - segGap*5.0f)/6.0f;
+		for (int i = 0; i < 6; i++)
 		{
-			auto arrow = o2UI.CreateWidget<Button>(def.style);
-			mRoot->AddChild(arrow);
-			arrow->layout->anchorMin = Vec2F(0.5f, 0.0f);
-			arrow->layout->anchorMax = Vec2F(0.5f, 0.0f);
-			arrow->layout->offsetMin = def.center + Vec2F(-42.0f, -42.0f);
-			arrow->layout->offsetMax = def.center + Vec2F(42.0f, 42.0f);
-			mArrows[(int)def.dir] = arrow;
+			const char* segSprite = i == 0 ? "Game/UI/prog_part_left.png"
+								  : i == 5 ? "Game/UI/prog_part_right.png"
+								  : "Game/UI/prog_part_middle.png";
+			auto segment = o2UI.CreateImage(segSprite);
+			fuelPanel->AddChild(segment);
+			float x = segLeft + i*(segWidth + segGap);
+			segment->layout->anchorMin = Vec2F(0.0f, 0.0f);
+			segment->layout->anchorMax = Vec2F(0.0f, 0.0f);
+			segment->layout->offsetMin = Vec2F(x, segBottom);
+			segment->layout->offsetMax = Vec2F(x + segWidth, segTop);
+			mFuelSegments.Add(segment);
 		}
 
-		// gear (restart), top-right
-		auto gear = o2UI.CreateWidget<Button>("gear");
-		mRoot->AddChild(gear);
-		gear->layout->anchorMin = Vec2F(1.0f, 1.0f);
-		gear->layout->anchorMax = Vec2F(1.0f, 1.0f);
-		gear->layout->offsetMin = Vec2F(-90.0f, -90.0f);
-		gear->layout->offsetMax = Vec2F(-20.0f, -20.0f);
-		gear->onClick = [this]() { onRetry(); };
+		// settings, top-right
+		auto settings = o2UI.CreateWidget<Button>("settings");
+		mRoot->AddChild(settings);
+		settings->layout->anchorMin = Vec2F(1.0f, 1.0f);
+		settings->layout->anchorMax = Vec2F(1.0f, 1.0f);
+		settings->layout->offsetMin = Vec2F(-88.0f, -88.0f);
+		settings->layout->offsetMax = Vec2F(-24.0f, -24.0f);
+		settings->onClick = [this]() { ShowSettings(); };
 
-		// order completed plash, slides in from the left edge
-		mPlash = mmake<Widget>();
-		mPlash->SetName("plash");
-		mRoot->AddChild(mPlash);
-		mPlash->AddLayer("back", mmake<Sprite>(String("Game/UI/pill.png")));
-		mPlash->layout->anchorMin = Vec2F(0.0f, 0.5f);
-		mPlash->layout->anchorMax = Vec2F(0.0f, 0.5f);
-		mPlash->layout->offsetMin = Vec2F(-400.0f, 20.0f);
-		mPlash->layout->offsetMax = Vec2F(-40.0f, 104.0f);
+		// completed task panel, slides in from the left edge on order delivery
+		mTaskPanel = mmake<Widget>();
+		mTaskPanel->SetName("task panel");
+		mRoot->AddChild(mTaskPanel);
+		// only the panel back is translucent, text and check stay solid
+		auto taskBack = mTaskPanel->AddLayer("back", mmake<Sprite>(String("Game/UI/task_panel.png")));
+		taskBack->SetTransparency(0.82f);
+		mTaskPanel->layout->anchorMin = Vec2F(0.0f, 1.0f);
+		mTaskPanel->layout->anchorMax = Vec2F(0.0f, 1.0f);
+		mTaskPanel->layout->offsetMin = Vec2F(kTaskPanelHiddenX, -305.0f);
+		mTaskPanel->layout->offsetMax = Vec2F(kTaskPanelHiddenX + kTaskPanelWidth, -120.0f);
 
-		auto plashCheck = o2UI.CreateImage("Game/UI/check.png");
-		mPlash->AddChild(plashCheck);
-		plashCheck->layout->anchorMin = Vec2F(0.0f, 0.5f);
-		plashCheck->layout->anchorMax = Vec2F(0.0f, 0.5f);
-		plashCheck->layout->offsetMin = Vec2F(12.0f, -28.0f);
-		plashCheck->layout->offsetMax = Vec2F(68.0f, 28.0f);
+		auto taskHeader = MakeLabel(mTaskPanel, L"Active Quests", 26, "quest");
+		taskHeader->layout->anchorMin = Vec2F(0.0f, 0.0f);
+		taskHeader->layout->anchorMax = Vec2F(0.0f, 0.0f);
+		taskHeader->layout->offsetMin = Vec2F(18.0f, 111.0f);
+		taskHeader->layout->offsetMax = Vec2F(280.0f, 167.0f);
+		if (auto drawable = taskHeader->GetLayerDrawable<Text>("text"))
+			drawable->SetHorAlign(HorAlign::Left);
 
-		mPlashLabel = MakeLabel(mPlash, L"Order delivered!", 26, true);
-		mPlashLabel->layout->anchorMin = Vec2F(0.0f, 0.0f);
-		mPlashLabel->layout->anchorMax = Vec2F(1.0f, 1.0f);
-		mPlashLabel->layout->offsetMin = Vec2F(72.0f, 0.0f);
-		mPlashLabel->layout->offsetMax = Vec2F(-8.0f, 0.0f);
-		mPlash->SetEnabled(false);
+		// green check over the checkbox baked into the panel body
+		auto taskCheck = o2UI.CreateImage("Game/UI/task_check.png");
+		mTaskPanel->AddChild(taskCheck);
+		taskCheck->layout->anchorMin = Vec2F(0.0f, 0.0f);
+		taskCheck->layout->anchorMax = Vec2F(0.0f, 0.0f);
+		taskCheck->layout->offsetMin = Vec2F(27.0f, 72.0f);
+		taskCheck->layout->offsetMax = Vec2F(61.0f, 103.0f);
+
+		// two lines like the reference: "Delivery office" / "<city>"
+		mTaskLabel = MakeLabel(mTaskPanel, L"Delivery office", 18, "quest");
+		mTaskLabel->layout->anchorMin = Vec2F(0.0f, 0.0f);
+		mTaskLabel->layout->anchorMax = Vec2F(0.0f, 0.0f);
+		mTaskLabel->layout->offsetMin = Vec2F(68.0f, 56.0f);
+		mTaskLabel->layout->offsetMax = Vec2F(334.0f, 116.0f);
+		if (auto drawable = mTaskLabel->GetLayerDrawable<Text>("text"))
+			drawable->SetHorAlign(HorAlign::Left);
+		mTaskPanel->SetEnabled(false);
 
 		// windows on top
 		mDimmer = mmake<Widget>();
@@ -166,103 +167,127 @@ namespace td
 		mDimmer->SetTransparency(0.65f);
 		mDimmer->SetEnabled(false);
 
-		mWinWindow = MakeWindow(L"All orders delivered!",
-								L"The whole city got its AI tokens in time.",
-								L"Next level", "green", [this]() { onNextLevel(); });
-		mLoseWindow = MakeWindow(L"Out of fuel!",
-								 L"Some offices are still waiting for tokens...",
-								 L"Retry", "standard", [this]() { onRetry(); });
+		mWinWindow = MakeResultWindow("Game/UI/wnd_success_bg.png",
+									  Vec2F(-231.0f, -123.0f), Vec2F(232.0f, 187.0f),
+									  L"MISSION COMPLETE!", 170.0f,
+									  L"All orders have been\nsuccessfully delivered.", 100.0f,
+									  L"CONTINUE", [this]() { onNextLevel(); });
+		mLoseWindow = MakeResultWindow("Game/UI/wnd_loose_bg.png",
+									   Vec2F(-231.0f, -121.0f), Vec2F(231.0f, 194.0f),
+									   L"OUT OF FUEL", 158.0f,
+									   L"Your delivery truck has run out of fuel.\nRefill and try again!", 96.0f,
+									   L"TRY AGAIN", [this]() { onRetry(); });
+		BuildSettingsWindow();
 	}
 
-	Ref<Widget> GameHUD::MakeWindow(const WString& title, const WString& message,
-									const WString& buttonCaption, const String& buttonStyle,
-									const Function<void()>& onClick)
+	Ref<Widget> GameHUD::MakeResultWindow(const String& bgSprite, const Vec2F& offMin, const Vec2F& offMax,
+										  const WString& title, float titleY,
+										  const WString& message, float messageY,
+										  const WString& buttonCaption, const Function<void()>& onClick)
 	{
 		auto window = mmake<Widget>();
 		window->SetName("window");
 		mRoot->AddChild(window);
-		window->AddLayer("back", mmake<Sprite>(String("Game/UI/window.png")));
+		window->AddLayer("back", mmake<Sprite>(bgSprite));
 		window->layout->anchorMin = Vec2F(0.5f, 0.5f);
 		window->layout->anchorMax = Vec2F(0.5f, 0.5f);
-		window->layout->offsetMin = Vec2F(-320.0f, -210.0f);
-		window->layout->offsetMax = Vec2F(320.0f, 210.0f);
+		window->layout->offsetMin = offMin;
+		window->layout->offsetMax = offMax;
 
-		auto titleLabel = MakeLabel(window, title, 38, true);
-		titleLabel->layout->anchorMin = Vec2F(0.0f, 1.0f);
-		titleLabel->layout->anchorMax = Vec2F(1.0f, 1.0f);
-		titleLabel->layout->offsetMin = Vec2F(20.0f, -120.0f);
-		titleLabel->layout->offsetMax = Vec2F(-20.0f, -40.0f);
+		auto titleLabel = MakeLabel(window, title, 29);
+		titleLabel->layout->anchorMin = Vec2F(0.0f, 0.0f);
+		titleLabel->layout->anchorMax = Vec2F(1.0f, 0.0f);
+		titleLabel->layout->offsetMin = Vec2F(20.0f, titleY - 26.0f);
+		titleLabel->layout->offsetMax = Vec2F(-20.0f, titleY + 26.0f);
 
-		auto messageLabel = MakeLabel(window, message, 24, true);
-		messageLabel->layout->anchorMin = Vec2F(0.0f, 0.5f);
-		messageLabel->layout->anchorMax = Vec2F(1.0f, 0.5f);
-		messageLabel->layout->offsetMin = Vec2F(20.0f, -20.0f);
-		messageLabel->layout->offsetMax = Vec2F(-20.0f, 60.0f);
+		auto messageLabel = MakeLabel(window, message, 17);
+		messageLabel->layout->anchorMin = Vec2F(0.0f, 0.0f);
+		messageLabel->layout->anchorMax = Vec2F(1.0f, 0.0f);
+		messageLabel->layout->offsetMin = Vec2F(20.0f, messageY - 30.0f);
+		messageLabel->layout->offsetMax = Vec2F(-20.0f, messageY + 30.0f);
 
-		auto button = o2UI.CreateButton(buttonCaption, onClick, buttonStyle);
+		auto button = o2UI.CreateButton(buttonCaption, onClick, "blue");
 		window->AddChild(button);
 		button->layout->anchorMin = Vec2F(0.5f, 0.0f);
 		button->layout->anchorMax = Vec2F(0.5f, 0.0f);
-		button->layout->offsetMin = Vec2F(-180.0f, 40.0f);
-		button->layout->offsetMax = Vec2F(180.0f, 150.0f);
+		button->layout->offsetMin = Vec2F(-107.0f, -38.0f);
+		button->layout->offsetMax = Vec2F(107.0f, 42.0f);
+
+		if (auto caption = button->GetLayerDrawable<Text>("caption"))
+		{
+			caption->SetFontAsset(GameUIFont());
+			caption->SetHeight(26);
+			auto fontStyle = mmake<FontStyle>();
+			fontStyle->AddEffect<FontStrokeEffect>(2.5f, Color4(44, 58, 82, 160), 100);
+			caption->SetFontStyle(fontStyle);
+		}
 
 		window->SetEnabled(false);
 		return window;
+	}
+
+	void GameHUD::BuildSettingsWindow()
+	{
+		// wnd_settings_bg has the toggle rows baked (icons + empty sockets); labels,
+		// switches and the accept button are placed over the measured socket rects
+		mSettingsWindow = mmake<Widget>();
+		mSettingsWindow->SetName("settings window");
+		mRoot->AddChild(mSettingsWindow);
+		mSettingsWindow->AddLayer("back", mmake<Sprite>(String("Game/UI/wnd_settings_bg.png")));
+		mSettingsWindow->layout->anchorMin = Vec2F(0.5f, 0.5f);
+		mSettingsWindow->layout->anchorMax = Vec2F(0.5f, 0.5f);
+		mSettingsWindow->layout->offsetMin = Vec2F(-210.0f, -170.0f);
+		mSettingsWindow->layout->offsetMax = Vec2F(210.0f, 169.0f);
+
+		auto soundLabel = MakeLabel(mSettingsWindow, L"SOUND", 22);
+		soundLabel->layout->anchorMin = Vec2F(0.0f, 0.0f);
+		soundLabel->layout->anchorMax = Vec2F(0.0f, 0.0f);
+		soundLabel->layout->offsetMin = Vec2F(126.0f, 228.0f);
+		soundLabel->layout->offsetMax = Vec2F(240.0f, 268.0f);
+		if (auto drawable = soundLabel->GetLayerDrawable<Text>("text"))
+			drawable->SetHorAlign(HorAlign::Left);
+
+		auto musicLabel = MakeLabel(mSettingsWindow, L"MUSIC", 22);
+		musicLabel->layout->anchorMin = Vec2F(0.0f, 0.0f);
+		musicLabel->layout->anchorMax = Vec2F(0.0f, 0.0f);
+		musicLabel->layout->offsetMin = Vec2F(126.0f, 117.0f);
+		musicLabel->layout->offsetMax = Vec2F(240.0f, 157.0f);
+		if (auto drawable = musicLabel->GetLayerDrawable<Text>("text"))
+			drawable->SetHorAlign(HorAlign::Left);
+
+		mSoundToggle = o2UI.CreateWidget<Toggle>("switch");
+		mSettingsWindow->AddChild(mSoundToggle);
+		mSoundToggle->layout->anchorMin = Vec2F(0.0f, 0.0f);
+		mSoundToggle->layout->anchorMax = Vec2F(0.0f, 0.0f);
+		mSoundToggle->layout->offsetMin = Vec2F(241.0f, 216.0f);
+		mSoundToggle->layout->offsetMax = Vec2F(364.0f, 275.0f);
+		mSoundToggle->SetValue(true);
+		mSoundToggle->SetStateForcible("value", true);
+
+		mMusicToggle = o2UI.CreateWidget<Toggle>("switch");
+		mSettingsWindow->AddChild(mMusicToggle);
+		mMusicToggle->layout->anchorMin = Vec2F(0.0f, 0.0f);
+		mMusicToggle->layout->anchorMax = Vec2F(0.0f, 0.0f);
+		mMusicToggle->layout->offsetMin = Vec2F(241.0f, 105.0f);
+		mMusicToggle->layout->offsetMax = Vec2F(364.0f, 164.0f);
+		mMusicToggle->SetValue(true);
+		mMusicToggle->SetStateForcible("value", true);
+
+		auto accept = o2UI.CreateWidget<Button>("accept");
+		mSettingsWindow->AddChild(accept);
+		accept->layout->anchorMin = Vec2F(0.5f, 0.0f);
+		accept->layout->anchorMax = Vec2F(0.5f, 0.0f);
+		accept->layout->offsetMin = Vec2F(-75.0f, -44.0f);
+		accept->layout->offsetMax = Vec2F(75.0f, 40.0f);
+		accept->onClick = [this]() { HideWindows(); };
+
+		mSettingsWindow->SetEnabled(false);
 	}
 
 	void GameHUD::BindLevel(GameSession* session, const Vector<Ref<Actor>>& officeAnchors)
 	{
 		mSession = session;
 
-		if (mQuestPanel)
-			mQuestPanel->RemoveFromScene();
-		mQuestLabels.Clear();
-		mQuestChecks.Clear();
-
-		auto& orders = session->GetCity().orders;
-		float panelHeight = 52.0f + orders.Count()*34.0f;
-
-		mQuestPanel = mmake<Widget>();
-		mQuestPanel->SetName("quests");
-		mRoot->AddChild(mQuestPanel);
-		mQuestPanel->AddLayer("back", mmake<Sprite>(String("Game/UI/panel_dark.png")));
-		mQuestPanel->SetTransparency(0.92f);
-		mQuestPanel->layout->anchorMin = Vec2F(0.0f, 1.0f);
-		mQuestPanel->layout->anchorMax = Vec2F(0.0f, 1.0f);
-		mQuestPanel->layout->offsetMin = Vec2F(20.0f, -108.0f - panelHeight);
-		mQuestPanel->layout->offsetMax = Vec2F(310.0f, -108.0f);
-
-		auto header = MakeLabel(mQuestPanel, L"Active Quests", 26);
-		header->layout->anchorMin = Vec2F(0.0f, 1.0f);
-		header->layout->anchorMax = Vec2F(1.0f, 1.0f);
-		header->layout->offsetMin = Vec2F(10.0f, -46.0f);
-		header->layout->offsetMax = Vec2F(-10.0f, -6.0f);
-
-		for (int i = 0; i < orders.Count(); i++)
-		{
-			float y = -52.0f - i*38.0f;
-
-			auto check = o2UI.CreateImage("Game/UI/check.png");
-			mQuestPanel->AddChild(check);
-			check->layout->anchorMin = Vec2F(0.0f, 1.0f);
-			check->layout->anchorMax = Vec2F(0.0f, 1.0f);
-			check->layout->offsetMin = Vec2F(12.0f, y - 15.0f);
-			check->layout->offsetMax = Vec2F(42.0f, y + 15.0f);
-			check->SetTransparency(0.25f);
-			mQuestChecks.Add(check);
-
-			String row = String("Office ") + orders[i].name + "  x" + (String)orders[i].amount;
-			auto rowLabel = MakeLabel(mQuestPanel, WString(row), 19);
-			rowLabel->layout->anchorMin = Vec2F(0.0f, 1.0f);
-			rowLabel->layout->anchorMax = Vec2F(1.0f, 1.0f);
-			rowLabel->layout->offsetMin = Vec2F(52.0f, y - 19.0f);
-			rowLabel->layout->offsetMax = Vec2F(-8.0f, y + 19.0f);
-			if (auto drawable = rowLabel->GetLayerDrawable<Text>("text"))
-				drawable->SetHorAlign(HorAlign::Left);
-			mQuestLabels.Add(rowLabel);
-		}
-
-		// world-space tooltips above offices
 		for (auto& tooltip : mTooltips)
 		{
 			if (tooltip)
@@ -270,6 +295,7 @@ namespace td
 		}
 		mTooltips.Clear();
 
+		auto& orders = session->GetCity().orders;
 		for (int i = 0; i < orders.Count(); i++)
 		{
 			if (i >= officeAnchors.Count() || !officeAnchors[i])
@@ -280,36 +306,26 @@ namespace td
 
 			Vec3F anchorPos = officeAnchors[i]->transform->GetWorldPosition();
 
-			// speech bubble cut from the reference: chip baked in, tail at the bottom
+			// white speech bubble, chip baked in; the tail tip points at the anchor
 			auto tooltip = mmake<Widget>();
 			tooltip->SetName("order tooltip");
 			tooltip->SetLayer(kWorldLayer);
-			tooltip->AddLayer("back", mmake<Sprite>(String("Game/UI/bubble.png")));
+			tooltip->AddLayer("back", mmake<Sprite>(String("Game/UI/token_tooltip.png")));
 			tooltip->layout->anchorMin = Vec2F(0.0f, 0.0f);
 			tooltip->layout->anchorMax = Vec2F(0.0f, 0.0f);
-			tooltip->layout->offsetMin = Vec2F(anchorPos.x - 105.0f, anchorPos.y);
-			tooltip->layout->offsetMax = Vec2F(anchorPos.x + 105.0f, anchorPos.y + 121.0f);
+			tooltip->layout->offsetMin = Vec2F(anchorPos.x - 99.0f, anchorPos.y);
+			tooltip->layout->offsetMax = Vec2F(anchorPos.x + 101.0f, anchorPos.y + 94.0f);
 
-			auto amount = MakeLabel(tooltip, WString((String)orders[i].amount), 34, true);
+			// centered in the white body right of the baked chip
+			auto amount = MakeLabel(tooltip, WString((String)orders[i].amount), 34, "dark");
 			amount->layout->anchorMin = Vec2F(0.0f, 0.0f);
 			amount->layout->anchorMax = Vec2F(1.0f, 1.0f);
-			amount->layout->offsetMin = Vec2F(74.0f, 30.0f);
-			amount->layout->offsetMax = Vec2F(-14.0f, -4.0f);
+			amount->layout->offsetMin = Vec2F(80.0f, 22.0f);
+			amount->layout->offsetMax = Vec2F(-8.0f, -7.0f);
 
 			tooltip->SetDrawingDepth(500.0f + i);
 			mTooltips.Add(tooltip);
 		}
-	}
-
-	bool GameHUD::IsBoostHeld() const
-	{
-		return mBoostButton && mBoostButton->IsPressed();
-	}
-
-	bool GameHUD::IsArrowHeld(Dir dir) const
-	{
-		auto& arrow = mArrows[(int)dir];
-		return arrow && arrow->IsPressed();
 	}
 
 	void GameHUD::Update(float dt)
@@ -321,52 +337,50 @@ namespace td
 
 		mTokensLabel->SetText(WString((String)mSession->GetTokens()));
 
-		mFuelBar->SetValueForcible(Math::Clamp01(mSession->GetFuelFraction()));
-		if (mSession->GetFuel() < 10.0f)
+		// segments disappear one by one; the last one blinks while it lasts
+		float fuelFraction = Math::Clamp01(mSession->GetFuelFraction());
+		int segmentsLeft = Math::Min(6, (int)Math::Ceil(fuelFraction*6.0f));
+		for (int i = 0; i < mFuelSegments.Count(); i++)
+			mFuelSegments[i]->SetTransparency(i < segmentsLeft ? 1.0f : 0.0f);
+		if (segmentsLeft == 1)
 		{
 			mLowFuelBlink += dt*6.0f;
-			mFuelBar->SetTransparency(0.65f + 0.35f*Math::Sin(mLowFuelBlink));
+			mFuelSegments[0]->SetTransparency(0.4f + 0.6f*(0.5f + 0.5f*Math::Sin(mLowFuelBlink)));
 		}
-		else
-			mFuelBar->SetTransparency(1.0f);
 
-		mBoostReserveBar->SetValueForcible(Math::Clamp01(mSession->GetBoostFraction()));
-
-		for (int i = 0; i < mQuestChecks.Count(); i++)
+		for (int i = 0; i < mTooltips.Count(); i++)
 		{
-			bool completed = mSession->IsOrderCompleted(i);
-			mQuestChecks[i]->SetTransparency(completed ? 1.0f : 0.25f);
+			if (!mTooltips[i])
+				continue;
 
-			if (i < mTooltips.Count() && mTooltips[i])
+			bool completed = mSession->IsOrderCompleted(i);
+			mTooltips[i]->SetEnabled(!completed);
+			if (!completed)
 			{
-				mTooltips[i]->SetEnabled(!completed);
-				if (!completed)
-				{
-					float scale = 1.0f + 0.05f*Math::Sin(mPulsePhase*2.5f + i);
-					mTooltips[i]->transform->SetScale(Vec3F(scale, scale, 1.0f));
-				}
+				float scale = 1.0f + 0.05f*Math::Sin(mPulsePhase*2.5f + i);
+				mTooltips[i]->transform->SetScale(Vec3F(scale, scale, 1.0f));
 			}
 		}
 
-		// plash slide in/out
-		if (mPlashTimer >= 0.0f)
+		// task panel slide in/out
+		if (mTaskTimer >= 0.0f)
 		{
-			mPlashTimer += dt;
+			mTaskTimer += dt;
 			float x;
-			if (mPlashTimer < 0.25f)
-				x = Math::Lerp(-400.0f, 40.0f, mPlashTimer/0.25f);
-			else if (mPlashTimer < 1.6f)
-				x = 40.0f;
-			else if (mPlashTimer < 1.85f)
-				x = Math::Lerp(40.0f, -400.0f, (mPlashTimer - 1.6f)/0.25f);
+			if (mTaskTimer < 0.3f)
+				x = Math::Lerp(kTaskPanelHiddenX, kTaskPanelShownX, mTaskTimer/0.3f);
+			else if (mTaskTimer < 2.2f)
+				x = kTaskPanelShownX;
+			else if (mTaskTimer < 2.5f)
+				x = Math::Lerp(kTaskPanelShownX, kTaskPanelHiddenX, (mTaskTimer - 2.2f)/0.3f);
 			else
 			{
-				mPlash->SetEnabled(false);
-				mPlashTimer = -1.0f;
-				x = -400.0f;
+				mTaskPanel->SetEnabled(false);
+				mTaskTimer = -1.0f;
+				x = kTaskPanelHiddenX;
 			}
-			mPlash->layout->offsetMin = Vec2F(x, 20.0f);
-			mPlash->layout->offsetMax = Vec2F(x + 360.0f, 104.0f);
+			mTaskPanel->layout->offsetMin = Vec2F(x, -305.0f);
+			mTaskPanel->layout->offsetMax = Vec2F(x + kTaskPanelWidth, -120.0f);
 		}
 	}
 
@@ -374,10 +388,10 @@ namespace td
 	{
 		auto& orders = mSession->GetCity().orders;
 		if (orderIndex >= 0 && orderIndex < orders.Count())
-			mPlashLabel->SetText(WString(String("Office ") + orders[orderIndex].name + " done!"));
+			mTaskLabel->SetText(WString(String("Delivery office\n") + orders[orderIndex].name));
 
-		mPlash->SetEnabled(true);
-		mPlashTimer = 0.0f;
+		mTaskPanel->SetEnabled(true);
+		mTaskTimer = 0.0f;
 	}
 
 	void GameHUD::ShowWin()
@@ -392,6 +406,12 @@ namespace td
 		mLoseWindow->SetEnabled(true);
 	}
 
+	void GameHUD::ShowSettings()
+	{
+		mDimmer->SetEnabled(true);
+		mSettingsWindow->SetEnabled(true);
+	}
+
 	void GameHUD::HideWindows()
 	{
 		if (mDimmer)
@@ -400,6 +420,8 @@ namespace td
 			mWinWindow->SetEnabled(false);
 		if (mLoseWindow)
 			mLoseWindow->SetEnabled(false);
+		if (mSettingsWindow)
+			mSettingsWindow->SetEnabled(false);
 	}
 
 	void GameHUD::Clear()
@@ -414,7 +436,6 @@ namespace td
 		if (mRoot)
 			mRoot->RemoveFromScene();
 		mRoot = nullptr;
-		mQuestPanel = nullptr;
 		mSession = nullptr;
 	}
 }

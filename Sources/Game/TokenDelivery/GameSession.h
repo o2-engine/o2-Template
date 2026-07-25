@@ -9,7 +9,6 @@ namespace td
 	{
 		CarTuning car;
 		float fuelTime = 60.0f;       // seconds of fuel, constant drain
-		float boostReserve = 5.0f;    // seconds of boost hold
 		float fillRate = 60.0f;       // tokens per second near the source
 		float fillRadius = 1.6f;      // cells from the fountain-adjacent road cells
 		int   baseOrders = 3;
@@ -23,10 +22,9 @@ namespace td
 	struct GameInput
 	{
 		bool up = false, down = false, left = false, right = false;
-		bool boost = false;
 	};
 
-	// Full game round: generated city + player car + tokens + orders + fuel/boost economy.
+	// Full game round: generated city + player car + tokens + orders + fuel economy.
 	// Pure logic, drives the view layer; fully testable headless.
 	class GameSession
 	{
@@ -44,9 +42,6 @@ namespace td
 		int   GetTokens() const { return (int)mTokens; }
 		float GetFuel() const { return mFuel; }              // seconds left
 		float GetFuelFraction() const { return mFuel/mTuning.fuelTime; }
-		float GetBoostLeft() const { return mBoostLeft; }
-		float GetBoostFraction() const { return mBoostLeft/mTuning.boostReserve; }
-		bool  IsBoosting() const { return mBoosting; }
 		bool  IsFilling() const { return mFilling; }
 
 		void  DebugSetFuel(float seconds) { mFuel = seconds; } // test hook
@@ -64,9 +59,7 @@ namespace td
 		SessionState  mState = SessionState::Playing;
 		int           mLevel = 1;
 		float         mFuel = 0.0f;
-		float         mBoostLeft = 0.0f;
 		float         mTokens = 0.0f;
-		bool          mBoosting = false;
 		bool          mFilling = false;
 		Vector<bool>  mCompleted;
 		int           mCompletedThisTick = -1;

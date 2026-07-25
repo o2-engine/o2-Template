@@ -20,6 +20,7 @@ public:
 
 	const td::GameSession& GetSession() const { return mSession; }
 	td::GameSession& GetSessionMutable() { return mSession; }
+	td::GameHUD& GetHUD() { return mHUD; } // test hook
 	int GetLevel() const { return mLevel; }
 
 	void StartLevel(int level);
@@ -101,6 +102,7 @@ CLASS_METHODS_META(GameControllerComponent)
     FUNCTION().PUBLIC().CONSTRUCTOR(RefCounter*);
     FUNCTION().PUBLIC().SIGNATURE(const td::GameSession&, GetSession);
     FUNCTION().PUBLIC().SIGNATURE(td::GameSession&, GetSessionMutable);
+    FUNCTION().PUBLIC().SIGNATURE(td::GameHUD&, GetHUD);
     FUNCTION().PUBLIC().SIGNATURE(int, GetLevel);
     FUNCTION().PUBLIC().SIGNATURE(void, StartLevel, int);
     FUNCTION().PRIVATE().SIGNATURE(void, OnStart);

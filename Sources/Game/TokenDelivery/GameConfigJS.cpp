@@ -37,10 +37,8 @@ namespace td
 		ReadFloat(config, "maxSpeed", tuning.car.maxSpeed);
 		ReadFloat(config, "accel", tuning.car.accel);
 		ReadFloat(config, "turnSpeedLoss", tuning.car.turnSpeedLoss);
-		ReadFloat(config, "boostFactor", tuning.car.boostFactor);
 		ReadFloat(config, "driftTime", tuning.car.driftTime);
 		ReadFloat(config, "fuelTime", tuning.fuelTime);
-		ReadFloat(config, "boostReserve", tuning.boostReserve);
 		ReadFloat(config, "fillRate", tuning.fillRate);
 		ReadInt(config, "baseOrders", tuning.baseOrders);
 		ReadInt(config, "maxOrders", tuning.maxOrders);

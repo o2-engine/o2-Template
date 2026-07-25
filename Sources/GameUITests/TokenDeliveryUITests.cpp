@@ -8,6 +8,7 @@
 #include "o2/Render/Render.h"
 #include "o2/Scene/Scene.h"
 #include "o2/Scene/UI/Widget.h"
+#include "o2/Scene/UI/Widgets/Toggle.h"
 #include "o2/Utils/Bitmap/Bitmap.h"
 #include "o2/Utils/FileSystem/FileSystem.h"
 #include "o2/Utils/Test/AppTestDriver.h"
@@ -222,22 +223,81 @@ TEST_F(TokenDeliveryApp, CarDrivesAndArrowKeysSteer)
 	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_delivery_turn.png");
 }
 
-TEST_F(TokenDeliveryApp, SpaceBoostsAndDrainsReserve)
+TEST_F(TokenDeliveryApp, CompletedTaskPanelSlidesInAndOut)
 {
 	auto controller = FindController();
 	ASSERT_TRUE(controller);
-	auto& session = controller->GetSession();
 
-	float reserveBefore = session.GetBoostLeft();
+	auto hud = o2Scene.FindActor("hud");
+	ASSERT_TRUE(hud);
+	auto panel = hud->FindChild("task panel");
+	ASSERT_TRUE(panel);
+	EXPECT_FALSE(panel->IsEnabled());
 
-	o2Input.OnKeyPressed(VK_SPACE);
-	AppTestDriver::Wait(1.0f);
-	EXPECT_TRUE(session.IsBoosting());
-	o2Input.OnKeyReleased(VK_SPACE);
-	AppTestDriver::PumpFrames(2);
+	controller->GetHUD().ShowOrderCompleted(0);
+	AppTestDriver::Wait(0.6f); // fully slid in from the left
+	EXPECT_TRUE(panel->IsEnabled());
 
-	EXPECT_LT(session.GetBoostLeft(), reserveBefore - 0.5f);
-	EXPECT_FALSE(session.IsBoosting());
+	o2FileSystem.FolderCreate(kScreenshotsDir, true);
+	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_delivery_task.png");
+
+	// holds, then slides back out; a real in-game delivery may retrigger the panel,
+	// so poll until the animation finishes instead of asserting at a fixed time
+	bool hidden = false;
+	for (int i = 0; i < 600 && !hidden; i++)
+	{
+		AppTestDriver::PumpFrames(1);
+		hidden = !panel->IsEnabled();
+	}
+	EXPECT_TRUE(hidden);
+}
+
+TEST_F(TokenDeliveryApp, SettingsWindowOpensTogglesAndCloses)
+{
+	auto hud = o2Scene.FindActor("hud");
+	ASSERT_TRUE(hud);
+	auto settingsWindow = hud->FindChild("settings window");
+	ASSERT_TRUE(settingsWindow);
+	EXPECT_FALSE(settingsWindow->IsEnabled());
+
+	// settings button center, top-right corner of the 1280x800 UI rect
+	AppTestDriver::Click(UIToScreen(Vec2F(584.0f, 344.0f)));
+	AppTestDriver::PumpFrames(3);
+	ASSERT_TRUE(settingsWindow->IsEnabled());
+
+	o2FileSystem.FolderCreate(kScreenshotsDir, true);
+	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_delivery_settings.png");
+
+	// sound switch: window (-210,-170)..(210,169), toggle rect (241,216)-(364,275)
+	auto toggle = DynamicCast<Toggle>(settingsWindow->FindChild("switch"));
+	ASSERT_TRUE(toggle);
+	EXPECT_TRUE(toggle->GetValue());
+	AppTestDriver::Click(UIToScreen(Vec2F(92.5f, 75.5f)));
+	AppTestDriver::PumpFrames(3);
+	EXPECT_FALSE(toggle->GetValue());
+	AppTestDriver::Wait(0.3f); // knob slides to the off side
+	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_delivery_settings_off.png");
+
+	// accept on the window bottom edge: hold to capture the press-down state, then
+	// release — the click closes the settings
+	AppTestDriver::PressCursor(UIToScreen(Vec2F(0.0f, -172.0f)));
+	AppTestDriver::Wait(0.15f);
+	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_delivery_btn_pressed.png");
+	AppTestDriver::ReleaseCursor();
+	AppTestDriver::PumpFrames(3);
+	EXPECT_FALSE(settingsWindow->IsEnabled());
+}
+
+TEST_F(TokenDeliveryApp, WinWindowRenders)
+{
+	auto controller = FindController();
+	ASSERT_TRUE(controller);
+
+	controller->GetHUD().ShowWin();
+	AppTestDriver::Wait(0.3f);
+
+	o2FileSystem.FolderCreate(kScreenshotsDir, true);
+	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_delivery_win.png");
 }
 
 TEST_F(TokenDeliveryApp, FuelDrainsOverTime)
@@ -265,6 +325,12 @@ TEST_F(TokenDeliveryApp, FuelRunOutShowsLoseWindowAndRetryRestarts)
 	auto controller = FindController();
 	ASSERT_TRUE(controller);
 
+	// one blinking segment left in the fuel panel
+	controller->GetSessionMutable().DebugSetFuel(8.0f);
+	AppTestDriver::PumpFrames(5);
+	o2FileSystem.FolderCreate(kScreenshotsDir, true);
+	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_delivery_fuel_low.png");
+
 	controller->GetSessionMutable().DebugSetFuel(0.3f);
 	AppTestDriver::Wait(2.5f); // fuel dies, the car rolls to a stop, the lose window pops
 	ASSERT_EQ(controller->GetSession().GetState(), td::SessionState::Lost);
@@ -272,27 +338,9 @@ TEST_F(TokenDeliveryApp, FuelRunOutShowsLoseWindowAndRetryRestarts)
 	o2FileSystem.FolderCreate(kScreenshotsDir, true);
 	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_delivery_lose.png");
 
-	// the retry button of the lose window sits at the window bottom center
-	AppTestDriver::Click(UIToScreen(Vec2F(0.0f, -115.0f)));
+	// the retry button of the lose window sits on the window bottom edge center
+	AppTestDriver::Click(UIToScreen(Vec2F(0.0f, -119.0f)));
 	AppTestDriver::PumpFrames(3);
 	EXPECT_EQ(controller->GetSession().GetState(), td::SessionState::Playing);
 	EXPECT_GT(controller->GetSession().GetFuel(), 30.0f);
-}
-
-TEST_F(TokenDeliveryApp, BoostButtonPressWorksWithCursor)
-{
-	auto controller = FindController();
-	ASSERT_TRUE(controller);
-
-	// boost button rect center in UI camera space (FittedSize 1280x800, origin center):
-	// anchored to the bottom-right corner, offsets (-190,60)..(-30,220)
-	Vec2F buttonCenter = UIToScreen(Vec2F(640.0f - 110.0f, -400.0f + 140.0f));
-
-	AppTestDriver::PressCursor(buttonCenter);
-	AppTestDriver::PumpFrames(5);
-	EXPECT_TRUE(controller->GetSession().IsBoosting());
-
-	AppTestDriver::ReleaseCursor();
-	AppTestDriver::PumpFrames(2);
-	EXPECT_FALSE(controller->GetSession().IsBoosting());
 }

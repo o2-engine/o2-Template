@@ -167,22 +167,17 @@ void GameControllerComponent::StartLevel(int level)
 GameInput GameControllerComponent::CollectInput() const
 {
 	GameInput input;
-	input.up = o2Input.IsKeyDown(VK_UP) || o2Input.IsKeyDown('W') || mHUD.IsArrowHeld(Dir::N);
-	input.down = o2Input.IsKeyDown(VK_DOWN) || o2Input.IsKeyDown('S') || mHUD.IsArrowHeld(Dir::S);
-	input.left = o2Input.IsKeyDown(VK_LEFT) || o2Input.IsKeyDown('A') || mHUD.IsArrowHeld(Dir::W);
-	input.right = o2Input.IsKeyDown(VK_RIGHT) || o2Input.IsKeyDown('D') || mHUD.IsArrowHeld(Dir::E);
-	input.boost = o2Input.IsKeyDown(VK_SPACE) || mHUD.IsBoostHeld();
+	input.up = o2Input.IsKeyDown(VK_UP) || o2Input.IsKeyDown('W');
+	input.down = o2Input.IsKeyDown(VK_DOWN) || o2Input.IsKeyDown('S');
+	input.left = o2Input.IsKeyDown(VK_LEFT) || o2Input.IsKeyDown('A');
+	input.right = o2Input.IsKeyDown(VK_RIGHT) || o2Input.IsKeyDown('D');
 	return input;
 }
 
 void GameControllerComponent::SyncCarView(float dt)
 {
 	auto& car = mSession.GetCar();
-	float smoke = car.GetDriftIntensity();
-	if (mSession.IsBoosting())
-		smoke = Math::Max(smoke, 0.35f);
-
-	mPlayerCar->SetPose(car.GetVisualPos(), car.GetVisualAngle(), smoke);
+	mPlayerCar->SetPose(car.GetVisualPos(), car.GetVisualAngle(), car.GetDriftIntensity());
 	Vec2F screen = CellToScreen(car.GetVisualPos());
 	mPlayerActor->transform->SetPosition(Vec3F(screen.x, screen.y, 0.0f));
 	mPlayerActor->SetDrawingDepth(IsoDepth(car.GetVisualPos()));

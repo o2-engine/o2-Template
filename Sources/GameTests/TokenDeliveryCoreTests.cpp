@@ -259,22 +259,6 @@ TEST(TokenCarSim, FuelEmptyStopsTheCar)
 	EXPECT_TRUE(car.IsStopped());
 }
 
-TEST(TokenCarSim, BoostRaisesSpeedCap)
-{
-	auto city = MakeRoadCity();
-	CarTuning tuning = TestCarTuning();
-	CarSim car;
-	car.Reset(tuning, Vec2F(1.0f, 2.0f), Dir::E);
-
-	CarInput boost;
-	boost.boost = true;
-	TickMany(car, city, boost, 1.0f);
-	EXPECT_NEAR(car.GetSpeed(), tuning.maxSpeed*tuning.boostFactor, 0.01f);
-
-	TickMany(car, city, CarInput(), 2.0f);
-	EXPECT_NEAR(car.GetSpeed(), tuning.maxSpeed, 0.01f);
-}
-
 namespace
 {
 	// road city with a source at the start and one office at cell (4,1) delivering from (4,2)
@@ -366,29 +350,6 @@ TEST(TokenSession, FuelRunsOutAndLosesWhenOrdersRemain)
 	EXPECT_EQ(session.GetState(), SessionState::Lost);
 	EXPECT_LE(session.GetFuel(), 0.0f);
 	EXPECT_TRUE(session.GetCar().IsStopped());
-}
-
-TEST(TokenSession, BoostReserveDrainsWhileHeld)
-{
-	auto city = MakeSessionCity();
-	city.sourceCells.Clear(); // no tokens: the order stays open and the session keeps running
-	city.sourceCells.Add(Vec2I(0, 0));
-
-	GameSession session;
-	session.StartWithCity(city, TestSessionTuning());
-
-	GameInput boost;
-	boost.boost = true;
-	for (int i = 0; i < 60; i++)
-		session.Tick(1.0f/60.0f, boost);
-
-	EXPECT_TRUE(session.IsBoosting());
-	EXPECT_LT(session.GetBoostLeft(), session.GetTuning().boostReserve - 0.9f);
-
-	for (int i = 0; i < 600; i++)
-		session.Tick(1.0f/60.0f, boost);
-	EXPECT_FALSE(session.IsBoosting()); // reserve exhausted
-	EXPECT_EQ(session.GetBoostLeft(), 0.0f);
 }
 
 TEST(TokenSession, GeneratedLevelStartIsOnSource)

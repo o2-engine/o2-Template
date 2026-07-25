@@ -114,8 +114,7 @@ namespace td
 			}
 		}
 
-		float target = input.fuelEmpty ? 0.0f
-					 : mTuning.maxSpeed*(input.boost ? mTuning.boostFactor : 1.0f);
+		float target = input.fuelEmpty ? 0.0f : mTuning.maxSpeed;
 		if (mSpeed < target)
 			mSpeed = Math::Min(target, mSpeed + mTuning.accel*dt);
 		else

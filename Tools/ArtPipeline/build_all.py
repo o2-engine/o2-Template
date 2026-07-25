@@ -267,7 +267,21 @@ def build_props():
         save_sprite(lamp, "Props/lamp.png", (22, 140))
 
 
+def import_export_ui():
+    """Hand-made UI sprites from Export/ go into Assets verbatim, center pivot."""
+    export_dir = os.path.join(ROOT, "Export")
+    if not os.path.isdir(export_dir):
+        return
+    for f in sorted(os.listdir(export_dir)):
+        if not f.endswith(".png"):
+            continue
+        img = Image.open(os.path.join(export_dir, f)).convert("RGBA")
+        save_sprite(img, os.path.join("UI", f), (img.width // 2, img.height // 2))
+
+
 def build_ui():
+    import_export_ui()
+
     save_sprite(rounded((256, 96), 46, (252, 253, 255, 255), (214, 222, 232, 255), 5),
                 "UI/pill.png", (128, 48))
     save_sprite(rounded((256, 128), 26, (52, 62, 82, 225), (36, 44, 60, 255), 4),
