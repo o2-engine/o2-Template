@@ -34,6 +34,8 @@ private:
 
 	Ref<Actor>                 mPlayerActor;
 	Ref<CarDrawableComponent>  mPlayerCar;
+	Ref<Actor>                 mPlayerGhostActor;
+	Ref<CarDrawableComponent>  mPlayerGhost;
 
 	struct TrafficCar
 	{
@@ -81,6 +83,8 @@ CLASS_FIELDS_META(GameControllerComponent)
     FIELD().PRIVATE().NAME(mCity);
     FIELD().PRIVATE().NAME(mPlayerActor);
     FIELD().PRIVATE().NAME(mPlayerCar);
+    FIELD().PRIVATE().NAME(mPlayerGhostActor);
+    FIELD().PRIVATE().NAME(mPlayerGhost);
     FIELD().PRIVATE().NAME(mTraffic);
     FIELD().PRIVATE().NAME(mTrafficRng);
     FIELD().PRIVATE().NAME(mWorldCamera);

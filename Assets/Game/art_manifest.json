@@ -7,11 +7,11 @@
    ],
    "pivot": [
     128,
-    229
+    230
    ],
    "size": [
     256,
-    293
+    294
    ]
   },
   "Buildings/house_brick_b.png": {
@@ -21,11 +21,11 @@
    ],
    "pivot": [
     128,
-    226
+    207
    ],
    "size": [
     256,
-    290
+    271
    ]
   },
   "Buildings/house_cafe.png": {
@@ -35,11 +35,11 @@
    ],
    "pivot": [
     128,
-    220
+    225
    ],
    "size": [
     256,
-    284
+    289
    ]
   },
   "Buildings/house_corner.png": {
@@ -49,11 +49,11 @@
    ],
    "pivot": [
     256,
-    390
+    425
    ],
    "size": [
     512,
-    518
+    553
    ]
   },
   "Buildings/house_cream.png": {
@@ -63,11 +63,11 @@
    ],
    "pivot": [
     128,
-    215
+    232
    ],
    "size": [
     256,
-    279
+    296
    ]
   },
   "Buildings/house_double.png": {
@@ -77,11 +77,11 @@
    ],
    "pivot": [
     192,
-    301
+    287
    ],
    "size": [
     384,
-    397
+    383
    ]
   },
   "Buildings/house_long.png": {
@@ -91,11 +91,11 @@
    ],
    "pivot": [
     192,
-    276
+    278
    ],
    "size": [
     384,
-    372
+    374
    ]
   },
   "Buildings/house_shop_awning.png": {
@@ -105,11 +105,11 @@
    ],
    "pivot": [
     128,
-    216
+    233
    ],
    "size": [
     256,
-    280
+    297
    ]
   },
   "Buildings/house_tall.png": {
@@ -119,11 +119,11 @@
    ],
    "pivot": [
     128,
-    218
+    347
    ],
    "size": [
     256,
-    282
+    411
    ]
   },
   "Buildings/house_terracotta.png": {
@@ -133,11 +133,11 @@
    ],
    "pivot": [
     128,
-    256
+    254
    ],
    "size": [
     256,
-    320
+    318
    ]
   },
   "Buildings/office_classic.png": {
@@ -147,11 +147,11 @@
    ],
    "pivot": [
     128,
-    214
+    239
    ],
    "size": [
     256,
-    278
+    303
    ]
   },
   "Buildings/office_glass.png": {
@@ -161,11 +161,11 @@
    ],
    "pivot": [
     256,
-    487
+    439
    ],
    "size": [
     512,
-    615
+    567
    ]
   },
   "Buildings/office_loft.png": {
@@ -175,11 +175,11 @@
    ],
    "pivot": [
     192,
-    296
+    324
    ],
    "size": [
     384,
-    392
+    420
    ]
   },
   "Props/bench.png": {
@@ -682,14 +682,24 @@
     170
    ]
   },
-  "UI/bubble.png": {
+  "UI/boost_wide.png": {
    "pivot": [
-    96,
-    44
+    170,
+    64
    ],
    "size": [
-    192,
-    88
+    340,
+    129
+   ]
+  },
+  "UI/bubble.png": {
+   "pivot": [
+    98,
+    119
+   ],
+   "size": [
+    210,
+    121
    ]
   },
   "UI/button_blue.png": {

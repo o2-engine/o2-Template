@@ -39,16 +39,21 @@ ROAD_DIRS = {"N": (0, -1), "S": (0, 1), "E": (1, 0), "W": (-1, 0)}
 EDGE_MID = {"N": (SRC // 2, 0), "S": (SRC // 2, SRC), "E": (SRC, SRC // 2), "W": (0, SRC // 2)}
 
 DASH_COLOR = (245, 244, 238, 255)
-CURB_COLOR = (200, 201, 206, 255)
+CURB_COLOR = (222, 218, 205, 255)
+CURB_SHADE = (188, 183, 168, 255)
+
+SIDEWALK = 52  # sidewalk strip width on closed edges, px of the 256 top-down tile
+CURB_W = 7
 
 
-def draw_road_topdown(asphalt: Image.Image, conns: str) -> Image.Image:
-    """Road tile in top-down space: asphalt + center dashes along connections + curbs on
-    closed edges. conns is a subset string of 'NESW'."""
+def draw_road_topdown(asphalt: Image.Image, pavement: Image.Image, conns: str) -> Image.Image:
+    """Road tile in top-down space: asphalt, sidewalk strips with curbs on the closed
+    edges, sidewalk corner pockets on open junctions, center dashes along connections.
+    conns is a subset string of 'NESW'."""
     img = asphalt.convert("RGBA").resize((SRC, SRC), Image.LANCZOS)
+    pave = pavement.convert("RGBA").resize((SRC, SRC), Image.LANCZOS)
     d = ImageDraw.Draw(img)
     c = SRC // 2
-    dash_w = 7
     dash_len, gap = 22, 18
 
     def dash_line(p0, p1):
@@ -65,8 +70,43 @@ def draw_road_topdown(asphalt: Image.Image, conns: str) -> Image.Image:
                 break
             a = (x0 + (x1 - x0) * t0, y0 + (y1 - y0) * t0)
             b = (x0 + (x1 - x0) * t1, y0 + (y1 - y0) * t1)
-            d.line([a, b], fill=DASH_COLOR, width=dash_w)
+            d.line([a, b], fill=DASH_COLOR, width=7)
 
+    def paste_pavement(box):
+        region = pave.crop(box)
+        img.paste(region, box)
+
+    # sidewalk strips on the closed edges, with a curb line facing the asphalt
+    if "N" not in conns:
+        paste_pavement((0, 0, SRC, SIDEWALK))
+        d.rectangle([0, SIDEWALK, SRC, SIDEWALK + CURB_W], fill=CURB_COLOR)
+        d.line([(0, SIDEWALK + CURB_W), (SRC, SIDEWALK + CURB_W)], fill=CURB_SHADE, width=2)
+    if "S" not in conns:
+        paste_pavement((0, SRC - SIDEWALK, SRC, SRC))
+        d.rectangle([0, SRC - SIDEWALK - CURB_W, SRC, SRC - SIDEWALK], fill=CURB_COLOR)
+        d.line([(0, SRC - SIDEWALK - CURB_W), (SRC, SRC - SIDEWALK - CURB_W)],
+               fill=CURB_SHADE, width=2)
+    if "W" not in conns:
+        paste_pavement((0, 0, SIDEWALK, SRC))
+        d.rectangle([SIDEWALK, 0, SIDEWALK + CURB_W, SRC], fill=CURB_COLOR)
+        d.line([(SIDEWALK + CURB_W, 0), (SIDEWALK + CURB_W, SRC)], fill=CURB_SHADE, width=2)
+    if "E" not in conns:
+        paste_pavement((SRC - SIDEWALK, 0, SRC, SRC))
+        d.rectangle([SRC - SIDEWALK - CURB_W, 0, SRC - SIDEWALK, SRC], fill=CURB_COLOR)
+        d.line([(SRC - SIDEWALK - CURB_W, 0), (SRC - SIDEWALK - CURB_W, SRC)],
+               fill=CURB_SHADE, width=2)
+
+    # sidewalk corner pockets where two adjacent arms are both open (junction corners)
+    corner_pairs = {("N", "E"): (SRC - SIDEWALK, 0), ("N", "W"): (0, 0),
+                    ("S", "E"): (SRC - SIDEWALK, SRC - SIDEWALK), ("S", "W"): (0, SRC - SIDEWALK)}
+    for (a, b), (px, py) in corner_pairs.items():
+        if a in conns and b in conns:
+            box = (px, py, px + SIDEWALK, py + SIDEWALK)
+            paste_pavement(box)
+            d.rectangle([box[0], box[1], box[2] - 1, box[3] - 1], outline=CURB_COLOR,
+                        width=CURB_W // 2 + 2)
+
+    # center dashes along the driving directions
     conn_set = [k for k in "NESW" if k in conns]
     if len(conn_set) == 2 and set(conn_set) in ({"N", "S"}, {"E", "W"}):
         dash_line(EDGE_MID[conn_set[0]], EDGE_MID[conn_set[1]])
@@ -75,39 +115,21 @@ def draw_road_topdown(asphalt: Image.Image, conns: str) -> Image.Image:
             dash_line(EDGE_MID[k], (c, c))
     elif len(conn_set) == 1:  # dead end
         dash_line(EDGE_MID[conn_set[0]], (c, c))
-    else:  # T / cross: crosswalk stripes across each connected arm
-        stripe_w, stripe_l, margin = 8, 52, 26
-        for k in conn_set:
-            dx, dy = ROAD_DIRS[k]
-            for s in range(-2, 3):
-                if dx != 0:  # arm along u: stripes are vertical lines near the edge
-                    x = (SRC - margin) if dx > 0 else margin
-                    d.line([(x, c + s * 16 - stripe_l // 8), (x, c + s * 16 + stripe_l // 8)],
-                           fill=DASH_COLOR, width=stripe_w)
-                else:
-                    y = (SRC - margin) if dy > 0 else margin
-                    d.line([(c + s * 16 - stripe_l // 8, y), (c + s * 16 + stripe_l // 8, y)],
-                           fill=DASH_COLOR, width=stripe_w)
 
-    # curbs on closed edges
-    curb = 6
-    if "N" not in conns:
-        d.rectangle([0, 0, SRC, curb], fill=CURB_COLOR)
-    if "S" not in conns:
-        d.rectangle([0, SRC - curb, SRC, SRC], fill=CURB_COLOR)
-    if "W" not in conns:
-        d.rectangle([0, 0, curb, SRC], fill=CURB_COLOR)
-    if "E" not in conns:
-        d.rectangle([SRC - curb, 0, SRC, SRC], fill=CURB_COLOR)
     return img
 
 
-def build_road_tiles(asphalt: Image.Image, out_dir: str):
+def draw_sidewalk_topdown(pavement: Image.Image) -> Image.Image:
+    """Full sidewalk tile (block ground next to roads)."""
+    return pavement.convert("RGBA").resize((SRC, SRC), Image.LANCZOS)
+
+
+def build_road_tiles(asphalt: Image.Image, pavement: Image.Image, out_dir: str):
     os.makedirs(out_dir, exist_ok=True)
     for mask in range(16):
         conns = "".join(k for bit, k in zip([1, 2, 4, 8], "NESW") if mask & bit)
         name = "road_" + (conns if conns else "O")
-        tile = warp_to_diamond(draw_road_topdown(asphalt, conns))
+        tile = warp_to_diamond(draw_road_topdown(asphalt, pavement, conns))
         tile.save(os.path.join(out_dir, name + ".png"))
 
 

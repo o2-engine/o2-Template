@@ -11,16 +11,18 @@
 
 namespace td
 {
-	static const Color4 kDarkText(52, 60, 74, 255);
-
 	Ref<Label> GameHUD::MakeLabel(const Ref<Widget>& parent, const WString& text, int height,
-								  const Color4& color)
+								  bool dark)
 	{
 		auto label = o2UI.CreateLabel(text);
 		if (auto drawable = label->GetLayerDrawable<Text>("text"))
 		{
 			drawable->SetHeight(height);
-			drawable->SetColor(color);
+			if (dark)
+			{
+				drawable->SetColor(Color4(58, 70, 94, 255));
+				drawable->SetFontStyle(nullptr);
+			}
 		}
 		parent->AddChild(label);
 		return label;
@@ -40,28 +42,35 @@ namespace td
 		mRoot->layout->offsetMax = Vec2F(640.0f, 400.0f);
 		mRoot->SetDrawingDepth(10.0f);
 
-		// token counter pill, top-left
+		// token counter pill, top-left; the big chip icon overlaps its left edge
 		auto pill = o2UI.CreateImage("Game/UI/pill.png");
 		mRoot->AddChild(pill);
 		pill->layout->anchorMin = Vec2F(0.0f, 1.0f);
 		pill->layout->anchorMax = Vec2F(0.0f, 1.0f);
-		pill->layout->offsetMin = Vec2F(25.0f, -95.0f);
-		pill->layout->offsetMax = Vec2F(265.0f, -20.0f);
+		pill->layout->offsetMin = Vec2F(42.0f, -92.0f);
+		pill->layout->offsetMax = Vec2F(290.0f, -24.0f);
 
 		auto chip = o2UI.CreateImage("Game/Props/chip.png");
 		pill->AddChild(chip);
 		chip->layout->anchorMin = Vec2F(0.0f, 0.5f);
 		chip->layout->anchorMax = Vec2F(0.0f, 0.5f);
-		chip->layout->offsetMin = Vec2F(8.0f, -30.0f);
-		chip->layout->offsetMax = Vec2F(68.0f, 30.0f);
+		chip->layout->offsetMin = Vec2F(-34.0f, -40.0f);
+		chip->layout->offsetMax = Vec2F(46.0f, 40.0f);
 
-		mTokensLabel = MakeLabel(pill, L"0", 32, kDarkText);
+		mTokensLabel = MakeLabel(pill, L"0", 36, true);
 		mTokensLabel->layout->anchorMin = Vec2F(0.0f, 0.0f);
 		mTokensLabel->layout->anchorMax = Vec2F(1.0f, 1.0f);
-		mTokensLabel->layout->offsetMin = Vec2F(70.0f, 0.0f);
-		mTokensLabel->layout->offsetMax = Vec2F(-10.0f, 0.0f);
+		mTokensLabel->layout->offsetMin = Vec2F(56.0f, 0.0f);
+		mTokensLabel->layout->offsetMax = Vec2F(-12.0f, 0.0f);
 
-		// fuel bar, bottom-left
+		// fuel bar, bottom-left: dark capsule image under the fill progress
+		auto fuelBack = o2UI.CreateImage("Game/UI/fuel_bg.png");
+		mRoot->AddChild(fuelBack);
+		fuelBack->layout->anchorMin = Vec2F(0.0f, 0.0f);
+		fuelBack->layout->anchorMax = Vec2F(0.0f, 0.0f);
+		fuelBack->layout->offsetMin = Vec2F(76.0f, 17.0f);
+		fuelBack->layout->offsetMax = Vec2F(429.0f, 96.0f);
+
 		mFuelBar = o2UI.CreateHorProgress("fuel");
 		mRoot->AddChild(mFuelBar);
 		mFuelBar->layout->anchorMin = Vec2F(0.0f, 0.0f);
@@ -78,20 +87,20 @@ namespace td
 		fuelIcon->layout->offsetMin = Vec2F(20.0f, 22.0f);
 		fuelIcon->layout->offsetMax = Vec2F(88.0f, 90.0f);
 
-		// boost button + reserve bar, bottom-right
+		// wide Acceleration Boost button (cut from the reference) + reserve bar, bottom-right
 		mBoostButton = o2UI.CreateWidget<Button>("boost");
 		mRoot->AddChild(mBoostButton);
 		mBoostButton->layout->anchorMin = Vec2F(1.0f, 0.0f);
 		mBoostButton->layout->anchorMax = Vec2F(1.0f, 0.0f);
-		mBoostButton->layout->offsetMin = Vec2F(-190.0f, 60.0f);
-		mBoostButton->layout->offsetMax = Vec2F(-30.0f, 220.0f);
+		mBoostButton->layout->offsetMin = Vec2F(-372.0f, 44.0f);
+		mBoostButton->layout->offsetMax = Vec2F(-32.0f, 173.0f);
 
 		mBoostReserveBar = o2UI.CreateHorProgress("fuel");
 		mRoot->AddChild(mBoostReserveBar);
 		mBoostReserveBar->layout->anchorMin = Vec2F(1.0f, 0.0f);
 		mBoostReserveBar->layout->anchorMax = Vec2F(1.0f, 0.0f);
-		mBoostReserveBar->layout->offsetMin = Vec2F(-200.0f, 22.0f);
-		mBoostReserveBar->layout->offsetMax = Vec2F(-20.0f, 52.0f);
+		mBoostReserveBar->layout->offsetMin = Vec2F(-340.0f, 14.0f);
+		mBoostReserveBar->layout->offsetMax = Vec2F(-64.0f, 42.0f);
 		mBoostReserveBar->SetInteractable(false);
 		mBoostReserveBar->SetValueForcible(1.0f);
 
@@ -138,7 +147,7 @@ namespace td
 		plashCheck->layout->offsetMin = Vec2F(12.0f, -28.0f);
 		plashCheck->layout->offsetMax = Vec2F(68.0f, 28.0f);
 
-		mPlashLabel = MakeLabel(mPlash, L"Order delivered!", 26, kDarkText);
+		mPlashLabel = MakeLabel(mPlash, L"Order delivered!", 26, true);
 		mPlashLabel->layout->anchorMin = Vec2F(0.0f, 0.0f);
 		mPlashLabel->layout->anchorMax = Vec2F(1.0f, 1.0f);
 		mPlashLabel->layout->offsetMin = Vec2F(72.0f, 0.0f);
@@ -178,13 +187,13 @@ namespace td
 		window->layout->offsetMin = Vec2F(-320.0f, -210.0f);
 		window->layout->offsetMax = Vec2F(320.0f, 210.0f);
 
-		auto titleLabel = MakeLabel(window, title, 38, kDarkText);
+		auto titleLabel = MakeLabel(window, title, 38, true);
 		titleLabel->layout->anchorMin = Vec2F(0.0f, 1.0f);
 		titleLabel->layout->anchorMax = Vec2F(1.0f, 1.0f);
 		titleLabel->layout->offsetMin = Vec2F(20.0f, -120.0f);
 		titleLabel->layout->offsetMax = Vec2F(-20.0f, -40.0f);
 
-		auto messageLabel = MakeLabel(window, message, 24, Color4(96, 104, 118, 255));
+		auto messageLabel = MakeLabel(window, message, 24, true);
 		messageLabel->layout->anchorMin = Vec2F(0.0f, 0.5f);
 		messageLabel->layout->anchorMax = Vec2F(1.0f, 0.5f);
 		messageLabel->layout->offsetMin = Vec2F(20.0f, -20.0f);
@@ -211,18 +220,19 @@ namespace td
 		mQuestChecks.Clear();
 
 		auto& orders = session->GetCity().orders;
-		float panelHeight = 56.0f + orders.Count()*38.0f;
+		float panelHeight = 52.0f + orders.Count()*34.0f;
 
 		mQuestPanel = mmake<Widget>();
 		mQuestPanel->SetName("quests");
 		mRoot->AddChild(mQuestPanel);
 		mQuestPanel->AddLayer("back", mmake<Sprite>(String("Game/UI/panel_dark.png")));
+		mQuestPanel->SetTransparency(0.92f);
 		mQuestPanel->layout->anchorMin = Vec2F(0.0f, 1.0f);
 		mQuestPanel->layout->anchorMax = Vec2F(0.0f, 1.0f);
-		mQuestPanel->layout->offsetMin = Vec2F(25.0f, -115.0f - panelHeight);
-		mQuestPanel->layout->offsetMax = Vec2F(345.0f, -115.0f);
+		mQuestPanel->layout->offsetMin = Vec2F(20.0f, -108.0f - panelHeight);
+		mQuestPanel->layout->offsetMax = Vec2F(310.0f, -108.0f);
 
-		auto header = MakeLabel(mQuestPanel, L"Active Quests", 26, Color4(255, 255, 255, 255));
+		auto header = MakeLabel(mQuestPanel, L"Active Quests", 26);
 		header->layout->anchorMin = Vec2F(0.0f, 1.0f);
 		header->layout->anchorMax = Vec2F(1.0f, 1.0f);
 		header->layout->offsetMin = Vec2F(10.0f, -46.0f);
@@ -242,7 +252,7 @@ namespace td
 			mQuestChecks.Add(check);
 
 			String row = String("Office ") + orders[i].name + "  x" + (String)orders[i].amount;
-			auto rowLabel = MakeLabel(mQuestPanel, WString(row), 19, Color4(235, 238, 244, 255));
+			auto rowLabel = MakeLabel(mQuestPanel, WString(row), 19);
 			rowLabel->layout->anchorMin = Vec2F(0.0f, 1.0f);
 			rowLabel->layout->anchorMax = Vec2F(1.0f, 1.0f);
 			rowLabel->layout->offsetMin = Vec2F(52.0f, y - 19.0f);
@@ -270,27 +280,21 @@ namespace td
 
 			Vec3F anchorPos = officeAnchors[i]->transform->GetWorldPosition();
 
+			// speech bubble cut from the reference: chip baked in, tail at the bottom
 			auto tooltip = mmake<Widget>();
 			tooltip->SetName("order tooltip");
 			tooltip->SetLayer(kWorldLayer);
 			tooltip->AddLayer("back", mmake<Sprite>(String("Game/UI/bubble.png")));
 			tooltip->layout->anchorMin = Vec2F(0.0f, 0.0f);
 			tooltip->layout->anchorMax = Vec2F(0.0f, 0.0f);
-			tooltip->layout->offsetMin = Vec2F(anchorPos.x - 96.0f, anchorPos.y - 44.0f);
-			tooltip->layout->offsetMax = Vec2F(anchorPos.x + 96.0f, anchorPos.y + 44.0f);
+			tooltip->layout->offsetMin = Vec2F(anchorPos.x - 105.0f, anchorPos.y);
+			tooltip->layout->offsetMax = Vec2F(anchorPos.x + 105.0f, anchorPos.y + 121.0f);
 
-			auto chip = o2UI.CreateImage("Game/Props/chip.png");
-			tooltip->AddChild(chip);
-			chip->layout->anchorMin = Vec2F(0.0f, 0.5f);
-			chip->layout->anchorMax = Vec2F(0.0f, 0.5f);
-			chip->layout->offsetMin = Vec2F(10.0f, -28.0f);
-			chip->layout->offsetMax = Vec2F(66.0f, 28.0f);
-
-			auto amount = MakeLabel(tooltip, WString((String)orders[i].amount), 36, kDarkText);
+			auto amount = MakeLabel(tooltip, WString((String)orders[i].amount), 34, true);
 			amount->layout->anchorMin = Vec2F(0.0f, 0.0f);
 			amount->layout->anchorMax = Vec2F(1.0f, 1.0f);
-			amount->layout->offsetMin = Vec2F(64.0f, 0.0f);
-			amount->layout->offsetMax = Vec2F(-10.0f, 0.0f);
+			amount->layout->offsetMin = Vec2F(74.0f, 30.0f);
+			amount->layout->offsetMax = Vec2F(-14.0f, -4.0f);
 
 			tooltip->SetDrawingDepth(500.0f + i);
 			mTooltips.Add(tooltip);

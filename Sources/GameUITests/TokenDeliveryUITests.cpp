@@ -43,6 +43,52 @@ namespace
 	}
 }
 
+// Renders the four 3D car kinds close-up at different headings — a pure visual check of
+// the projected mesh, shading and depth sorting between overlapping cars
+TEST(TokenDeliveryCars, CloseupRendersAllKinds)
+{
+	o2Scene.AddLayer(td::kWorldLayer);
+
+	auto camera = mmake<CameraActor>();
+	camera->SetFixedSize(Vec2F(880.0f, 550.0f));
+	camera->drawLayers.SetLayers(Vector<String>{ td::kWorldLayer });
+	camera->fillBackground = true;
+	camera->fillColor = Color4(160, 165, 175, 255);
+
+	struct Def { CarDrawableComponent::CarKind kind; Vec2F cell; float angle; };
+	const Def defs[] = {
+		{ CarDrawableComponent::CarKind::PlayerPickup, Vec2F(0.0f, 0.0f), 0.0f },
+		{ CarDrawableComponent::CarKind::Van, Vec2F(1.0f, 0.0f), 90.0f },
+		{ CarDrawableComponent::CarKind::Sedan, Vec2F(0.0f, 1.0f), 180.0f },
+		{ CarDrawableComponent::CarKind::Hatchback, Vec2F(1.0f, 1.0f), 45.0f },
+		// deliberately overlapping pair to verify car-vs-car depth
+		{ CarDrawableComponent::CarKind::Sedan, Vec2F(2.0f, 1.85f), 90.0f },
+		{ CarDrawableComponent::CarKind::Van, Vec2F(2.0f, 2.0f), 90.0f },
+	};
+	for (auto& def : defs)
+	{
+		auto actor = mmake<Actor>(ActorCreateMode::InScene);
+		actor->SetLayer(td::kWorldLayer);
+		auto car = actor->AddComponent<CarDrawableComponent>();
+		car->SetupCar(def.kind);
+		car->SetPose(def.cell, def.angle, 0.0f);
+		Vec2F screen = td::CellToScreen(def.cell);
+		actor->transform->SetPosition(Vec3F(screen.x, screen.y, 0.0f));
+		actor->SetDrawingDepth(td::IsoDepth(def.cell));
+	}
+
+	camera->transform->SetPosition(Vec3F(td::CellToScreen(Vec2F(1.0f, 1.0f)).x,
+										 td::CellToScreen(Vec2F(1.0f, 1.0f)).y, 0.0f));
+	AppTestDriver::PumpFrames(5);
+
+	o2FileSystem.FolderCreate(kScreenshotsDir, true);
+	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_delivery_cars.png");
+
+	o2Scene.Clear(true);
+	o2Scene.UpdateDestroyingEntities();
+	AppTestDriver::PumpFrames(2);
+}
+
 // Boots the full game with a fixed seed and drives it through the real frame loop
 class TokenDeliveryApp: public ::testing::Test
 {

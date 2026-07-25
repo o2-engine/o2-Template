@@ -8,7 +8,7 @@ namespace td
 		CityGenParams params;
 		params.ordersCount = Math::Min(tuning.baseOrders + (level - 1), tuning.maxOrders);
 		params.size = Math::Min(tuning.baseCitySize + (level - 1)/2*2, tuning.maxCitySize);
-		params.trafficCars = Math::Min(3 + level/2, 6);
+		params.trafficCars = Math::Min(5 + level, 12);
 		return params;
 	}
 

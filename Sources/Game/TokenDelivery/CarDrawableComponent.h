@@ -22,6 +22,10 @@ public:
 
 	void SetupCar(CarKind kind);
 
+	// ghost mode: flat translucent silhouette drawn above buildings so the player can
+	// track the car when it is occluded; no shadow, no smoke, no depth test
+	void SetGhostMode(bool ghost) { mGhost = ghost; }
+
 	// cellPos in city cells, angle in degrees (0 = E, growing towards S), smoke 0..1
 	void SetPose(const Vec2F& cellPos, float angleDeg, float smokeIntensity);
 
@@ -55,6 +59,7 @@ private:
 	Vec2F             mCellPos;
 	float             mAngle = 0.0f;
 	float             mSmoke = 0.0f;
+	bool              mGhost = false;
 	Vector<Puff>      mPuffs;
 	float             mPuffSpawnAccum = 0.0f;
 	Ref<Sprite>       mPuffSprite;
@@ -82,6 +87,7 @@ CLASS_FIELDS_META(CarDrawableComponent)
     FIELD().PRIVATE().NAME(mCellPos);
     FIELD().PRIVATE().DEFAULT_VALUE(0.0f).NAME(mAngle);
     FIELD().PRIVATE().DEFAULT_VALUE(0.0f).NAME(mSmoke);
+    FIELD().PRIVATE().DEFAULT_VALUE(false).NAME(mGhost);
     FIELD().PRIVATE().NAME(mPuffs);
     FIELD().PRIVATE().DEFAULT_VALUE(0.0f).NAME(mPuffSpawnAccum);
     FIELD().PRIVATE().NAME(mPuffSprite);
@@ -93,6 +99,7 @@ CLASS_METHODS_META(CarDrawableComponent)
     FUNCTION().PUBLIC().CONSTRUCTOR();
     FUNCTION().PUBLIC().CONSTRUCTOR(RefCounter*);
     FUNCTION().PUBLIC().SIGNATURE(void, SetupCar, CarKind);
+    FUNCTION().PUBLIC().SIGNATURE(void, SetGhostMode, bool);
     FUNCTION().PUBLIC().SIGNATURE(void, SetPose, const Vec2F&, float, float);
     FUNCTION().PUBLIC().SIGNATURE_STATIC(Mat4, IsoMatrix);
     FUNCTION().PRIVATE().SIGNATURE(void, OnUpdate, float);

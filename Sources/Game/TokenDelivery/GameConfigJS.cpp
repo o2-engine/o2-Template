@@ -44,6 +44,8 @@ namespace td
 		ReadFloat(config, "fillRate", tuning.fillRate);
 		ReadInt(config, "baseOrders", tuning.baseOrders);
 		ReadInt(config, "maxOrders", tuning.maxOrders);
+		ReadInt(config, "baseCitySize", tuning.baseCitySize);
+		ReadInt(config, "maxCitySize", tuning.maxCitySize);
 		return tuning;
 	}
 }

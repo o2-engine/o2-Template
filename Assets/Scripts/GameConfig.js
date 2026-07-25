@@ -13,5 +13,7 @@ GameConfig = {
 	boostReserve: 5.0,    // seconds of boost hold
 	fillRate: 60.0,       // tokens per second near the fountain
 	baseOrders: 3,        // orders on level 1
-	maxOrders: 8
+	maxOrders: 8,
+	baseCitySize: 15,     // city grid side on level 1
+	maxCitySize: 19
 };

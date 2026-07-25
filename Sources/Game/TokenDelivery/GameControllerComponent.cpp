@@ -74,6 +74,11 @@ void GameControllerComponent::ClearLevel()
 	mPlayerActor = nullptr;
 	mPlayerCar = nullptr;
 
+	if (mPlayerGhostActor)
+		mPlayerGhostActor->RemoveFromScene();
+	mPlayerGhostActor = nullptr;
+	mPlayerGhost = nullptr;
+
 	for (auto& traffic : mTraffic)
 	{
 		if (traffic.actor)
@@ -108,6 +113,15 @@ void GameControllerComponent::StartLevel(int level)
 	mPlayerActor->SetLayer(kWorldLayer);
 	mPlayerCar = mPlayerActor->AddComponent<CarDrawableComponent>();
 	mPlayerCar->SetupCar(CarDrawableComponent::CarKind::PlayerPickup);
+
+	// silhouette above buildings so the car stays trackable when occluded
+	mPlayerGhostActor = mmake<Actor>(ActorCreateMode::InScene);
+	mPlayerGhostActor->SetName("player car ghost");
+	mPlayerGhostActor->SetLayer(kWorldLayer);
+	mPlayerGhost = mPlayerGhostActor->AddComponent<CarDrawableComponent>();
+	mPlayerGhost->SetupCar(CarDrawableComponent::CarKind::PlayerPickup);
+	mPlayerGhost->SetGhostMode(true);
+	mPlayerGhostActor->SetDrawingDepth(9000.0f);
 
 	static const CarDrawableComponent::CarKind kTrafficKinds[] = {
 		CarDrawableComponent::CarKind::Van, CarDrawableComponent::CarKind::Sedan,
@@ -172,6 +186,9 @@ void GameControllerComponent::SyncCarView(float dt)
 	Vec2F screen = CellToScreen(car.GetVisualPos());
 	mPlayerActor->transform->SetPosition(Vec3F(screen.x, screen.y, 0.0f));
 	mPlayerActor->SetDrawingDepth(IsoDepth(car.GetVisualPos()));
+
+	mPlayerGhost->SetPose(car.GetVisualPos(), car.GetVisualAngle(), 0.0f);
+	mPlayerGhostActor->transform->SetPosition(Vec3F(screen.x, screen.y, 0.0f));
 }
 
 void GameControllerComponent::SyncTraffic(float dt)

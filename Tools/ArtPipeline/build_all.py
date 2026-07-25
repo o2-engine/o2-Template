@@ -26,6 +26,59 @@ def src_texture(name, fallback):
     return fallback()
 
 
+def load_generated(rel):
+    """Trimmed generated sprite from ArtSrc, or None when not generated yet. When the
+    alpha recovery failed (opaque white background), keys the white out by flood fill."""
+    path = os.path.join(ART_SRC, rel)
+    if not os.path.exists(path):
+        return None
+    img = Image.open(path).convert("RGBA")
+    a = img.getchannel("A")
+    corners = [a.getpixel((2, 2)), a.getpixel((img.width - 3, 2)),
+               a.getpixel((2, img.height - 3)), a.getpixel((img.width - 3, img.height - 3))]
+    if max(corners) > 40:
+        img = key_out_white(img, tol=12)
+    bbox = img.getbbox()
+    return img.crop(bbox) if bbox else img
+
+
+def import_building(name, fw, fh):
+    """Generated building: scale so the trimmed width matches the footprint diamond
+    (plus a small roof overhang), pivot at the footprint base center."""
+    img = load_generated("buildings/%s.png" % name)
+    if img is None:
+        return False
+    target_w = int((fw + fh) * 128 * 1.0)
+    scale = target_w / img.width
+    img = img.resize((target_w, max(1, int(img.height * scale))), Image.LANCZOS)
+    pivot = (img.width // 2, img.height - (fw + fh) * 32)
+    save_sprite(img, os.path.join("Buildings", name + ".png"), pivot, (fw, fh))
+    return True
+
+
+def import_prop(name, target_w, pivot_from_bottom=0, out_name=None):
+    img = load_generated("props/%s.png" % name)
+    if img is None:
+        return False
+    scale = target_w / img.width
+    img = img.resize((target_w, max(1, int(img.height * scale))), Image.LANCZOS)
+    pivot = (img.width // 2, img.height - pivot_from_bottom)
+    save_sprite(img, os.path.join("Props", (out_name or name) + ".png"), pivot)
+    return True
+
+
+def import_ui(name, target_w, out_rel=None):
+    img = load_generated("ui/%s.png" % name)
+    if img is None:
+        return False
+    scale = target_w / max(img.width, img.height)
+    img = img.resize((max(1, int(img.width * scale)), max(1, int(img.height * scale))),
+                     Image.LANCZOS)
+    save_sprite(img, out_rel or os.path.join("UI", name + ".png"),
+                (img.width // 2, img.height // 2))
+    return True
+
+
 def save_sprite(img, rel, pivot, footprint=None):
     path = os.path.join(OUT, rel)
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -34,6 +87,33 @@ def save_sprite(img, rel, pivot, footprint=None):
     if footprint:
         entry["footprint"] = list(footprint)
     manifest["sprites"][rel.replace("\\", "/")] = entry
+
+
+def key_out_white(img, tol=16):
+    """Flood-removes the near-white background connected to the borders (README recipe
+    for light subjects rendered on pure white)."""
+    import numpy as np
+    a = np.array(img.convert("RGBA"), dtype=np.uint8)
+    rgb = a[..., :3].astype(np.int16)
+    white = (rgb >= 255 - tol).all(axis=2)
+    reach = np.zeros(white.shape, dtype=bool)
+    reach[0, :] = white[0, :]
+    reach[-1, :] = white[-1, :]
+    reach[:, 0] = white[:, 0]
+    reach[:, -1] = white[:, -1]
+    for _ in range(max(img.size)):
+        grown = reach.copy()
+        grown[1:, :] |= reach[:-1, :]
+        grown[:-1, :] |= reach[1:, :]
+        grown[:, 1:] |= reach[:, :-1]
+        grown[:, :-1] |= reach[:, 1:]
+        grown &= white
+        if (grown == reach).all():
+            break
+        reach = grown
+    a[reach, 3] = 0
+    from PIL import Image as PImage
+    return PImage.fromarray(a, "RGBA")
 
 
 def rounded(size, radius, fill, outline=None, width=4):
@@ -45,7 +125,9 @@ def rounded(size, radius, fill, outline=None, width=4):
 
 
 def build_tiles():
-    build_road_tiles(src_texture("tex_asphalt.png", ph.asphalt_texture), os.path.join(OUT, "Tiles"))
+    build_road_tiles(src_texture("tex_asphalt.png", ph.asphalt_texture),
+                     src_texture("tex_pavement.png", ph.pavement_texture),
+                     os.path.join(OUT, "Tiles"))
     build_ground_tile(src_texture("tex_pavement.png", ph.pavement_texture),
                       os.path.join(OUT, "Tiles", "pavement.png"))
     build_ground_tile(src_texture("tex_grass.png", ph.grass_texture),
@@ -77,46 +159,79 @@ OFFICES = [
 
 def build_buildings():
     for name, fw, fh, wh, wall, roof, floors, awn in HOUSES:
-        img, pivot = ph.building_sprite(fw, fh, wh, wall, roof, floors, awn)
-        save_sprite(img, os.path.join("Buildings", name + ".png"), pivot, (fw, fh))
+        if not import_building(name, fw, fh):
+            img, pivot = ph.building_sprite(fw, fh, wh, wall, roof, floors, awn)
+            save_sprite(img, os.path.join("Buildings", name + ".png"), pivot, (fw, fh))
     for name, fw, fh, wh, wall, roof, floors in OFFICES:
-        img, pivot = ph.building_sprite(fw, fh, wh, wall, roof, floors, None, chip_logo=True)
-        save_sprite(img, os.path.join("Buildings", name + ".png"), pivot, (fw, fh))
+        if not import_building(name, fw, fh):
+            img, pivot = ph.building_sprite(fw, fh, wh, wall, roof, floors, None, chip_logo=True)
+            save_sprite(img, os.path.join("Buildings", name + ".png"), pivot, (fw, fh))
 
 
 def build_props():
-    img, pivot = ph.tree_sprite(1.0)
-    save_sprite(img, "Props/tree_big.png", pivot)
-    img, pivot = ph.tree_sprite(0.7)
-    save_sprite(img, "Props/tree_small.png", pivot)
-    img, pivot = ph.kiosk_sprite()
-    save_sprite(img, "Props/kiosk.png", pivot, (1, 1))
-    img, pivot = ph.fountain_sprite()
-    save_sprite(img, "Props/fountain.png", pivot, (1, 1))
-    chip = ph.chip_icon(96)
-    save_sprite(chip, "Props/chip.png", (48, 48))
+    if not import_prop("tree_big", 170, 20):
+        img, pivot = ph.tree_sprite(1.0)
+        save_sprite(img, "Props/tree_big.png", pivot)
+    if not import_prop("tree_small", 120, 14):
+        img, pivot = ph.tree_sprite(0.7)
+        save_sprite(img, "Props/tree_small.png", pivot)
+    if not import_prop("kiosk", 220, 40):
+        img, pivot = ph.kiosk_sprite()
+        save_sprite(img, "Props/kiosk.png", pivot, (1, 1))
+    if not import_prop("fountain", 240, 42):
+        img, pivot = ph.fountain_sprite()
+        save_sprite(img, "Props/fountain.png", pivot, (1, 1))
+    if not import_ui("chip", 96, os.path.join("Props", "chip.png")):
+        chip = ph.chip_icon(96)
+        save_sprite(chip, "Props/chip.png", (48, 48))
 
     # simple bench and lamp
-    bench = Image.new("RGBA", (110, 70), (0, 0, 0, 0))
-    d = ImageDraw.Draw(bench)
-    d.polygon([(10, 40), (70, 25), (100, 40), (40, 58)], fill=(158, 110, 74, 255))
-    d.rectangle([18, 52, 26, 66], fill=(96, 70, 50, 255))
-    d.rectangle([80, 40, 88, 56], fill=(96, 70, 50, 255))
-    save_sprite(bench, "Props/bench.png", (55, 58))
+    if not import_prop("bench", 120, 14):
+        bench = Image.new("RGBA", (110, 70), (0, 0, 0, 0))
+        d = ImageDraw.Draw(bench)
+        d.polygon([(10, 40), (70, 25), (100, 40), (40, 58)], fill=(158, 110, 74, 255))
+        d.rectangle([18, 52, 26, 66], fill=(96, 70, 50, 255))
+        d.rectangle([80, 40, 88, 56], fill=(96, 70, 50, 255))
+        save_sprite(bench, "Props/bench.png", (55, 58))
 
-    lamp = Image.new("RGBA", (44, 150), (0, 0, 0, 0))
-    d = ImageDraw.Draw(lamp)
-    d.rectangle([19, 20, 25, 140], fill=(70, 74, 82, 255))
-    d.ellipse([12, 4, 32, 26], fill=(255, 232, 160, 255), outline=(70, 74, 82, 255), width=3)
-    save_sprite(lamp, "Props/lamp.png", (22, 140))
+    if not import_prop("lamp", 52, 6):
+        lamp = Image.new("RGBA", (44, 150), (0, 0, 0, 0))
+        d = ImageDraw.Draw(lamp)
+        d.rectangle([19, 20, 25, 140], fill=(70, 74, 82, 255))
+        d.ellipse([12, 4, 32, 26], fill=(255, 232, 160, 255), outline=(70, 74, 82, 255), width=3)
+        save_sprite(lamp, "Props/lamp.png", (22, 140))
 
 
 def build_ui():
-    save_sprite(rounded((256, 96), 44, (255, 255, 255, 235), (208, 214, 224, 255)),
+    save_sprite(rounded((256, 96), 46, (252, 253, 255, 255), (214, 222, 232, 255), 5),
                 "UI/pill.png", (128, 48))
-    save_sprite(rounded((256, 128), 24, (44, 52, 66, 225)), "UI/panel_dark.png", (128, 64))
-    save_sprite(rounded((192, 88), 36, (255, 255, 255, 240), (206, 212, 222, 255)),
-                "UI/bubble.png", (96, 44))
+    save_sprite(rounded((256, 128), 26, (52, 62, 82, 225), (36, 44, 60, 255), 4),
+                "UI/panel_dark.png", (128, 64))
+
+    # tooltip bubble cut from the reference (chip baked in), white background keyed out
+    bubble_src = os.path.join(ART_SRC, "ui", "tooltip_bubble.png")
+    if os.path.exists(bubble_src):
+        bubble = key_out_white(Image.open(bubble_src))
+        bbox = bubble.getbbox()
+        bubble = bubble.crop(bbox)
+        target_w = 210
+        scale = target_w / bubble.width
+        bubble = bubble.resize((target_w, int(bubble.height * scale)), Image.LANCZOS)
+        # pivot at the tail tip (bottom, slightly left of center in the reference cut)
+        save_sprite(bubble, "UI/bubble.png", (int(bubble.width * 0.47), bubble.height - 2))
+    else:
+        save_sprite(rounded((192, 88), 36, (255, 255, 255, 240), (206, 212, 222, 255)),
+                    "UI/bubble.png", (96, 44))
+
+    # wide Acceleration Boost button cut from the reference
+    boost_src = os.path.join(ART_SRC, "ui", "ref_boost.png")
+    if os.path.exists(boost_src):
+        boost = Image.open(boost_src).convert("RGBA")
+        bbox = boost.getbbox()
+        boost = boost.crop(bbox)
+        scale = 340 / boost.width
+        boost = boost.resize((340, int(boost.height * scale)), Image.LANCZOS)
+        save_sprite(boost, "UI/boost_wide.png", (boost.width // 2, boost.height // 2))
     save_sprite(rounded((320, 64), 28, (40, 46, 58, 235), (24, 28, 36, 255)),
                 "UI/fuel_bg.png", (160, 32))
     fill = Image.new("RGBA", (300, 44), (0, 0, 0, 0))
@@ -129,38 +244,48 @@ def build_ui():
     fill.putalpha(mask.split()[3])
     save_sprite(fill, "UI/fuel_fill.png", (0, 22))  # pivot on the left edge for FillLeftToRight
 
-    pump = Image.new("RGBA", (72, 72), (0, 0, 0, 0))
-    d = ImageDraw.Draw(pump)
-    d.rounded_rectangle([14, 10, 50, 62], radius=8, fill=(214, 74, 60, 255))
-    d.rounded_rectangle([21, 18, 43, 34], radius=4, fill=(240, 238, 230, 255))
-    d.line([(50, 24), (62, 30), (62, 52)], fill=(214, 74, 60, 255), width=6)
-    save_sprite(pump, "UI/fuel_icon.png", (36, 36))
+    if not import_ui("fuel_icon", 80):
+        pump = Image.new("RGBA", (72, 72), (0, 0, 0, 0))
+        d = ImageDraw.Draw(pump)
+        d.rounded_rectangle([14, 10, 50, 62], radius=8, fill=(214, 74, 60, 255))
+        d.rounded_rectangle([21, 18, 43, 34], radius=4, fill=(240, 238, 230, 255))
+        d.line([(50, 24), (62, 30), (62, 52)], fill=(214, 74, 60, 255), width=6)
+        save_sprite(pump, "UI/fuel_icon.png", (36, 36))
 
-    boost = rounded((160, 160), 46, (74, 154, 240, 255), (255, 255, 255, 255), 6)
-    d = ImageDraw.Draw(boost)
-    d.polygon([(80, 28), (108, 96), (80, 82), (52, 96)], fill=(255, 255, 255, 255))
-    d.polygon([(66, 100), (94, 100), (80, 130)], fill=(255, 214, 92, 255))
-    save_sprite(boost, "UI/boost_btn.png", (80, 80))
+    if not import_ui("boost_btn", 170):
+        boost = rounded((160, 160), 46, (74, 154, 240, 255), (255, 255, 255, 255), 6)
+        d = ImageDraw.Draw(boost)
+        d.polygon([(80, 28), (108, 96), (80, 82), (52, 96)], fill=(255, 255, 255, 255))
+        d.polygon([(66, 100), (94, 100), (80, 130)], fill=(255, 214, 92, 255))
+        save_sprite(boost, "UI/boost_btn.png", (80, 80))
 
-    gear = Image.new("RGBA", (96, 96), (0, 0, 0, 0))
-    d = ImageDraw.Draw(gear)
-    d.ellipse([8, 8, 88, 88], fill=(74, 154, 240, 255), outline=(255, 255, 255, 255), width=5)
-    d.ellipse([30, 30, 66, 66], fill=(255, 255, 255, 255))
-    d.ellipse([40, 40, 56, 56], fill=(74, 154, 240, 255))
-    save_sprite(gear, "UI/gear.png", (48, 48))
+    if not import_ui("gear", 96):
+        gear = Image.new("RGBA", (96, 96), (0, 0, 0, 0))
+        d = ImageDraw.Draw(gear)
+        d.ellipse([8, 8, 88, 88], fill=(74, 154, 240, 255), outline=(255, 255, 255, 255), width=5)
+        d.ellipse([30, 30, 66, 66], fill=(255, 255, 255, 255))
+        d.ellipse([40, 40, 56, 56], fill=(74, 154, 240, 255))
+        save_sprite(gear, "UI/gear.png", (48, 48))
 
-    check = Image.new("RGBA", (96, 96), (0, 0, 0, 0))
-    d = ImageDraw.Draw(check)
-    d.ellipse([4, 4, 92, 92], fill=(96, 196, 96, 255), outline=(255, 255, 255, 255), width=5)
-    d.line([(26, 50), (44, 68), (72, 32)], fill=(255, 255, 255, 255), width=12, joint="curve")
-    save_sprite(check, "UI/check.png", (48, 48))
+    if not import_ui("check", 96):
+        check = Image.new("RGBA", (96, 96), (0, 0, 0, 0))
+        d = ImageDraw.Draw(check)
+        d.ellipse([4, 4, 92, 92], fill=(96, 196, 96, 255), outline=(255, 255, 255, 255), width=5)
+        d.line([(26, 50), (44, 68), (72, 32)], fill=(255, 255, 255, 255), width=12, joint="curve")
+        save_sprite(check, "UI/check.png", (48, 48))
 
-    arrow = Image.new("RGBA", (120, 120), (0, 0, 0, 0))
-    d = ImageDraw.Draw(arrow)
-    d.rounded_rectangle([4, 4, 116, 116], radius=28, fill=(255, 255, 255, 200),
-                        outline=(160, 170, 185, 255), width=4)
-    d.polygon([(60, 26), (94, 74), (60, 60), (26, 74)], fill=(74, 110, 160, 255))
-    save_sprite(arrow, "UI/arrow.png", (60, 60))
+    if not import_ui("arrow", 120):
+        arrow = Image.new("RGBA", (120, 120), (0, 0, 0, 0))
+        d = ImageDraw.Draw(arrow)
+        d.rounded_rectangle([4, 4, 116, 116], radius=28, fill=(255, 255, 255, 200),
+                            outline=(160, 170, 185, 255), width=4)
+        d.polygon([(60, 26), (94, 74), (60, 60), (26, 74)], fill=(74, 110, 160, 255))
+        save_sprite(arrow, "UI/arrow.png", (60, 60))
+
+    # rotated arrow variants (widget layouts do not rotate layers)
+    up = Image.open(os.path.join(OUT, "UI", "arrow.png"))
+    for name, angle in (("arrow_n", 0), ("arrow_w", 90), ("arrow_s", 180), ("arrow_e", 270)):
+        save_sprite(up.rotate(angle), "UI/" + name + ".png", (up.width // 2, up.height // 2))
 
     btn = rounded((360, 110), 40, (96, 196, 96, 255), (255, 255, 255, 255), 6)
     save_sprite(btn, "UI/button_green.png", (180, 55))
@@ -197,11 +322,13 @@ def emit_cpp_manifest():
 
 
 def build_backdrop():
-    img = ph.backdrop(2048)
+    gen = os.path.join(ART_SRC, "backdrop.png")
+    img = Image.open(gen) if os.path.exists(gen) else ph.backdrop(2048)
     path = os.path.join(OUT, "backdrop.png")
     os.makedirs(OUT, exist_ok=True)
     img.save(path)
-    manifest["sprites"]["backdrop.png"] = {"pivot": [1024, 1024], "size": [2048, 2048]}
+    manifest["sprites"]["backdrop.png"] = {"pivot": [img.width // 2, img.height // 2],
+                                           "size": [img.width, img.height]}
 
 
 def main():

@@ -64,7 +64,9 @@ namespace td
 		Ref<Widget> MakeWindow(const WString& title, const WString& message,
 							   const WString& buttonCaption, const String& buttonStyle,
 							   const Function<void()>& onClick);
+		// dark=true recolors the standard label to navy and drops the light shadow —
+		// for text on white pills/bubbles/windows like the reference numbers
 		Ref<Label> MakeLabel(const Ref<Widget>& parent, const WString& text, int height,
-							 const Color4& color);
+							 bool dark = false);
 	};
 }

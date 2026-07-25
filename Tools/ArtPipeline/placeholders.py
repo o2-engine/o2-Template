@@ -114,6 +114,22 @@ def building_sprite(fw, fh, wall_h, wall_color, roof_color, floors=2, awning=Non
     return img, pivot
 
 
+def blueprint_sprite(fw, fh, wall_h, floors=2):
+    """Gray massing blueprint for Gemini: exact diamond base touching the canvas sides,
+    red base outline, subtle cell grid. The generated building must follow this massing."""
+    img, pivot = building_sprite(fw, fh, wall_h, (176, 178, 184), (150, 152, 158), floors)
+    d = ImageDraw.Draw(img)
+    cw = img.width
+    nx = fh * 128
+    base_y = wall_h
+    gN = (nx, base_y)
+    gE = (nx + fw * 128, base_y + fw * 64)
+    gS = (nx + (fw - fh) * 128, base_y + (fw + fh) * 64)
+    gW = (nx - fh * 128, base_y + fh * 64)
+    d.line([gN, gE, gS, gW, gN], fill=(230, 60, 50, 255), width=6)
+    return img, pivot
+
+
 def tree_sprite(scale=1.0):
     w, h = int(140 * scale), int(190 * scale)
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))

@@ -14,8 +14,8 @@ namespace td
 		float fillRadius = 1.6f;      // cells from the fountain-adjacent road cells
 		int   baseOrders = 3;
 		int   maxOrders = 8;
-		int   baseCitySize = 11;
-		int   maxCitySize = 13;
+		int   baseCitySize = 15;
+		int   maxCitySize = 19;
 	};
 
 	enum class SessionState { Playing, Won, Lost };

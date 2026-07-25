@@ -401,3 +401,24 @@ TEST(TokenSession, GeneratedLevelStartIsOnSource)
 	EXPECT_TRUE(session.IsFilling()); // player always starts at the token source
 	EXPECT_EQ(session.GetState(), SessionState::Playing);
 }
+
+#include "o2/Utils/Math/Mesh3DPrimitives.h"
+
+TEST(TokenCarShading, BoxNormalsAndLightFormula)
+{
+	auto data = Mesh3DPrimitives::BuildBox(Vec3F(1.0f, 1.0f, 1.0f));
+	ASSERT_EQ(data.normals.Count(), data.positions.Count());
+
+	bool anyTop = false;
+	for (auto& n : data.normals)
+		anyTop |= n.z > 0.9f;
+	EXPECT_TRUE(anyTop);
+
+	Vec3F lightDir = Vec3F(-0.35f, -0.25f, -0.9f).Normalized();
+	float d = Vec3F(0.0f, 0.0f, 1.0f).Dot(lightDir*-1.0f);
+	EXPECT_GT(d, 0.8f);
+
+	float ambient = 0.55f;
+	float intensity = ambient + (1.0f - ambient)*Math::Max(d, 0.0f);
+	EXPECT_GT(intensity, 0.9f);
+}
