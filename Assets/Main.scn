@@ -14,6 +14,43 @@
     "Tags": null,
     "Actors": [
         {
+            "Type": "o2::Actor",
+            "Value": {
+                "mInheritDrawingDepthFromParent": false,
+                "mName": "physics pyramid",
+                "mSceneLayer": {
+                    "Type": "o2::SceneLayer",
+                    "Value": {
+                        "mName": "3D"
+                    }
+                },
+                "Id": 5000000000000000101,
+                "Transform": {
+                    "position": {
+                        "x": 0.0,
+                        "y": 300.0,
+                        "z": 0.0
+                    },
+                    "pivot": {
+                        "x": 0.5,
+                        "y": 0.5,
+                        "z": 0.0
+                    }
+                },
+                "Components": [
+                    {
+                        "Type": "PyramidSpawner",
+                        "Data": {
+                            "rows": 16,
+                            "boxSize": 55.0,
+                            "launchSpeed": 150.0,
+                            "mId": 5000000000000000102
+                        }
+                    }
+                ]
+            }
+        },
+        {
             "Type": "o2::CameraActor",
             "Value": {
                 "mInheritDrawingDepthFromParent": false,

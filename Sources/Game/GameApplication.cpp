@@ -1,6 +1,7 @@
 #include "o2/stdafx.h"
 #include "GameApplication.h"
 
+#include "Physics3DDemo.h"
 #include "o2/Assets/Assets.h"
 #include "o2/Render/Render.h"
 #include "o2/Scene/Scene.h"
@@ -17,6 +18,9 @@ void GameApplication::OnStarted()
 	// The main scene shows a deferred 3D layer with a 2D overlay on top;
 	// the same scene is opened by the editor
 	o2Scene.Load(o2Assets.GetBuiltAssetsPath() + String("Main.scn"));
+
+	// Example of the 3D physics API (Box3D): drops a few bodies onto the ground plane
+	demo::SpawnPhysics3DDemo();
 }
 
 void GameApplication::OnUpdate(float dt)
