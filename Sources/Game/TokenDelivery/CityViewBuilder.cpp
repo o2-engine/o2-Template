@@ -56,7 +56,12 @@ namespace td
 				if (city.IsRoad(cell))
 					path = RoadTilePath(city.RoadMask(cell));
 				else if (city.Ground(cell) == GroundKind::Grass)
+				{
+					// drawn above all neighbouring ground so the ragged grass edge
+					// overlaps the surrounding slabs organically
 					path = "Game/Tiles/grass.png";
+					depth += 1.6f;
+				}
 				else
 					path = "Game/Tiles/pavement.png";
 

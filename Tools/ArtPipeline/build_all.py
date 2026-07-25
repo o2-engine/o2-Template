@@ -127,16 +127,45 @@ def rounded(size, radius, fill, outline=None, width=4):
     return img
 
 
+def plaza_texture():
+    """Block interior slabs: the generated sidewalk recolored to the reference's light
+    cream courtyard tone (231,223,210)."""
+    import numpy as np
+    base = src_texture("tex_pavement.png", ph.pavement_texture).convert("RGB")
+    # upscale a quarter so the slabs read larger (reference courtyards use big slabs)
+    q = base.crop((0, 0, base.width // 2, base.height // 2)).resize(base.size, Image.LANCZOS)
+    arr = np.asarray(q, dtype=np.float32)
+    mean = arr.reshape(-1, 3).mean(axis=0)
+    target = np.array([231.0, 223.0, 210.0])
+    arr = np.clip(arr * (target / mean), 0, 255).astype("uint8")
+    return Image.fromarray(arr, "RGB")
+
+
 def build_tiles():
     build_road_tiles(src_texture("tex_asphalt.png", ph.asphalt_texture),
                      src_texture("tex_pavement.png", ph.pavement_texture),
                      os.path.join(OUT, "Tiles"))
-    build_ground_tile(src_texture("tex_pavement.png", ph.pavement_texture),
-                      os.path.join(OUT, "Tiles", "pavement.png"))
-    build_ground_tile(src_texture("tex_grass.png", ph.grass_texture),
-                      os.path.join(OUT, "Tiles", "grass.png"))
+
+    # Gemini-polished variants (built by the polish pass, geometry-checked): only the
+    # accepted ones override the procedural tiles
+    accepted_path = os.path.join(ART_SRC, "polished_fit", "accepted.json")
+    if os.path.exists(accepted_path):
+        for name in json.load(open(accepted_path)):
+            src = os.path.join(ART_SRC, "polished_fit", name + ".png")
+            if os.path.exists(src):
+                Image.open(src).save(os.path.join(OUT, "Tiles", name + ".png"))
+    plaza = src_texture("tex_plaza.png", plaza_texture)
+    build_ground_tile(plaza, os.path.join(OUT, "Tiles", "pavement.png"))
+    from artgen import build_grass_patch, GROUND_BLEED
+    grass_size = build_grass_patch(src_texture("tex_grass.png", ph.grass_texture),
+                                   os.path.join(OUT, "Tiles", "grass.png"))
     for name in os.listdir(os.path.join(OUT, "Tiles")):
-        manifest["sprites"]["Tiles/" + name] = {"pivot": [128, 64], "size": [256, 128]}
+        if not name.endswith(".png"):
+            continue
+        from PIL import Image as PImage
+        size = PImage.open(os.path.join(OUT, "Tiles", name)).size
+        manifest["sprites"]["Tiles/" + name] = {"pivot": [size[0] // 2, size[1] // 2],
+                                                "size": list(size)}
 
 
 HOUSES = [
