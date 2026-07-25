@@ -62,6 +62,18 @@ Prompts should be in English. Outputs are PNG; results return a preview. CLI equ
 details: `o2/Tools/ImageGen/README.md`. API key: `o2/Tools/ImageGen/api_key.txt` (gitignored)
 or `GEMINI_API_KEY`.
 
+## Use engine facilities first
+
+Before writing any helper/subsystem, check that o2 doesn't already provide it — the engine has
+tools for nearly everything (UI = Widget descendants via `o2UI` + styles, not custom sprite/text
+components; particles, tweens, layouts, etc.). Full markdown documentation lives in `o2/Docs/en`
+(and `ru`) — consult it first, then the sources.
+
+## Communication with the contributor
+
+On significant problems (blockers, broken assumptions) or when a real design choice comes up —
+ask the contributor instead of silently picking an option.
+
 ## Comments
 
 Default: no comment. No multi-line rationale/history/ABI essays above code — that goes in the PR. A

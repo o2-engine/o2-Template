@@ -1,0 +1,810 @@
+{
+ "sprites": {
+  "Buildings/house_brick_a.png": {
+   "footprint": [
+    1,
+    1
+   ],
+   "pivot": [
+    128,
+    229
+   ],
+   "size": [
+    256,
+    293
+   ]
+  },
+  "Buildings/house_brick_b.png": {
+   "footprint": [
+    1,
+    1
+   ],
+   "pivot": [
+    128,
+    226
+   ],
+   "size": [
+    256,
+    290
+   ]
+  },
+  "Buildings/house_cafe.png": {
+   "footprint": [
+    1,
+    1
+   ],
+   "pivot": [
+    128,
+    220
+   ],
+   "size": [
+    256,
+    284
+   ]
+  },
+  "Buildings/house_corner.png": {
+   "footprint": [
+    2,
+    2
+   ],
+   "pivot": [
+    256,
+    390
+   ],
+   "size": [
+    512,
+    518
+   ]
+  },
+  "Buildings/house_cream.png": {
+   "footprint": [
+    1,
+    1
+   ],
+   "pivot": [
+    128,
+    215
+   ],
+   "size": [
+    256,
+    279
+   ]
+  },
+  "Buildings/house_double.png": {
+   "footprint": [
+    2,
+    1
+   ],
+   "pivot": [
+    192,
+    301
+   ],
+   "size": [
+    384,
+    397
+   ]
+  },
+  "Buildings/house_long.png": {
+   "footprint": [
+    1,
+    2
+   ],
+   "pivot": [
+    192,
+    276
+   ],
+   "size": [
+    384,
+    372
+   ]
+  },
+  "Buildings/house_shop_awning.png": {
+   "footprint": [
+    1,
+    1
+   ],
+   "pivot": [
+    128,
+    216
+   ],
+   "size": [
+    256,
+    280
+   ]
+  },
+  "Buildings/house_tall.png": {
+   "footprint": [
+    1,
+    1
+   ],
+   "pivot": [
+    128,
+    218
+   ],
+   "size": [
+    256,
+    282
+   ]
+  },
+  "Buildings/house_terracotta.png": {
+   "footprint": [
+    1,
+    1
+   ],
+   "pivot": [
+    128,
+    256
+   ],
+   "size": [
+    256,
+    320
+   ]
+  },
+  "Buildings/office_classic.png": {
+   "footprint": [
+    1,
+    1
+   ],
+   "pivot": [
+    128,
+    214
+   ],
+   "size": [
+    256,
+    278
+   ]
+  },
+  "Buildings/office_glass.png": {
+   "footprint": [
+    2,
+    2
+   ],
+   "pivot": [
+    256,
+    487
+   ],
+   "size": [
+    512,
+    615
+   ]
+  },
+  "Buildings/office_loft.png": {
+   "footprint": [
+    2,
+    1
+   ],
+   "pivot": [
+    192,
+    296
+   ],
+   "size": [
+    384,
+    392
+   ]
+  },
+  "Props/bench.png": {
+   "pivot": [
+    60,
+    106
+   ],
+   "size": [
+    120,
+    120
+   ]
+  },
+  "Props/chip.png": {
+   "pivot": [
+    45,
+    48
+   ],
+   "size": [
+    91,
+    96
+   ]
+  },
+  "Props/fountain.png": {
+   "pivot": [
+    120,
+    141
+   ],
+   "size": [
+    240,
+    183
+   ]
+  },
+  "Props/kiosk.png": {
+   "pivot": [
+    110,
+    189
+   ],
+   "size": [
+    220,
+    229
+   ]
+  },
+  "Props/lamp.png": {
+   "pivot": [
+    26,
+    122
+   ],
+   "size": [
+    52,
+    128
+   ]
+  },
+  "Props/smoke.png": {
+   "pivot": [
+    32,
+    32
+   ],
+   "size": [
+    64,
+    64
+   ]
+  },
+  "Props/tree_big.png": {
+   "pivot": [
+    85,
+    180
+   ],
+   "size": [
+    170,
+    200
+   ]
+  },
+  "Props/tree_small.png": {
+   "pivot": [
+    60,
+    167
+   ],
+   "size": [
+    120,
+    181
+   ]
+  },
+  "Tiles/grass.png": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/grass.png.meta": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/pavement.png": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/pavement.png.meta": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_E.png": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_E.png.meta": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_ES.png": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_ES.png.meta": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_ESW.png": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_ESW.png.meta": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_EW.png": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_EW.png.meta": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_N.png": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_N.png.meta": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_NE.png": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_NE.png.meta": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_NES.png": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_NES.png.meta": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_NESW.png": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_NESW.png.meta": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_NEW.png": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_NEW.png.meta": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_NS.png": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_NS.png.meta": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_NSW.png": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_NSW.png.meta": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_NW.png": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_NW.png.meta": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_O.png": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_O.png.meta": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_S.png": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_S.png.meta": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_SW.png": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_SW.png.meta": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_W.png": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "Tiles/road_W.png.meta": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "UI/arrow.png": {
+   "pivot": [
+    60,
+    59
+   ],
+   "size": [
+    120,
+    118
+   ]
+  },
+  "UI/arrow_e.png": {
+   "pivot": [
+    60,
+    59
+   ],
+   "size": [
+    120,
+    118
+   ]
+  },
+  "UI/arrow_n.png": {
+   "pivot": [
+    60,
+    59
+   ],
+   "size": [
+    120,
+    118
+   ]
+  },
+  "UI/arrow_s.png": {
+   "pivot": [
+    60,
+    59
+   ],
+   "size": [
+    120,
+    118
+   ]
+  },
+  "UI/arrow_w.png": {
+   "pivot": [
+    60,
+    59
+   ],
+   "size": [
+    120,
+    118
+   ]
+  },
+  "UI/boost_btn.png": {
+   "pivot": [
+    82,
+    85
+   ],
+   "size": [
+    165,
+    170
+   ]
+  },
+  "UI/bubble.png": {
+   "pivot": [
+    96,
+    44
+   ],
+   "size": [
+    192,
+    88
+   ]
+  },
+  "UI/button_blue.png": {
+   "pivot": [
+    180,
+    55
+   ],
+   "size": [
+    360,
+    110
+   ]
+  },
+  "UI/button_green.png": {
+   "pivot": [
+    180,
+    55
+   ],
+   "size": [
+    360,
+    110
+   ]
+  },
+  "UI/check.png": {
+   "pivot": [
+    47,
+    48
+   ],
+   "size": [
+    94,
+    96
+   ]
+  },
+  "UI/fuel_bg.png": {
+   "pivot": [
+    160,
+    32
+   ],
+   "size": [
+    320,
+    64
+   ]
+  },
+  "UI/fuel_fill.png": {
+   "pivot": [
+    0,
+    22
+   ],
+   "size": [
+    300,
+    44
+   ]
+  },
+  "UI/fuel_icon.png": {
+   "pivot": [
+    25,
+    40
+   ],
+   "size": [
+    51,
+    80
+   ]
+  },
+  "UI/gear.png": {
+   "pivot": [
+    42,
+    48
+   ],
+   "size": [
+    84,
+    96
+   ]
+  },
+  "UI/panel_dark.png": {
+   "pivot": [
+    128,
+    64
+   ],
+   "size": [
+    256,
+    128
+   ]
+  },
+  "UI/pill.png": {
+   "pivot": [
+    128,
+    48
+   ],
+   "size": [
+    256,
+    96
+   ]
+  },
+  "UI/window.png": {
+   "pivot": [
+    380,
+    260
+   ],
+   "size": [
+    760,
+    520
+   ]
+  },
+  "backdrop.png": {
+   "pivot": [
+    1024,
+    1024
+   ],
+   "size": [
+    2048,
+    2048
+   ]
+  }
+ },
+ "tileSize": [
+  256,
+  128
+ ]
+}
