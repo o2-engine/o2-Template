@@ -33,13 +33,30 @@ namespace td
 
 	namespace
 	{
-		struct HouseType { const char* sprite; int fw; int fh; };
+		// weight ranks houses by footprint: the bigger the building, the rarer it spawns
+		struct HouseType { const char* sprite; int fw; int fh; int weight; };
 		const HouseType kHouses[] = {
-			{ "house_brick_a", 1, 1 }, { "house_brick_b", 1, 1 }, { "house_cream", 1, 1 },
-			{ "house_terracotta", 1, 1 }, { "house_shop_awning", 1, 1 }, { "house_cafe", 1, 1 },
-			{ "house_tall", 1, 1 }, { "house_double", 2, 1 }, { "house_long", 1, 2 },
-			{ "house_corner", 2, 2 }
+			{ "house_brick_a", 1, 1, 10 }, { "house_brick_b", 1, 1, 10 }, { "house_cream", 1, 1, 10 },
+			{ "house_terracotta", 1, 1, 10 }, { "house_shop_awning", 1, 1, 9 }, { "house_cafe", 1, 1, 9 },
+			{ "house_tall", 1, 1, 6 }, { "house_double", 2, 1, 3 }, { "house_long", 1, 2, 3 },
+			{ "house_corner", 2, 2, 1 }
 		};
+		const int kSmallHouses = 7; // first entries are the 1x1 pool
+
+		int PickWeightedHouse(Rng& rng, int count)
+		{
+			int total = 0;
+			for (int i = 0; i < count; i++)
+				total += kHouses[i].weight;
+			int roll = rng.Range(0, total - 1);
+			for (int i = 0; i < count; i++)
+			{
+				roll -= kHouses[i].weight;
+				if (roll < 0)
+					return i;
+			}
+			return 0;
+		}
 		const HouseType kOffices[] = {
 			{ "office_glass", 2, 2 }, { "office_loft", 2, 1 }, { "office_classic", 1, 1 }
 		};
@@ -282,33 +299,68 @@ namespace td
 				m.buildings.Add(office);
 			}
 
-			// houses fill block cells adjacent to roads
+			// houses fill part of the road-adjacent block cells, leaving room for decor;
+			// no sprite repeats within one block, and every block gets at least one building
 			for (int b = 0; b < blocks.Count(); b++)
 			{
 				if (b == parkIdx)
 					continue;
+
+				Vector<String> used;
+				for (auto& bld : m.buildings)
+				{
+					if (blocks[b].cells.Contains(bld.cell))
+						used.Add(bld.spriteId);
+				}
+				int placed = used.Count();
+
 				for (auto& cell : blocks[b].cells)
 				{
-					if (!occ.IsFree(cell) || rng.Frand() > 0.8f)
+					if (!occ.IsFree(cell) || rng.Frand() > 0.5f)
 						continue;
 					if (AdjacentRoadCells(m, cell, Vec2I(1, 1)).IsEmpty())
 						continue;
 
-					int typeIdx = rng.Range(0, 9);
-					auto& type = kHouses[typeIdx];
-					Vec2I fp(type.fw, type.fh);
-					if (!FootprintFits(m, occ, blocks[b].cells, cell, fp))
+					int typeIdx = -1;
+					for (int attempt = 0; attempt < 8 && typeIdx < 0; attempt++)
 					{
-						typeIdx = rng.Range(0, 6); // 1x1 fallback
-						fp = Vec2I(1, 1);
+						int idx = PickWeightedHouse(rng, attempt < 3 ? 10 : kSmallHouses);
+						if (used.Contains(String(kHouses[idx].sprite)))
+							continue;
+						if (FootprintFits(m, occ, blocks[b].cells, cell,
+										  Vec2I(kHouses[idx].fw, kHouses[idx].fh)))
+						{
+							typeIdx = idx;
+						}
 					}
+					if (typeIdx < 0)
+						continue;
 
 					BuildingInfo house;
 					house.spriteId = kHouses[typeIdx].sprite;
 					house.cell = cell;
-					house.footprint = fp;
-					occ.Take(cell, fp);
+					house.footprint = Vec2I(kHouses[typeIdx].fw, kHouses[typeIdx].fh);
+					occ.Take(cell, house.footprint);
 					m.buildings.Add(house);
+					used.Add(house.spriteId);
+					placed++;
+				}
+
+				if (placed == 0)
+				{
+					for (auto& cell : blocks[b].cells)
+					{
+						if (!occ.IsFree(cell) || AdjacentRoadCells(m, cell, Vec2I(1, 1)).IsEmpty())
+							continue;
+
+						BuildingInfo house;
+						house.spriteId = kHouses[PickWeightedHouse(rng, kSmallHouses)].sprite;
+						house.cell = cell;
+						house.footprint = Vec2I(1, 1);
+						occ.Take(cell, house.footprint);
+						m.buildings.Add(house);
+						break;
+					}
 				}
 			}
 
@@ -328,21 +380,23 @@ namespace td
 					{
 						if (roll < 0.45f)
 							m.decors.Add({ rng.Frand() < 0.6f ? "tree_big" : "tree_small", pos });
-						else if (roll < 0.6f)
+						else if (roll < 0.58f)
 							m.decors.Add({ "bench", pos });
+						else if (roll < 0.72f)
+							m.decors.Add({ "bush", pos });
 					}
-					else if (roll < 0.06f && kiosks < 2)
+					else if (roll < 0.05f && kiosks < 4)
 					{
-						m.decors.Add({ "kiosk", pos });
+						m.decors.Add({ rng.Frand() < 0.5f ? "kiosk" : "kiosk_b", pos });
 						occ.Take(cell, Vec2I(1, 1));
 						kiosks++;
 					}
-					else if (roll < 0.28f)
+					else if (roll < 0.20f)
 						m.decors.Add({ rng.Frand() < 0.5f ? "tree_big" : "tree_small", pos });
-					else if (roll < 0.38f)
+					else if (roll < 0.26f)
 						m.decors.Add({ "bench", pos });
-					else if (roll < 0.48f)
-						m.decors.Add({ "lamp", pos });
+					else if (roll < 0.34f)
+						m.decors.Add({ "bush", pos });
 				}
 			}
 

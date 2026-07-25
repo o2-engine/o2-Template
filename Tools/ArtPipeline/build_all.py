@@ -26,9 +26,11 @@ def src_texture(name, fallback):
     return fallback()
 
 
-def load_generated(rel):
+def load_generated(rel, cut_soft_alpha=False):
     """Trimmed generated sprite from ArtSrc, or None when not generated yet. When the
-    alpha recovery failed (opaque white background), keys the white out by flood fill."""
+    alpha recovery failed (opaque white background), keys the white out by flood fill.
+    cut_soft_alpha drops mid-alpha residue (baked ground shadows from the alpha-recovery
+    double render) — real art edges live above ~180."""
     path = os.path.join(ART_SRC, rel)
     if not os.path.exists(path):
         return None
@@ -38,6 +40,8 @@ def load_generated(rel):
                a.getpixel((2, img.height - 3)), a.getpixel((img.width - 3, img.height - 3))]
     if max(corners) > 40:
         img = key_out_white(img, tol=12)
+    if cut_soft_alpha:
+        img.putalpha(img.getchannel("A").point(lambda v: v if v >= 180 else 0))
     bbox = img.getbbox()
     return img.crop(bbox) if bbox else img
 
@@ -45,10 +49,27 @@ def load_generated(rel):
 BUILDING_CELL_FILL = 0.78  # buildings fill ~78% of their footprint, reference-like
 
 
+def load_baked(name):
+    """Final sprite with the Gemini-baked ground shadow (Tools/ArtPipeline/bake_shadows.py):
+    already at target scale, pivot stored in meta. Returns (image, pivot) or None."""
+    path = os.path.join(ART_SRC, "baked", name + ".png")
+    meta_path = os.path.join(ART_SRC, "baked", "meta.json")
+    if not (os.path.exists(path) and os.path.exists(meta_path)):
+        return None
+    meta = json.load(open(meta_path))
+    if name not in meta:
+        return None
+    return Image.open(path).convert("RGBA"), meta[name]["pivot"]
+
+
 def import_building(name, fw, fh):
     """Generated building: scaled so the base fills BUILDING_CELL_FILL of the footprint
     diamond (roads stay visible around it), pivot at the footprint base center."""
-    img = load_generated("buildings/%s.png" % name)
+    baked = load_baked(name)
+    if baked is not None:
+        save_sprite(baked[0], os.path.join("Buildings", name + ".png"), baked[1], (fw, fh))
+        return True
+    img = load_generated("buildings/%s.png" % name, cut_soft_alpha=True)
     if img is None:
         return False
     target_w = int((fw + fh) * 128 * BUILDING_CELL_FILL)
@@ -60,6 +81,10 @@ def import_building(name, fw, fh):
 
 
 def import_prop(name, target_w, pivot_from_bottom=0, out_name=None):
+    baked = load_baked(name)
+    if baked is not None:
+        save_sprite(baked[0], os.path.join("Props", (out_name or name) + ".png"), baked[1])
+        return True
     img = load_generated("props/%s.png" % name)
     if img is None:
         return False
@@ -207,9 +232,17 @@ def build_props():
     if not import_prop("tree_small", 112, 12):
         img, pivot = ph.tree_sprite(0.7)
         save_sprite(img, "Props/tree_small.png", pivot)
-    if not import_prop("kiosk", 220, 40):
+    if not import_prop("kiosk", 175, 32):
         img, pivot = ph.kiosk_sprite()
         save_sprite(img, "Props/kiosk.png", pivot, (1, 1))
+    if not import_prop("kiosk_b", 150, 27):
+        # fallback until the second kiosk is generated: reuse the first one
+        kiosk = Image.open(os.path.join(OUT, "Props", "kiosk.png"))
+        e = manifest["sprites"]["Props/kiosk.png"]
+        save_sprite(kiosk, "Props/kiosk_b.png", e["pivot"], (1, 1))
+    if not import_prop("bush", 96, 10):
+        img, pivot = ph.tree_sprite(0.45)
+        save_sprite(img, "Props/bush.png", pivot)
     if not import_prop("fountain", 240, 42):
         img, pivot = ph.fountain_sprite()
         save_sprite(img, "Props/fountain.png", pivot, (1, 1))
@@ -333,6 +366,33 @@ def build_effects():
     for r, a in ((30, 60), (24, 110), (17, 170)):
         d.ellipse([32 - r, 32 - r, 32 + r, 32 + r], fill=(235, 235, 232, a))
     save_sprite(smoke, "Props/smoke.png", (32, 32))
+
+
+def build_shadows():
+    """Ground shadow sprite per building/prop; drawn by the game at ground depth.
+    Procedural baseline, overridden by accepted Gemini-drawn shadows when present
+    (built by Tools/ArtPipeline/gemini_shadows.py)."""
+    from shadows import build_object_shadow
+    for rel in sorted(list(manifest["sprites"])):
+        if not (rel.startswith("Buildings/") or rel.startswith("Props/")):
+            continue
+        base = os.path.basename(rel)[:-4]
+        if base in ("chip", "smoke"):
+            continue
+        entry = manifest["sprites"][rel]
+        img = Image.open(os.path.join(OUT, rel)).convert("RGBA")
+        shadow, pivot = build_object_shadow(img, entry["pivot"])
+        save_sprite(shadow, os.path.join("Shadows", base + ".png"), pivot)
+
+    gem_dir = os.path.join(ART_SRC, "shadows_gemini")
+    meta_path = os.path.join(gem_dir, "meta.json")
+    if os.path.exists(meta_path):
+        meta = json.load(open(meta_path))
+        for base, entry in meta.items():
+            src = os.path.join(gem_dir, base + ".png")
+            if os.path.exists(src):
+                save_sprite(Image.open(src), os.path.join("Shadows", base + ".png"),
+                            entry["pivot"])
 
 
 def emit_cpp_manifest():

@@ -43,24 +43,20 @@ state (scene, subscriptions to `o2Scene`/global signals) via guards/destructors.
 New tests go in the matching tier; shared helpers live in `o2/Tests/Sources/Support/`
 (`SceneCleanGuard`, `TickFrame`/`TickFrames` in `Scene/SceneTestHelpers.h`).
 
-## Image generation tools (MCP `imagegen`)
+## Image generation tools (CLI, `o2/Tools/ImageGen/`)
 
-For generating game sprites/assets use the MCP server `imagegen` (registered in `.mcp.json`,
-implemented in `o2/Tools/ImageGen/`, model Gemini Nano Banana 2). Tools:
+For generating game sprites/assets run the CLI scripts in `o2/Tools/ImageGen/` from the
+terminal (model Gemini Nano Banana 2). Do NOT use them via MCP — the tool previews eat too
+much context; run the scripts and inspect the output files with Read only when needed:
 
-- `generate_image(prompt, out_path, aspect?, size?, ref_paths?)` — text-to-image; pass style
-  references via `ref_paths` (upscale tiny references smoothly first — a NEAREST-upscaled or
-  pixelated reference makes the model copy the pixelation).
-- `edit_image(image_path, prompt, out_path, ref_paths?)` — targeted edit, preserves the rest.
-- `generate_transparent_image(prompt, out_path, ...)` — RGBA sprite via white/black double
-  render + alpha recovery. Does not work for near-white subjects on white (e.g. light UI icons) —
-  for flat icons generate on pure white and key the background out with a border flood-fill instead.
-- `extract_region(image_path, rect=[x,y,w,h], out_path, transparent?)` — crop a sprite out of a
-  sheet; `transparent` re-renders the subject (resolution may change).
+- `generate_image.py "prompt" --out img.png [--aspect 16:9] [--size 1K|2K|4K] [--ref style.png]`
+- `edit_image.py input.png "instruction" --out img.png [--ref style.png]`
+- `generate_transparent.py "prompt" --out sprite.png [--ref style.png]` — RGBA via
+  white/black double render; fails on near-white subjects (key those out by flood fill).
+- `extract_region.py atlas.png --rect x,y,w,h --out part.png [--transparent]`
 
-Prompts should be in English. Outputs are PNG; results return a preview. CLI equivalents and
-details: `o2/Tools/ImageGen/README.md`. API key: `o2/Tools/ImageGen/api_key.txt` (gitignored)
-or `GEMINI_API_KEY`.
+Prompts in English. Details: `o2/Tools/ImageGen/README.md`. API key:
+`o2/Tools/ImageGen/api_key.txt` (gitignored) or `GEMINI_API_KEY`.
 
 ## Use engine facilities first
 

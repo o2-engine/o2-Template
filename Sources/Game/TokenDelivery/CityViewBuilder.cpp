@@ -41,9 +41,7 @@ namespace td
 										handles.root);
 		backdrop->transform->SetScale(Vec3F(2.2f, 2.2f, 1.0f));
 
-		// ground: all cells covered, roads picked by connection mask; street lamps land on
-		// the road sidewalk strips like in the reference
-		Rng lampRng(city.size*7717u + 13u);
+		// ground: all cells covered, roads picked by connection mask
 		for (int j = 0; j < city.size; j++)
 		{
 			for (int i = 0; i < city.size; i++)
@@ -66,21 +64,31 @@ namespace td
 					path = "Game/Tiles/pavement.png";
 
 				art::MakeSprite(path, kWorldLayer, pos, depth, handles.root);
+			}
+		}
 
-				if (city.IsRoad(cell))
-				{
-					int mask = city.RoadMask(cell);
-					for (int d = 0; d < 4; d++)
-					{
-						if ((mask & (1 << d)) != 0 || lampRng.Frand() > 0.15f)
-							continue;
-						// closed edge: place a lamp on its sidewalk strip
-						Vec2F edge = Vec2F((float)i, (float)j) +
-									 Vec2F((float)DirVec((Dir)d).x, (float)DirVec((Dir)d).y)*0.38f;
-						art::MakeSprite("Game/Props/lamp.png", kWorldLayer, CellToScreen(edge),
-										IsoDepth(edge) + 0.05f, handles.root);
-					}
-				}
+		// street lamps: only on junction corners, at most one per junction
+		Rng lampRng(city.size*7717u + 13u);
+		for (int j = 0; j < city.size; j++)
+		{
+			for (int i = 0; i < city.size; i++)
+			{
+				Vec2I cell(i, j);
+				if (!city.IsRoad(cell))
+					continue;
+
+				int mask = city.RoadMask(cell);
+				int conns = 0;
+				for (int d = 0; d < 4; d++)
+					conns += (mask >> d) & 1;
+				if (conns < 3 || lampRng.Frand() > 0.6f)
+					continue;
+
+				Vec2F diag(lampRng.Frand() < 0.5f ? -0.42f : 0.42f,
+						   lampRng.Frand() < 0.5f ? -0.42f : 0.42f);
+				Vec2F pos = Vec2F((float)i, (float)j) + diag;
+				art::MakeSprite("Game/Props/lamp.png", kWorldLayer, CellToScreen(pos),
+								IsoDepth(pos) + 0.05f, handles.root);
 			}
 		}
 
