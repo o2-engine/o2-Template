@@ -167,16 +167,18 @@ void GameControllerComponent::StartLevel(int level)
 GameInput GameControllerComponent::CollectInput() const
 {
 	GameInput input;
-	input.up = o2Input.IsKeyDown(VK_UP) || o2Input.IsKeyDown('W');
-	input.down = o2Input.IsKeyDown(VK_DOWN) || o2Input.IsKeyDown('S');
-	input.left = o2Input.IsKeyDown(VK_LEFT) || o2Input.IsKeyDown('A');
-	input.right = o2Input.IsKeyDown(VK_RIGHT) || o2Input.IsKeyDown('D');
+	input.turnLeft = o2Input.IsKeyDown(VK_LEFT) || o2Input.IsKeyDown('A');
+	input.turnRight = o2Input.IsKeyDown(VK_RIGHT) || o2Input.IsKeyDown('D');
+	input.turnAuto = o2Input.IsKeyDown(VK_SPACE);
 	return input;
 }
 
 void GameControllerComponent::SyncCarView(float dt)
 {
 	auto& car = mSession.GetCar();
+	bool loaded = mSession.GetTokens() > 0;
+	mPlayerCar->SetFilled(loaded);
+	mPlayerGhost->SetFilled(loaded);
 	mPlayerCar->SetPose(car.GetVisualPos(), car.GetVisualAngle(), car.GetDriftIntensity());
 	Vec2F screen = CellToScreen(car.GetVisualPos());
 	mPlayerActor->transform->SetPosition(Vec3F(screen.x, screen.y, 0.0f));
@@ -195,17 +197,14 @@ void GameControllerComponent::SyncTraffic(float dt)
 		if (traffic.decisionTimer <= 0.0f)
 		{
 			traffic.decisionTimer = 1.5f + mTrafficRng.Frand()*2.5f;
-			if (mTrafficRng.Frand() < 0.4f)
-			{
-				traffic.input.hasDesired = true;
-				traffic.input.desired = (Dir)mTrafficRng.Range(0, 3);
-			}
-			else
-				traffic.input.hasDesired = false;
+			float roll = mTrafficRng.Frand();
+			traffic.input.turnLeft = roll < 0.2f;
+			traffic.input.turnRight = !traffic.input.turnLeft && roll < 0.4f;
 		}
 
 		traffic.sim.Tick(dt, traffic.input, city);
-		traffic.input.hasDesired = false;
+		traffic.input.turnLeft = false;
+		traffic.input.turnRight = false;
 
 		traffic.drawable->SetPose(traffic.sim.GetVisualPos(), traffic.sim.GetVisualAngle(),
 								  traffic.sim.GetDriftIntensity()*0.5f);

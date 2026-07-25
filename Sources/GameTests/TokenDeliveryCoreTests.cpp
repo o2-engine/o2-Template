@@ -148,21 +148,81 @@ TEST(TokenCarSim, AcceleratesToMaxSpeedAndDrives)
 	EXPECT_EQ(car.GetPos().y, 2.0f); // stays on the road center line
 }
 
-TEST(TokenCarSim, BufferedTurnAppliesAtIntersection)
+TEST(TokenCarSim, HeldRightTurnAppliesAtIntersection)
 {
-	// vertical branch at x=3 going south
+	// vertical branch at x=3 going south (the right side of an eastbound car)
 	auto city = MakeRoadCity({ Vec2I(3, 3), Vec2I(3, 4), Vec2I(3, 5) });
 	CarSim car;
 	car.Reset(TestCarTuning(), Vec2F(1.0f, 2.0f), Dir::E);
 
 	CarInput input;
-	input.hasDesired = true;
-	input.desired = Dir::S; // pressed early, must apply exactly at the x=3 intersection
+	input.turnRight = true; // held early, must apply exactly at the x=3 intersection
 	TickMany(car, city, input, 1.5f);
 
 	EXPECT_EQ(car.GetDir(), Dir::S);
 	EXPECT_NEAR(car.GetPos().x, 3.0f, 0.001f);
 	EXPECT_GT(car.GetPos().y, 2.0f);
+}
+
+TEST(TokenCarSim, HeldLeftTurnAppliesAtIntersection)
+{
+	// vertical branch at x=3 going north (the left side of an eastbound car)
+	auto city = MakeRoadCity({ Vec2I(3, 1), Vec2I(3, 0) });
+	CarSim car;
+	car.Reset(TestCarTuning(), Vec2F(1.0f, 2.0f), Dir::E);
+
+	CarInput input;
+	input.turnLeft = true;
+	TickMany(car, city, input, 1.5f);
+
+	EXPECT_EQ(car.GetDir(), Dir::N);
+	EXPECT_NEAR(car.GetPos().x, 3.0f, 0.001f);
+	EXPECT_LT(car.GetPos().y, 2.0f);
+}
+
+TEST(TokenCarSim, TurnLandsShortlyAfterTheCenterButNotFarther)
+{
+	auto city = MakeRoadCity({ Vec2I(3, 3), Vec2I(3, 4) });
+	CarSim car;
+
+	// just past the intersection, inside the window: pivots back at the center and turns
+	car.Reset(TestCarTuning(), Vec2F(3.2f, 2.0f), Dir::E);
+	CarInput input;
+	input.turnRight = true;
+	car.Tick(1.0f/60.0f, input, city);
+	EXPECT_EQ(car.GetDir(), Dir::S);
+	EXPECT_NEAR(car.GetPos().x, 3.0f, 0.001f);
+	EXPECT_GT(car.GetPos().y, 2.19f);
+
+	// farther than the window: the command does not land on the passed intersection
+	car.Reset(TestCarTuning(), Vec2F(3.55f, 2.0f), Dir::E);
+	car.Tick(1.0f/60.0f, input, city);
+	EXPECT_EQ(car.GetDir(), Dir::E);
+}
+
+TEST(TokenCarSim, AutoTurnPrefersLeftOfTwoSides)
+{
+	// both branches at x=3: space takes the left one (north for an eastbound car)
+	auto city = MakeRoadCity({ Vec2I(3, 1), Vec2I(3, 0), Vec2I(3, 3), Vec2I(3, 4) });
+	CarSim car;
+	car.Reset(TestCarTuning(), Vec2F(2.5f, 2.0f), Dir::E);
+
+	CarInput input;
+	input.turnAuto = true;
+	TickMany(car, city, input, 0.5f);
+	EXPECT_EQ(car.GetDir(), Dir::N);
+}
+
+TEST(TokenCarSim, AutoTurnTakesTheOnlySide)
+{
+	auto city = MakeRoadCity({ Vec2I(3, 3), Vec2I(3, 4) });
+	CarSim car;
+	car.Reset(TestCarTuning(), Vec2F(2.5f, 2.0f), Dir::E);
+
+	CarInput input;
+	input.turnAuto = true;
+	TickMany(car, city, input, 0.5f);
+	EXPECT_EQ(car.GetDir(), Dir::S);
 }
 
 TEST(TokenCarSim, TurnLosesSpeed)
@@ -179,8 +239,7 @@ TEST(TokenCarSim, TurnLosesSpeed)
 	ASSERT_NEAR(speedBefore, tuning.maxSpeed, 0.01f);
 
 	CarInput turn;
-	turn.hasDesired = true;
-	turn.desired = Dir::S;
+	turn.turnRight = true;
 	// drive up to just past the intersection with tiny steps, watching for the turn
 	bool turned = false;
 	for (int i = 0; i < 400 && !turned; i++)
@@ -190,30 +249,73 @@ TEST(TokenCarSim, TurnLosesSpeed)
 		{
 			turned = true;
 			EXPECT_LT(car.GetSpeed(), speedBefore*(1.0f - tuning.turnSpeedLoss) + 0.01f);
-			EXPECT_GT(car.GetDriftIntensity(), 0.0f);
 		}
 	}
 	ASSERT_TRUE(turned);
 }
 
-TEST(TokenCarSim, UTurnWorksAnywhere)
+TEST(TokenCarSim, TurnShiftsCarSidewaysAndStays)
 {
-	auto city = MakeRoadCity();
+	auto city = MakeRoadCity({ Vec2I(3, 3), Vec2I(3, 4), Vec2I(3, 5) });
 	CarSim car;
 	car.Reset(TestCarTuning(), Vec2F(1.0f, 2.0f), Dir::E);
 
-	TickMany(car, city, CarInput(), 0.3f);
-	float posBefore = car.GetPos().x;
-	ASSERT_GT(posBefore, 1.0f);
+	CarInput input;
+	input.turnRight = true;
+	bool turned = false;
+	for (int i = 0; i < 200 && !turned; i++)
+	{
+		car.Tick(1.0f/60.0f, input, city);
+		turned = car.JustTurned();
+	}
+	ASSERT_TRUE(turned);
+	ASSERT_EQ(car.GetDir(), Dir::S);
 
-	CarInput reverse;
-	reverse.hasDesired = true;
-	reverse.desired = Dir::W;
-	car.Tick(1.0f/60.0f, reverse, city);
-	EXPECT_EQ(car.GetDir(), Dir::W);
+	TickMany(car, city, CarInput(), 0.8f); // key released, long after the turn
+	Vec2F offset = car.GetVisualPos() - car.GetPos();
+	EXPECT_GT(offset.Length(), 0.05f);          // the shift persists, no spring back
+	EXPECT_LE(offset.Length(), 0.28f + 0.001f); // and stays within the road bounds
+}
 
-	TickMany(car, city, CarInput(), 0.3f);
-	EXPECT_LT(car.GetPos().x, posBefore);
+TEST(TokenCarSim, HeldKeyShiftsSidewaysAndBouncesAtTheEdge)
+{
+	auto city = MakeRoadCity(); // straight road: nowhere to turn right
+	CarSim car;
+	car.Reset(TestCarTuning(), Vec2F(1.0f, 2.0f), Dir::E);
+
+	// heading E: right of the car is S (+y), so the visual offset grows in +y
+	CarInput input;
+	input.turnRight = true;
+	bool edgeReached = false;
+	float reboundMin = 10.0f;
+	for (int i = 0; i < 90; i++)
+	{
+		car.Tick(1.0f/60.0f, input, city);
+		float d = car.GetVisualPos().y - car.GetPos().y;
+		if (!edgeReached && d >= 0.27f)
+			edgeReached = true;
+		else if (edgeReached)
+			reboundMin = Math::Min(reboundMin, d);
+	}
+	EXPECT_TRUE(edgeReached);          // the lunge crosses the road to the edge
+	EXPECT_LT(reboundMin, 0.24f);      // and visibly bounces off it
+}
+
+TEST(TokenCarSim, ForcedTurnPrefersRight)
+{
+	// dead end at x=5 with branches both north and south: the car picks the right one
+	auto city = MakeRoadCity({ Vec2I(5, 1), Vec2I(5, 0), Vec2I(5, 3), Vec2I(5, 4) });
+	CarSim car;
+	car.Reset(TestCarTuning(), Vec2F(4.0f, 2.0f), Dir::E);
+
+	bool turned = false;
+	for (int i = 0; i < 300 && !turned; i++)
+	{
+		car.Tick(1.0f/60.0f, CarInput(), city);
+		turned = car.JustTurned();
+	}
+	ASSERT_TRUE(turned);
+	EXPECT_EQ(car.GetDir(), Dir::S); // right of E
 }
 
 TEST(TokenCarSim, ForcedTurnAtDeadEnd)
@@ -361,25 +463,4 @@ TEST(TokenSession, GeneratedLevelStartIsOnSource)
 	session.Tick(1.0f/60.0f, input);
 	EXPECT_TRUE(session.IsFilling()); // player always starts at the token source
 	EXPECT_EQ(session.GetState(), SessionState::Playing);
-}
-
-#include "o2/Utils/Math/Mesh3DPrimitives.h"
-
-TEST(TokenCarShading, BoxNormalsAndLightFormula)
-{
-	auto data = Mesh3DPrimitives::BuildBox(Vec3F(1.0f, 1.0f, 1.0f));
-	ASSERT_EQ(data.normals.Count(), data.positions.Count());
-
-	bool anyTop = false;
-	for (auto& n : data.normals)
-		anyTop |= n.z > 0.9f;
-	EXPECT_TRUE(anyTop);
-
-	Vec3F lightDir = Vec3F(-0.35f, -0.25f, -0.9f).Normalized();
-	float d = Vec3F(0.0f, 0.0f, 1.0f).Dot(lightDir*-1.0f);
-	EXPECT_GT(d, 0.8f);
-
-	float ambient = 0.55f;
-	float intensity = ambient + (1.0f - ambient)*Math::Max(d, 0.0f);
-	EXPECT_GT(intensity, 0.9f);
 }

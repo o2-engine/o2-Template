@@ -59,7 +59,11 @@ TEST(TokenDeliveryCars, CloseupRendersAllKinds)
 
 	struct Def { CarDrawableComponent::CarKind kind; Vec2F cell; float angle; };
 	const Def defs[] = {
+		// player sprite car in all four heading quadrants
 		{ CarDrawableComponent::CarKind::PlayerPickup, Vec2F(0.0f, 0.0f), 0.0f },
+		{ CarDrawableComponent::CarKind::PlayerPickup, Vec2F(2.0f, 0.0f), 90.0f },
+		{ CarDrawableComponent::CarKind::PlayerPickup, Vec2F(0.0f, 2.0f), 180.0f },
+		{ CarDrawableComponent::CarKind::PlayerPickup, Vec2F(1.5f, -1.0f), 270.0f },
 		{ CarDrawableComponent::CarKind::Van, Vec2F(1.0f, 0.0f), 90.0f },
 		{ CarDrawableComponent::CarKind::Sedan, Vec2F(0.0f, 1.0f), 180.0f },
 		{ CarDrawableComponent::CarKind::Hatchback, Vec2F(1.0f, 1.0f), 45.0f },
@@ -204,11 +208,10 @@ TEST_F(TokenDeliveryApp, CarDrivesAndArrowKeysSteer)
 	AppTestDriver::Wait(1.0f);
 	EXPECT_GT(car.GetSpeed(), 0.5f); // accelerates on its own, never stops
 
-	// steer with a perpendicular arrow; the sim turns at the nearest allowed intersection
+	// hold the right-turn key; the sim turns at the nearest intersection open to the right
 	bool beforeHorizontal = car.GetDir() == Dir::E || car.GetDir() == Dir::W;
-	int turnKey = beforeHorizontal ? VK_DOWN : VK_RIGHT;
 
-	o2Input.OnKeyPressed(turnKey);
+	o2Input.OnKeyPressed(VK_RIGHT);
 	bool axisChanged = false;
 	for (int i = 0; i < 240 && !axisChanged; i++)
 	{
@@ -216,7 +219,7 @@ TEST_F(TokenDeliveryApp, CarDrivesAndArrowKeysSteer)
 		bool horizontal = car.GetDir() == Dir::E || car.GetDir() == Dir::W;
 		axisChanged = horizontal != beforeHorizontal;
 	}
-	o2Input.OnKeyReleased(turnKey);
+	o2Input.OnKeyReleased(VK_RIGHT);
 	EXPECT_TRUE(axisChanged);
 
 	o2FileSystem.FolderCreate(kScreenshotsDir, true);

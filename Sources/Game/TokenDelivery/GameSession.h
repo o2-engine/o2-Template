@@ -21,7 +21,7 @@ namespace td
 
 	struct GameInput
 	{
-		bool up = false, down = false, left = false, right = false;
+		bool turnLeft = false, turnRight = false, turnAuto = false;
 	};
 
 	// Full game round: generated city + player car + tokens + orders + fuel economy.

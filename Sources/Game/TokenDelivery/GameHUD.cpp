@@ -88,9 +88,11 @@ namespace td
 		fuelPanel->layout->offsetMin = Vec2F(24.0f, 20.0f);
 		fuelPanel->layout->offsetMax = Vec2F(264.0f, 86.0f);
 
-		// six fuel segments in the panel slot; the rightmost drains first
+		// six fuel segments in the panel slot; the rightmost drains first. Insets are
+		// tuned to the VISIBLE dark area (the slot frame is thicker on top), equal gap
+		// on all sides
 		mFuelSegments.Clear();
-		const float segLeft = 63.0f, segRight = 226.0f, segBottom = 19.0f, segTop = 45.0f;
+		const float segLeft = 63.0f, segRight = 226.5f, segBottom = 19.0f, segTop = 49.5f;
 		const float segGap = 2.0f;
 		const float segWidth = (segRight - segLeft - segGap*5.0f)/6.0f;
 		for (int i = 0; i < 6; i++)

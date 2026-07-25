@@ -50,10 +50,9 @@ namespace td
 		mFuel = Math::Max(0.0f, mFuel - dt);
 
 		CarInput carInput;
-		if (input.up)    { carInput.hasDesired = true; carInput.desired = Dir::N; }
-		if (input.right) { carInput.hasDesired = true; carInput.desired = Dir::E; }
-		if (input.down)  { carInput.hasDesired = true; carInput.desired = Dir::S; }
-		if (input.left)  { carInput.hasDesired = true; carInput.desired = Dir::W; }
+		carInput.turnLeft = input.turnLeft;
+		carInput.turnRight = input.turnRight;
+		carInput.turnAuto = input.turnAuto;
 		carInput.fuelEmpty = mFuel <= 0.0f;
 
 		mCar.Tick(dt, carInput, mCity);

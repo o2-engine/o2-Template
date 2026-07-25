@@ -182,6 +182,166 @@
     296
    ]
   },
+  "Cars/player_e.png": {
+   "pivot": [
+    62,
+    58
+   ],
+   "size": [
+    125,
+    88
+   ]
+  },
+  "Cars/player_full_e.png": {
+   "pivot": [
+    62,
+    58
+   ],
+   "size": [
+    125,
+    88
+   ]
+  },
+  "Cars/player_full_n.png": {
+   "pivot": [
+    61,
+    58
+   ],
+   "size": [
+    122,
+    88
+   ]
+  },
+  "Cars/player_full_s.png": {
+   "pivot": [
+    66,
+    59
+   ],
+   "size": [
+    132,
+    90
+   ]
+  },
+  "Cars/player_full_w.png": {
+   "pivot": [
+    64,
+    57
+   ],
+   "size": [
+    128,
+    87
+   ]
+  },
+  "Cars/player_n.png": {
+   "pivot": [
+    61,
+    58
+   ],
+   "size": [
+    122,
+    88
+   ]
+  },
+  "Cars/player_s.png": {
+   "pivot": [
+    66,
+    59
+   ],
+   "size": [
+    132,
+    90
+   ]
+  },
+  "Cars/player_w.png": {
+   "pivot": [
+    64,
+    58
+   ],
+   "size": [
+    129,
+    88
+   ]
+  },
+  "Cars/traffic_blue_e.png": {
+   "pivot": [
+    64,
+    58
+   ],
+   "size": [
+    128,
+    89
+   ]
+  },
+  "Cars/traffic_blue_n.png": {
+   "pivot": [
+    63,
+    55
+   ],
+   "size": [
+    126,
+    84
+   ]
+  },
+  "Cars/traffic_blue_s.png": {
+   "pivot": [
+    66,
+    59
+   ],
+   "size": [
+    132,
+    90
+   ]
+  },
+  "Cars/traffic_blue_w.png": {
+   "pivot": [
+    65,
+    55
+   ],
+   "size": [
+    131,
+    84
+   ]
+  },
+  "Cars/traffic_sport_e.png": {
+   "pivot": [
+    63,
+    57
+   ],
+   "size": [
+    126,
+    87
+   ]
+  },
+  "Cars/traffic_sport_n.png": {
+   "pivot": [
+    63,
+    54
+   ],
+   "size": [
+    126,
+    83
+   ]
+  },
+  "Cars/traffic_sport_s.png": {
+   "pivot": [
+    65,
+    58
+   ],
+   "size": [
+    131,
+    88
+   ]
+  },
+  "Cars/traffic_sport_w.png": {
+   "pivot": [
+    66,
+    54
+   ],
+   "size": [
+    132,
+    83
+   ]
+  },
   "Props/bench.png": {
    "pivot": [
     48,
