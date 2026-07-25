@@ -7,6 +7,7 @@
 #include "o2/Application/VKCodes.h"
 #include "o2/Render/Render.h"
 #include "o2/Scene/Scene.h"
+#include "o2/Scene/UI/Widget.h"
 #include "o2/Utils/Bitmap/Bitmap.h"
 #include "o2/Utils/FileSystem/FileSystem.h"
 #include "o2/Utils/Test/AppTestDriver.h"
@@ -84,6 +85,69 @@ TEST(TokenDeliveryCars, CloseupRendersAllKinds)
 	o2FileSystem.FolderCreate(kScreenshotsDir, true);
 	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_delivery_cars.png");
 
+	o2Scene.Clear(true);
+	o2Scene.UpdateDestroyingEntities();
+	AppTestDriver::PumpFrames(2);
+}
+
+// City showcase: fixed-seed generated city rendered without UI, cars or tooltips — the
+// map art comparison shots (wide and close-up)
+TEST(TokenDeliveryCity, ShowcaseScreenshots)
+{
+	GameControllerComponent::sForcedSeed = 424242u;
+	td::LaunchTokenDelivery();
+	AppTestDriver::PumpFrames(8);
+
+	// freeze the game first (its HUD update re-enables tooltips), then hide everything
+	// that is not the map: HUD, cars and any world-space widgets (tooltips)
+	if (auto controller = o2Scene.FindActor("token delivery"))
+		controller->SetEnabled(false);
+	auto rootActors = o2Scene.GetRootActors();
+	for (auto& actor : rootActors)
+	{
+		String name = actor->GetName();
+		bool worldWidget = DynamicCast<Widget>(actor) != nullptr && name != "hud";
+		if (worldWidget)
+			actor->RemoveFromScene(); // widget enable states resist plain SetEnabled
+		else if (name == "hud" || name == "player car" || name == "player car ghost" ||
+				 name == "traffic car")
+		{
+			actor->SetEnabled(false);
+		}
+	}
+	o2Scene.UpdateDestroyingEntities();
+	AppTestDriver::PumpFrames(3);
+
+	o2FileSystem.FolderCreate(kScreenshotsDir, true);
+	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_city_wide.png");
+
+	if (auto cameraActor = o2Scene.FindActor("world camera"))
+	{
+		if (auto camera = DynamicCast<CameraActor>(cameraActor))
+			camera->SetFixedSize(Vec2F(1100.0f, 688.0f));
+	}
+	AppTestDriver::PumpFrames(3);
+	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_city_close.png");
+
+	// ground only: hide buildings and props, keep roads/sidewalks/tiles
+	if (auto city = o2Scene.FindActor("city"))
+	{
+		for (auto& child : city->GetChildren())
+		{
+			String name = child->GetName();
+			if (name.StartsWith("Game/Buildings") || name.StartsWith("Game/Props"))
+				child->SetEnabled(false);
+		}
+	}
+	if (auto cameraActor = o2Scene.FindActor("world camera"))
+	{
+		if (auto camera = DynamicCast<CameraActor>(cameraActor))
+			camera->SetFixedSize(Vec2F(1760.0f, 1100.0f));
+	}
+	AppTestDriver::PumpFrames(3);
+	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_city_ground.png");
+
+	GameControllerComponent::sForcedSeed = 0;
 	o2Scene.Clear(true);
 	o2Scene.UpdateDestroyingEntities();
 	AppTestDriver::PumpFrames(2);

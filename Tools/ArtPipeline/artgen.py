@@ -38,18 +38,26 @@ ROAD_DIRS = {"N": (0, -1), "S": (0, 1), "E": (1, 0), "W": (-1, 0)}
 # top-down edge midpoints for each direction (u right = E, v down = S)
 EDGE_MID = {"N": (SRC // 2, 0), "S": (SRC // 2, SRC), "E": (SRC, SRC // 2), "W": (0, SRC // 2)}
 
-DASH_COLOR = (245, 244, 238, 255)
-CURB_COLOR = (222, 218, 205, 255)
-CURB_SHADE = (188, 183, 168, 255)
+DASH_COLOR = (246, 245, 242, 255)
+EDGE_LINE = (236, 233, 230, 235)
+CURB_COLOR = (228, 216, 208, 255)
+CURB_SHADE = (196, 184, 176, 255)
 
-SIDEWALK = 52  # sidewalk strip width on closed edges, px of the 256 top-down tile
+SIDEWALK = 46  # sidewalk strip width on closed edges, px of the 256 top-down tile
 CURB_W = 7
+CURB_FULL = SIDEWALK + CURB_W
+
+# tile corners: (corner point, adjacent side letters, pieslice angle range)
+TILE_CORNERS = [((0, 0), ("N", "W"), (0, 90)),
+                ((SRC, 0), ("N", "E"), (90, 180)),
+                ((SRC, SRC), ("S", "E"), (180, 270)),
+                ((0, SRC), ("S", "W"), (270, 360))]
 
 
 def draw_road_topdown(asphalt: Image.Image, pavement: Image.Image, conns: str) -> Image.Image:
     """Road tile in top-down space: asphalt, sidewalk strips with curbs on the closed
-    edges, sidewalk corner pockets on open junctions, center dashes along connections.
-    conns is a subset string of 'NESW'."""
+    edges, rounded quarter-circle curbs on every corner (reference style), white edge
+    lines along the curbs and center dashes. conns is a subset string of 'NESW'."""
     img = asphalt.convert("RGBA").resize((SRC, SRC), Image.LANCZOS)
     pave = pavement.convert("RGBA").resize((SRC, SRC), Image.LANCZOS)
     d = ImageDraw.Draw(img)
@@ -72,39 +80,56 @@ def draw_road_topdown(asphalt: Image.Image, pavement: Image.Image, conns: str) -
             b = (x0 + (x1 - x0) * t1, y0 + (y1 - y0) * t1)
             d.line([a, b], fill=DASH_COLOR, width=7)
 
-    def paste_pavement(box):
-        region = pave.crop(box)
-        img.paste(region, box)
+    def paste_pavement_mask(mask_draw_fn):
+        mask = Image.new("L", (SRC, SRC), 0)
+        mask_draw_fn(ImageDraw.Draw(mask))
+        img.paste(pave, (0, 0), mask)
+        return mask
 
-    # sidewalk strips on the closed edges, with a curb line facing the asphalt
-    if "N" not in conns:
-        paste_pavement((0, 0, SRC, SIDEWALK))
-        d.rectangle([0, SIDEWALK, SRC, SIDEWALK + CURB_W], fill=CURB_COLOR)
-        d.line([(0, SIDEWALK + CURB_W), (SRC, SIDEWALK + CURB_W)], fill=CURB_SHADE, width=2)
-    if "S" not in conns:
-        paste_pavement((0, SRC - SIDEWALK, SRC, SRC))
-        d.rectangle([0, SRC - SIDEWALK - CURB_W, SRC, SRC - SIDEWALK], fill=CURB_COLOR)
-        d.line([(0, SRC - SIDEWALK - CURB_W), (SRC, SRC - SIDEWALK - CURB_W)],
-               fill=CURB_SHADE, width=2)
-    if "W" not in conns:
-        paste_pavement((0, 0, SIDEWALK, SRC))
-        d.rectangle([SIDEWALK, 0, SIDEWALK + CURB_W, SRC], fill=CURB_COLOR)
-        d.line([(SIDEWALK + CURB_W, 0), (SIDEWALK + CURB_W, SRC)], fill=CURB_SHADE, width=2)
-    if "E" not in conns:
-        paste_pavement((SRC - SIDEWALK, 0, SRC, SRC))
-        d.rectangle([SRC - SIDEWALK - CURB_W, 0, SRC - SIDEWALK, SRC], fill=CURB_COLOR)
-        d.line([(SRC - SIDEWALK - CURB_W, 0), (SRC - SIDEWALK - CURB_W, SRC)],
-               fill=CURB_SHADE, width=2)
+    def strip_box(side):
+        return {"N": (0, 0, SRC, SIDEWALK), "S": (0, SRC - SIDEWALK, SRC, SRC),
+                "W": (0, 0, SIDEWALK, SRC), "E": (SRC - SIDEWALK, 0, SRC, SRC)}[side]
 
-    # sidewalk corner pockets where two adjacent arms are both open (junction corners)
-    corner_pairs = {("N", "E"): (SRC - SIDEWALK, 0), ("N", "W"): (0, 0),
-                    ("S", "E"): (SRC - SIDEWALK, SRC - SIDEWALK), ("S", "W"): (0, SRC - SIDEWALK)}
-    for (a, b), (px, py) in corner_pairs.items():
-        if a in conns and b in conns:
-            box = (px, py, px + SIDEWALK, py + SIDEWALK)
-            paste_pavement(box)
-            d.rectangle([box[0], box[1], box[2] - 1, box[3] - 1], outline=CURB_COLOR,
-                        width=CURB_W // 2 + 2)
+    def curb_box(side):
+        return {"N": (0, SIDEWALK, SRC, CURB_FULL), "S": (0, SRC - CURB_FULL, SRC, SRC - SIDEWALK),
+                "W": (SIDEWALK, 0, CURB_FULL, SRC), "E": (SRC - CURB_FULL, 0, SRC - SIDEWALK, SRC)
+                }[side]
+
+    closed = [s for s in "NESW" if s not in conns]
+
+    # straight sidewalk strips + curbs on the closed edges
+    for side in closed:
+        paste_pavement_mask(lambda md, b=strip_box(side): md.rectangle(b, fill=255))
+        d.rectangle(curb_box(side), fill=CURB_COLOR)
+
+    # rounded corners: big quarter-circle sidewalk pockets on junction corners (radius
+    # noticeably larger than the strip, reference style) and rounded inner curbs between
+    # two closed sides
+    POCKET_R = 86
+    for (corner, (sa, sb), (ang0, ang1)) in TILE_CORNERS:
+        open_a, open_b = sa in conns, sb in conns
+        if open_a and open_b:
+            bbox = [corner[0] - POCKET_R, corner[1] - POCKET_R,
+                    corner[0] + POCKET_R, corner[1] + POCKET_R]
+            paste_pavement_mask(lambda md: md.pieslice(bbox, ang0, ang1, fill=255))
+            d.arc(bbox, ang0, ang1, fill=CURB_COLOR, width=CURB_W)
+        elif not open_a and not open_b:
+            inner = [corner[0] - POCKET_R - 12, corner[1] - POCKET_R - 12,
+                     corner[0] + POCKET_R + 12, corner[1] + POCKET_R + 12]
+            paste_pavement_mask(lambda md: md.pieslice(inner, ang0, ang1, fill=255))
+            d.arc(inner, ang0, ang1, fill=CURB_COLOR, width=CURB_W)
+
+    # white edge lines along the closed sides, like the reference road markings
+    line_off = CURB_FULL + 9
+    for side in closed:
+        if side == "N":
+            d.line([(0, line_off), (SRC, line_off)], fill=EDGE_LINE, width=4)
+        elif side == "S":
+            d.line([(0, SRC - line_off), (SRC, SRC - line_off)], fill=EDGE_LINE, width=4)
+        elif side == "W":
+            d.line([(line_off, 0), (line_off, SRC)], fill=EDGE_LINE, width=4)
+        else:
+            d.line([(SRC - line_off, 0), (SRC - line_off, SRC)], fill=EDGE_LINE, width=4)
 
     # center dashes along the driving directions
     conn_set = [k for k in "NESW" if k in conns]

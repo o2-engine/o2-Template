@@ -42,16 +42,19 @@ def load_generated(rel):
     return img.crop(bbox) if bbox else img
 
 
+BUILDING_CELL_FILL = 0.78  # buildings fill ~78% of their footprint, reference-like
+
+
 def import_building(name, fw, fh):
-    """Generated building: scale so the trimmed width matches the footprint diamond
-    (plus a small roof overhang), pivot at the footprint base center."""
+    """Generated building: scaled so the base fills BUILDING_CELL_FILL of the footprint
+    diamond (roads stay visible around it), pivot at the footprint base center."""
     img = load_generated("buildings/%s.png" % name)
     if img is None:
         return False
-    target_w = int((fw + fh) * 128 * 1.0)
+    target_w = int((fw + fh) * 128 * BUILDING_CELL_FILL)
     scale = target_w / img.width
     img = img.resize((target_w, max(1, int(img.height * scale))), Image.LANCZOS)
-    pivot = (img.width // 2, img.height - (fw + fh) * 32)
+    pivot = (img.width // 2, img.height - int((fw + fh) * 32 * BUILDING_CELL_FILL))
     save_sprite(img, os.path.join("Buildings", name + ".png"), pivot, (fw, fh))
     return True
 
@@ -169,10 +172,10 @@ def build_buildings():
 
 
 def build_props():
-    if not import_prop("tree_big", 170, 20):
+    if not import_prop("tree_big", 165, 18):
         img, pivot = ph.tree_sprite(1.0)
         save_sprite(img, "Props/tree_big.png", pivot)
-    if not import_prop("tree_small", 120, 14):
+    if not import_prop("tree_small", 112, 12):
         img, pivot = ph.tree_sprite(0.7)
         save_sprite(img, "Props/tree_small.png", pivot)
     if not import_prop("kiosk", 220, 40):
@@ -186,7 +189,7 @@ def build_props():
         save_sprite(chip, "Props/chip.png", (48, 48))
 
     # simple bench and lamp
-    if not import_prop("bench", 120, 14):
+    if not import_prop("bench", 96, 12):
         bench = Image.new("RGBA", (110, 70), (0, 0, 0, 0))
         d = ImageDraw.Draw(bench)
         d.polygon([(10, 40), (70, 25), (100, 40), (40, 58)], fill=(158, 110, 74, 255))
