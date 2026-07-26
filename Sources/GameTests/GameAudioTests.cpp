@@ -15,10 +15,17 @@ namespace
 		audio->Load();
 		return audio;
 	}
+
+	// a single big-dt update converges every volume ramp to its target
+	void SettleVolumes(const Ref<GameAudio>& audio)
+	{
+		audio->Update(1.0f);
+	}
 }
 
-// The bank loads over the built Sound/*.mp3 assets; headless runs on the null backend
-TEST(GameAudioBank, LoadsPlayersAndStartsTownAmbience)
+// The bank loads over the built Sound/*.mp3 assets; headless runs on the null backend.
+// The loop beds play permanently and only their volumes are driven
+TEST(GameAudioBank, LoadsPlayersAndStartsLoopBeds)
 {
 	auto audio = MakeLoadedAudio();
 
@@ -29,14 +36,19 @@ TEST(GameAudioBank, LoadsPlayersAndStartsTownAmbience)
 	EXPECT_TRUE(audio->GetTyresPlayer()->GetSound());
 	EXPECT_TRUE(audio->GetWinPlayer()->GetSound());
 	EXPECT_TRUE(audio->GetLosePlayer()->GetSound());
-	EXPECT_TRUE(audio->GetChipsPlayer()->GetSound());
 	EXPECT_TRUE(audio->GetButtonPlayer()->GetSound());
+	ASSERT_FALSE(audio->GetChipsPlayers().IsEmpty());
+	EXPECT_TRUE(audio->GetChipsPlayers()[0]->GetSound());
 
+	EXPECT_TRUE(audio->GetMusicPlayer()->IsPlaying());
 	EXPECT_TRUE(audio->GetTownPlayer()->IsPlaying());
-	EXPECT_FALSE(audio->GetMusicPlayer()->IsPlaying());
+	EXPECT_TRUE(audio->GetEnginePlayer()->IsPlaying());
+	EXPECT_TRUE(audio->GetTyresPlayer()->IsPlaying());
 
-	audio->Update(0.1f);
-	EXPECT_TRUE(audio->GetTownPlayer()->IsPlaying());
+	// town ambience fades in on its own, the music waits for the active gate
+	SettleVolumes(audio);
+	EXPECT_GT(audio->GetTownPlayer()->GetVolume(), 0.0f);
+	EXPECT_NEAR(audio->GetMusicPlayer()->GetVolume(), 0.0f, 0.001f);
 }
 
 TEST(GameAudioBank, MusicFollowsTheActiveGate)
@@ -44,48 +56,60 @@ TEST(GameAudioBank, MusicFollowsTheActiveGate)
 	auto audio = MakeLoadedAudio();
 
 	audio->SetMusicActive(true);
-	EXPECT_TRUE(audio->GetMusicPlayer()->IsPlaying());
+	SettleVolumes(audio);
+	EXPECT_GT(audio->GetMusicPlayer()->GetVolume(), 0.0f);
 
 	audio->SetMusicActive(false);
-	EXPECT_FALSE(audio->GetMusicPlayer()->IsPlaying());
+	SettleVolumes(audio);
+	EXPECT_NEAR(audio->GetMusicPlayer()->GetVolume(), 0.0f, 0.001f);
+	EXPECT_TRUE(audio->GetMusicPlayer()->IsPlaying()); // the bed never stops, only mutes
 
 	audio->SetMusicActive(true);
-	EXPECT_TRUE(audio->GetMusicPlayer()->IsPlaying());
+	SettleVolumes(audio);
+	EXPECT_GT(audio->GetMusicPlayer()->GetVolume(), 0.0f);
 }
 
-TEST(GameAudioBank, MusicSwitchMutesButKeepsPlaying)
+TEST(GameAudioBank, MusicSwitchMutesTheActiveMusic)
 {
 	auto audio = MakeLoadedAudio();
 	audio->SetMusicActive(true);
+	SettleVolumes(audio);
+	ASSERT_GT(audio->GetMusicPlayer()->GetVolume(), 0.0f);
 
 	audio->SetMusicEnabled(false);
+	SettleVolumes(audio);
 	EXPECT_FALSE(audio->IsMusicEnabled());
-	EXPECT_TRUE(audio->GetMusicPlayer()->IsPlaying());
 	EXPECT_NEAR(audio->GetMusicPlayer()->GetVolume(), 0.0f, 0.001f);
+	EXPECT_TRUE(audio->GetMusicPlayer()->IsPlaying());
 
 	audio->SetMusicEnabled(true);
+	SettleVolumes(audio);
 	EXPECT_GT(audio->GetMusicPlayer()->GetVolume(), 0.0f);
 }
 
 TEST(GameAudioBank, SoundSwitchGatesLoopsAndOneShots)
 {
 	auto audio = MakeLoadedAudio();
+	audio->SetMusicActive(true);
 
 	audio->SetSoundEnabled(false);
+	SettleVolumes(audio);
 	EXPECT_FALSE(audio->IsSoundEnabled());
 	EXPECT_NEAR(audio->GetTownPlayer()->GetVolume(), 0.0f, 0.001f);
+	EXPECT_NEAR(audio->GetButtonPlayer()->GetVolume(), 0.0f, 0.001f);
 
 	audio->PlayButton();
 	EXPECT_FALSE(audio->GetButtonPlayer()->IsPlaying());
 
+	// the sound switch does not touch the music channel
+	EXPECT_GT(audio->GetMusicPlayer()->GetVolume(), 0.0f);
+
 	audio->SetSoundEnabled(true);
+	SettleVolumes(audio);
 	EXPECT_GT(audio->GetTownPlayer()->GetVolume(), 0.0f);
 
 	audio->PlayButton();
 	EXPECT_TRUE(audio->GetButtonPlayer()->IsPlaying());
-
-	// the sound switch does not touch the music channel
-	EXPECT_GT(audio->GetMusicPlayer()->GetVolume(), 0.0f);
 }
 
 TEST(GameAudioBank, EngineFollowsSpeed)
@@ -93,14 +117,17 @@ TEST(GameAudioBank, EngineFollowsSpeed)
 	auto audio = MakeLoadedAudio();
 
 	audio->SetDriving(0.5f);
-	EXPECT_TRUE(audio->GetEnginePlayer()->IsPlaying());
+	SettleVolumes(audio);
+	EXPECT_GT(audio->GetEnginePlayer()->GetVolume(), 0.0f);
 	EXPECT_NEAR(audio->GetEnginePlayer()->GetPitch(), 1.0f, 0.001f);
 
 	audio->SetDriving(1.0f);
 	EXPECT_NEAR(audio->GetEnginePlayer()->GetPitch(), 1.25f, 0.001f);
 
 	audio->SetDriving(0.0f);
-	EXPECT_FALSE(audio->GetEnginePlayer()->IsPlaying());
+	SettleVolumes(audio);
+	EXPECT_NEAR(audio->GetEnginePlayer()->GetVolume(), 0.0f, 0.001f);
+	EXPECT_TRUE(audio->GetEnginePlayer()->IsPlaying());
 }
 
 TEST(GameAudioBank, TyresFollowDriftIntensity)
@@ -108,30 +135,47 @@ TEST(GameAudioBank, TyresFollowDriftIntensity)
 	auto audio = MakeLoadedAudio();
 
 	audio->SetDrift(1.0f);
-	EXPECT_TRUE(audio->GetTyresPlayer()->IsPlaying());
-	EXPECT_GT(audio->GetTyresPlayer()->GetVolume(), 0.0f);
+	SettleVolumes(audio);
+	float full = audio->GetTyresPlayer()->GetVolume();
+	EXPECT_GT(full, 0.0f);
 
 	audio->SetDrift(0.5f);
-	EXPECT_TRUE(audio->GetTyresPlayer()->IsPlaying());
+	SettleVolumes(audio);
+	EXPECT_NEAR(audio->GetTyresPlayer()->GetVolume(), full*0.5f, 0.001f);
 
 	audio->SetDrift(0.0f);
-	EXPECT_FALSE(audio->GetTyresPlayer()->IsPlaying());
+	SettleVolumes(audio);
 	EXPECT_NEAR(audio->GetTyresPlayer()->GetVolume(), 0.0f, 0.001f);
 }
 
-TEST(GameAudioBank, OneShotFinishesAndRetriggers)
+TEST(GameAudioBank, VolumeRampIsGradual)
 {
 	auto audio = MakeLoadedAudio();
 
-	audio->PlayChips();
-	ASSERT_TRUE(audio->GetChipsPlayer()->IsPlaying());
+	// one 60 fps frame moves the town fade only part of the way to its target
+	audio->Update(1.0f/60.0f);
+	float step = audio->GetTownPlayer()->GetVolume();
+	EXPECT_GT(step, 0.0f);
 
-	float duration = audio->GetChipsPlayer()->GetDuration();
-	ASSERT_GT(duration, 0.0f);
-	audio->Update(duration + 0.1f);
-	EXPECT_FALSE(audio->GetChipsPlayer()->IsPlaying());
+	SettleVolumes(audio);
+	EXPECT_GT(audio->GetTownPlayer()->GetVolume(), step);
+}
+
+// The filling stream ticks faster than one tick sounds: the voices rotate so a new tick
+// does not cut the previous one
+TEST(GameAudioBank, ChipsRotateVoices)
+{
+	auto audio = MakeLoadedAudio();
+	auto& voices = audio->GetChipsPlayers();
+	ASSERT_GE(voices.Count(), 2);
 
 	audio->PlayChips();
-	EXPECT_TRUE(audio->GetChipsPlayer()->IsPlaying());
-	EXPECT_NEAR(audio->GetChipsPlayer()->GetTime(), 0.0f, 0.001f);
+	audio->PlayChips();
+	EXPECT_TRUE(voices[0]->IsPlaying());
+	EXPECT_TRUE(voices[1]->IsPlaying());
+
+	// the rotation wraps around and retriggers the first voice without a crash
+	for (int i = 2; i < voices.Count() + 1; i++)
+		audio->PlayChips();
+	EXPECT_TRUE(voices[0]->IsPlaying());
 }

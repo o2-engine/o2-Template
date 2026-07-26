@@ -15,6 +15,12 @@ namespace td
 	static const float kChipsVolume = 0.55f;
 	static const float kBtnVolume = 0.7f;
 
+	// the filling stream ticks every ~0.12 s while a tick sounds ~0.5 s: four voices keep
+	// the overlapping tails from cutting each other
+	static const int kChipsVoices = 4;
+
+	static const float kVolumeRampTime = 0.12f;
+
 	Ref<SoundPlayer> GameAudio::MakePlayer(const String& path, float volume, Loop loop)
 	{
 		auto player = mmake<SoundPlayer>();
@@ -26,24 +32,35 @@ namespace td
 
 	void GameAudio::Load()
 	{
-		mMusic = MakePlayer("Sound/back.mp3", kMusicVolume, Loop::Repeat);
-		mTown = MakePlayer("Sound/town.mp3", kTownVolume, Loop::Repeat);
-		mEngine = MakePlayer("Sound/engine.mp3", kEngineVolume, Loop::Repeat);
+		mMusic = MakePlayer("Sound/back.mp3", 0.0f, Loop::Repeat);
+		mTown = MakePlayer("Sound/town.mp3", 0.0f, Loop::Repeat);
+		mEngine = MakePlayer("Sound/engine.mp3", 0.0f, Loop::Repeat);
 		mTyres = MakePlayer("Sound/tyres.mp3", 0.0f, Loop::Repeat);
 		mWinning = MakePlayer("Sound/winning.mp3", kWinVolume, Loop::None);
 		mLoose = MakePlayer("Sound/loose.mp3", kLoseVolume, Loop::None);
-		mChips = MakePlayer("Sound/chips.mp3", kChipsVolume, Loop::None);
 		mBtn = MakePlayer("Sound/btn.mp3", kBtnVolume, Loop::None);
 
-		mPlayers = { mMusic, mTown, mEngine, mTyres, mWinning, mLoose, mChips, mBtn };
+		mChips.Clear();
+		for (int i = 0; i < kChipsVoices; i++)
+			mChips.Add(MakePlayer("Sound/chips.mp3", kChipsVolume, Loop::None));
 
+		// the loop beds play permanently, muted; audibility comes from the volume ramps
+		mMusic->Play();
 		mTown->Play();
+		mEngine->Play();
+		mTyres->Play();
 	}
 
 	void GameAudio::Update(float dt)
 	{
-		for (auto& player : mPlayers)
-			player->Update(dt);
+		if (!mMusic)
+			return;
+
+		float gate = mSoundEnabled ? 1.0f : 0.0f;
+		RampVolume(mMusic, mMusicEnabled && mMusicActive ? kMusicVolume : 0.0f, dt);
+		RampVolume(mTown, kTownVolume*gate, dt);
+		RampVolume(mEngine, mSpeedNorm > 0.02f ? kEngineVolume*gate : 0.0f, dt);
+		RampVolume(mTyres, kTyresVolume*mDriftIntensity*gate, dt);
 	}
 
 	void GameAudio::SetSoundEnabled(bool enabled)
@@ -55,32 +72,13 @@ namespace td
 	void GameAudio::SetMusicEnabled(bool enabled)
 	{
 		mMusicEnabled = enabled;
-		ApplyVolumes();
-	}
-
-	void GameAudio::SetMusicActive(bool active)
-	{
-		if (mMusic)
-			SetLooping(mMusic, active);
 	}
 
 	void GameAudio::SetDriving(float speedNorm)
 	{
-		if (!mEngine)
-			return;
-
-		mEngine->SetPitch(0.75f + 0.5f*Math::Clamp01(speedNorm));
-		SetLooping(mEngine, speedNorm > 0.02f);
-	}
-
-	void GameAudio::SetDrift(float intensity)
-	{
-		if (!mTyres)
-			return;
-
-		mDriftIntensity = Math::Clamp01(intensity);
-		mTyres->SetVolume(mSoundEnabled ? kTyresVolume*mDriftIntensity : 0.0f);
-		SetLooping(mTyres, mDriftIntensity > 0.1f);
+		mSpeedNorm = Math::Clamp01(speedNorm);
+		if (mEngine)
+			mEngine->SetPitch(0.75f + 0.5f*mSpeedNorm);
 	}
 
 	void GameAudio::PlayButton()
@@ -90,7 +88,11 @@ namespace td
 
 	void GameAudio::PlayChips()
 	{
-		PlayOneShot(mChips);
+		if (mChips.IsEmpty())
+			return;
+
+		PlayOneShot(mChips[mNextChipsVoice]);
+		mNextChipsVoice = (mNextChipsVoice + 1)%mChips.Count();
 	}
 
 	void GameAudio::PlayWin()
@@ -103,18 +105,22 @@ namespace td
 		PlayOneShot(mLoose);
 	}
 
-	void GameAudio::SetLooping(const Ref<SoundPlayer>& player, bool playing)
+	void GameAudio::RampVolume(const Ref<SoundPlayer>& player, float target, float dt)
 	{
-		if (playing && !player->IsPlaying())
-			player->Play();
-		else if (!playing && player->IsPlaying())
-			player->Stop();
+		float volume = player->GetVolume();
+		float step = dt/kVolumeRampTime;
+		player->SetVolume(volume + Math::Clamp(target - volume, -step, step));
 	}
 
 	void GameAudio::PlayOneShot(const Ref<SoundPlayer>& player)
 	{
-		if (player && mSoundEnabled)
-			player->RewindAndPlay();
+		if (!player || !mSoundEnabled)
+			return;
+
+		// the player time is never advanced (see the class header), so Play always starts
+		// the backend from zero; Stop first so a retrigger passes the playing check
+		player->Stop();
+		player->Play();
 	}
 
 	void GameAudio::ApplyVolumes()
@@ -122,15 +128,11 @@ namespace td
 		if (!mMusic)
 			return;
 
-		mMusic->SetVolume(mMusicEnabled ? kMusicVolume : 0.0f);
-
 		float gate = mSoundEnabled ? 1.0f : 0.0f;
-		mTown->SetVolume(kTownVolume*gate);
-		mEngine->SetVolume(kEngineVolume*gate);
-		mTyres->SetVolume(kTyresVolume*mDriftIntensity*gate);
 		mWinning->SetVolume(kWinVolume*gate);
 		mLoose->SetVolume(kLoseVolume*gate);
-		mChips->SetVolume(kChipsVolume*gate);
 		mBtn->SetVolume(kBtnVolume*gate);
+		for (auto& voice : mChips)
+			voice->SetVolume(kChipsVolume*gate);
 	}
 }

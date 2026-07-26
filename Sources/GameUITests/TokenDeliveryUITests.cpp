@@ -573,11 +573,13 @@ TEST_F(TokenDeliveryApp, WinWindowWaitsForTheLastTooltipExit)
 	EXPECT_TRUE(shown);
 	EXPECT_FALSE(controller->GetHUD()->HasVisibleTooltips());
 
-	// the win window swaps the gameplay music for the win jingle
+	// the win window swaps the gameplay music for the win jingle; the music bed never
+	// stops, it fades to zero
 	auto audio = controller->GetAudio();
 	ASSERT_TRUE(audio);
-	EXPECT_FALSE(audio->GetMusicPlayer()->IsPlaying());
 	EXPECT_TRUE(audio->GetWinPlayer()->IsPlaying());
+	AppTestDriver::Wait(0.4f); // the fade-out ramp settles
+	EXPECT_NEAR(audio->GetMusicPlayer()->GetVolume(), 0.0f, 0.001f);
 }
 
 // paying for the order drops the balance below its price — the delivered bubble must not
@@ -791,11 +793,11 @@ TEST_F(TokenDeliveryApp, FuelRunOutShowsLoseWindowAndRetryRestarts)
 	AppTestDriver::Wait(2.5f); // fuel dies, the car rolls to a stop, the lose window pops
 	ASSERT_EQ(controller->GetSession().GetState(), td::SessionState::Lost);
 
-	// the lose window swaps the gameplay music for the lose jingle
+	// the lose window fades the gameplay music out; the engine faded with the stopped car
 	auto audio = controller->GetAudio();
 	ASSERT_TRUE(audio);
-	EXPECT_FALSE(audio->GetMusicPlayer()->IsPlaying());
-	EXPECT_FALSE(audio->GetEnginePlayer()->IsPlaying()); // the car stands, the engine is off
+	EXPECT_NEAR(audio->GetMusicPlayer()->GetVolume(), 0.0f, 0.001f);
+	EXPECT_NEAR(audio->GetEnginePlayer()->GetVolume(), 0.0f, 0.001f);
 
 	o2FileSystem.FolderCreate(kScreenshotsDir, true);
 	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_delivery_lose.png");
@@ -805,5 +807,7 @@ TEST_F(TokenDeliveryApp, FuelRunOutShowsLoseWindowAndRetryRestarts)
 	AppTestDriver::PumpFrames(3);
 	EXPECT_EQ(controller->GetSession().GetState(), td::SessionState::Playing);
 	EXPECT_GT(controller->GetSession().GetFuel(), 30.0f);
-	EXPECT_TRUE(audio->GetMusicPlayer()->IsPlaying()); // the music returns with the new round
+
+	AppTestDriver::Wait(0.4f); // the music fades back in with the new round
+	EXPECT_GT(audio->GetMusicPlayer()->GetVolume(), 0.1f);
 }
