@@ -3,6 +3,7 @@
 
 #include "TokenDelivery/GameControllerComponent.h"
 #include "TokenDelivery/TokenDeliveryGame.h"
+#include "o2/Application/Application.h"
 #include "o2/Application/Input.h"
 #include "o2/Application/VKCodes.h"
 #include "o2/Render/Render.h"
@@ -131,7 +132,7 @@ TEST(TokenDeliveryCity, ShowcaseScreenshots)
 	if (auto cameraActor = o2Scene.FindActor("world camera"))
 	{
 		if (auto camera = DynamicCast<CameraActor>(cameraActor))
-			camera->SetFixedSize(Vec2F(1100.0f, 688.0f));
+			camera->SetFittedSize(Vec2F(1100.0f, 688.0f));
 	}
 	AppTestDriver::PumpFrames(3);
 	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_city_close.png");
@@ -149,7 +150,7 @@ TEST(TokenDeliveryCity, ShowcaseScreenshots)
 	if (auto cameraActor = o2Scene.FindActor("world camera"))
 	{
 		if (auto camera = DynamicCast<CameraActor>(cameraActor))
-			camera->SetFixedSize(Vec2F(1760.0f, 1100.0f));
+			camera->SetFittedSize(Vec2F(1760.0f, 1100.0f)); // back to the game framing
 	}
 	AppTestDriver::PumpFrames(3);
 	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_city_ground.png");
@@ -230,6 +231,37 @@ TEST_F(TokenDeliveryApp, CarDrivesAndArrowKeysSteer)
 
 	o2FileSystem.FolderCreate(kScreenshotsDir, true);
 	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_delivery_turn.png");
+}
+
+// The corner arrows steer like the keys: the sim reads a held command, so the button has to
+// report its pressed state and a plain tap has to keep steering long enough to reach a turn
+TEST_F(TokenDeliveryApp, CornerArrowButtonSteersTheCar)
+{
+	auto controller = FindController();
+	ASSERT_TRUE(controller);
+	auto hud = o2Scene.FindActor("hud");
+	ASSERT_TRUE(hud);
+	ASSERT_TRUE(hud->FindChild("turn left"));
+	ASSERT_TRUE(hud->FindChild("turn right"));
+
+	auto& car = controller->GetSession().GetCar();
+	AppTestDriver::Wait(0.5f);
+	bool beforeHorizontal = car.GetDir() == Dir::E || car.GetDir() == Dir::W;
+
+	// hold the right arrow button, bottom-right corner of the 1280x800 UI rect
+	AppTestDriver::PressCursor(UIToScreen(Vec2F(552.0f, -318.0f)));
+	AppTestDriver::PumpFrames(2);
+	o2FileSystem.FolderCreate(kScreenshotsDir, true);
+	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_delivery_turn_buttons.png");
+
+	bool axisChanged = false;
+	for (float waited = 0.0f; waited < 8.0f && !axisChanged; waited += 0.05f)
+	{
+		AppTestDriver::Wait(0.05f);
+		axisChanged = (car.GetDir() == Dir::E || car.GetDir() == Dir::W) != beforeHorizontal;
+	}
+	AppTestDriver::ReleaseCursor();
+	EXPECT_TRUE(axisChanged);
 }
 
 TEST_F(TokenDeliveryApp, CompletedTaskPanelSlidesInAndOut)
@@ -356,6 +388,37 @@ TEST_F(TokenDeliveryApp, DeliveredTooltipTextStaysDarkWhileFadingOut)
 	{
 		AppTestDriver::PumpFrames(1);
 		ASSERT_NE(label->GetColor(), Color4(226, 44, 44, 255)) << "frame " << i;
+	}
+}
+
+// The window aspect must not squash the isometric city: both cameras have to keep the
+// render aspect, and the world has to stay locked to the UI scale
+TEST_F(TokenDeliveryApp, IsoScaleSurvivesWindowResize)
+{
+	auto worldCamera = DynamicCast<CameraActor>(o2Scene.FindActor("world camera"));
+	auto uiCamera = DynamicCast<CameraActor>(o2Scene.FindActor("ui camera"));
+	ASSERT_TRUE(worldCamera);
+	ASSERT_TRUE(uiCamera);
+
+	o2FileSystem.FolderCreate(kScreenshotsDir, true);
+	Vec2I windowSize = o2Application.GetWindowSize();
+	for (const Vec2I& size : { Vec2I(1000, 800), Vec2I(1280, 560), windowSize })
+	{
+		o2Application.SetWindowSize(size);
+		AppTestDriver::PumpFrames(3);
+
+		Vec2F resolution = (Vec2F)o2Render.GetResolution();
+		Vec2F world = worldCamera->GetRenderCamera().GetSize2D();
+		Vec2F ui = uiCamera->GetRenderCamera().GetSize2D();
+		String at = (String)" at " + (String)size.x + "x" + (String)size.y;
+
+		// units per pixel equal on both axes, otherwise the tiles stretch
+		EXPECT_NEAR(world.x/resolution.x, world.y/resolution.y, 0.001f) << at;
+		EXPECT_NEAR(ui.x/resolution.x, ui.y/resolution.y, 0.001f) << at;
+		EXPECT_NEAR(world.x/ui.x, 1760.0f/1280.0f, 0.001f) << at;
+
+		AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_delivery_resize_" +
+									  (String)size.x + "x" + (String)size.y + ".png");
 	}
 }
 

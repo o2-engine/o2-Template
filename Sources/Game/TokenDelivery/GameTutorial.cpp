@@ -183,8 +183,8 @@ namespace td
 
 			case Step::Controls:
 			mTitle->SetText(L"TURN AT CROSSROADS");
-			mDescription->SetText(L"Your truck never stops. Steer with the arrow keys at an\n"
-								  L"intersection, or hold SPACE to take any turn ahead.");
+			mDescription->SetText(L"Your truck never stops. Turn at an intersection with the\n"
+								  L"arrow keys or the corner buttons, SPACE takes any turn.");
 			break;
 
 			case Step::Fuel:

@@ -36,6 +36,10 @@ namespace td
 
 		void SetSettingsEnabled(bool enabled); // off while the tutorial eats every tap
 
+		// on-screen steering: held, or tapped shortly before the crossroad
+		bool IsTurningLeft() const;
+		bool IsTurningRight() const;
+
 		void ShowWin();
 		void ShowLose();
 		void ShowSettings();
@@ -92,6 +96,10 @@ namespace td
 		float       mChipNativeW = 200.0f;
 
 		Ref<Button> mSettingsButton;
+		Ref<Button> mTurnLeftButton;
+		Ref<Button> mTurnRightButton;
+		float       mTurnLeftTap = 0.0f;  // a tap keeps the turn command alive for a moment,
+		float       mTurnRightTap = 0.0f; // long enough to catch the crossroad ahead
 
 		Ref<Widget> mTaskPanel;        // completed task panel, slides in from the left
 		Ref<Label>  mTaskLabel;

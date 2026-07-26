@@ -45,7 +45,9 @@ void GameControllerComponent::SetupScene()
 
 	mWorldCamera = mmake<CameraActor>();
 	mWorldCamera->SetName("world camera");
-	mWorldCamera->SetFixedSize(Vec2F(1760.0f, 1100.0f));
+	// fitted, not fixed: a fixed size stretches its rect onto any window shape and squashes
+	// the isometry. Fitting keeps the tile scale and shows more city on a wider window
+	mWorldCamera->SetFittedSize(Vec2F(1760.0f, 1100.0f));
 	mWorldCamera->drawLayers.SetLayers(Vector<String>{ kWorldLayer });
 	mWorldCamera->fillBackground = true;
 	mWorldCamera->fillColor = Color4(166, 190, 205, 255);
@@ -69,11 +71,11 @@ void GameControllerComponent::SetupScene()
 	mHUD.Build();
 	mHUDBuilt = true;
 
-	// the world camera stretches 1760x1100 over the viewport, the UI camera fits 1280x800
-	// into it: both scales collapse into one ratio per axis
+	// both cameras fit their rect into the same window, so the scale ratio between them
+	// is constant whatever the window shape is
 	mTutorial.worldToUI = [this](const Vec2F& world)
 	{
-		Vec2F worldSize = mWorldCamera->GetFittedOrFixedSize();
+		Vec2F worldSize = mWorldCamera->GetRenderCamera().GetSize2D();
 		Vec2F uiSize = mUICamera->GetRenderCamera().GetSize2D();
 		Vec3F cameraPos = mWorldCamera->transform->GetPosition();
 		return Vec2F((world.x - cameraPos.x)*uiSize.x/worldSize.x,
@@ -192,8 +194,8 @@ void GameControllerComponent::StartLevel(int level)
 GameInput GameControllerComponent::CollectInput() const
 {
 	GameInput input;
-	input.turnLeft = o2Input.IsKeyDown(VK_LEFT) || o2Input.IsKeyDown('A');
-	input.turnRight = o2Input.IsKeyDown(VK_RIGHT) || o2Input.IsKeyDown('D');
+	input.turnLeft = o2Input.IsKeyDown(VK_LEFT) || o2Input.IsKeyDown('A') || mHUD.IsTurningLeft();
+	input.turnRight = o2Input.IsKeyDown(VK_RIGHT) || o2Input.IsKeyDown('D') || mHUD.IsTurningRight();
 	input.turnAuto = o2Input.IsKeyDown(VK_SPACE);
 	return input;
 }

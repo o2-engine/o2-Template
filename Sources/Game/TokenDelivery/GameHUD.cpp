@@ -27,6 +27,11 @@ namespace td
 	static const float kTaskPanelShownX = 0.0f; // flush with the screen edge
 	static const float kTaskPanelWidth = 350.0f;
 
+	// on-screen steering buttons, bottom-right corner
+	static const Vec2F kTurnButtonSize(104.0f, 112.0f);
+	static const float kTurnButtonBottom = 26.0f;
+	static const float kTurnTapTime = 0.35f; // a tap steers for this long, a hold — while held
+
 	static const Color4 kAmountColor(34, 41, 65, 255);
 	static const Color4 kAmountShortColor(226, 44, 44, 255); // order the player can't pay yet
 
@@ -168,6 +173,24 @@ namespace td
 		mSettingsButton->layout->offsetMin = Vec2F(-88.0f, -88.0f);
 		mSettingsButton->layout->offsetMax = Vec2F(-24.0f, -24.0f);
 		mSettingsButton->onClick = [this]() { ShowSettings(); };
+
+		// steering keys duplicated in the bottom-right corner for mouse and touch
+		auto makeTurnButton = [&](const String& style, float right, const Function<void()>& onTap)
+		{
+			auto button = o2UI.CreateWidget<Button>(style);
+			button->SetName(style);
+			mRoot->AddChild(button);
+			button->layout->anchorMin = Vec2F(1.0f, 0.0f);
+			button->layout->anchorMax = Vec2F(1.0f, 0.0f);
+			button->layout->offsetMin = Vec2F(right - kTurnButtonSize.x, kTurnButtonBottom);
+			button->layout->offsetMax = Vec2F(right, kTurnButtonBottom + kTurnButtonSize.y);
+			button->onClick = onTap;
+			return button;
+		};
+		mTurnLeftButton = makeTurnButton("turn left", -156.0f,
+										 [this]() { mTurnLeftTap = kTurnTapTime; });
+		mTurnRightButton = makeTurnButton("turn right", -36.0f,
+										  [this]() { mTurnRightTap = kTurnTapTime; });
 
 		// completed task panel, slides in from the left edge on order delivery
 		mTaskPanel = mmake<Widget>();
@@ -417,6 +440,8 @@ namespace td
 			return;
 
 		mPulsePhase += dt;
+		mTurnLeftTap = Math::Max(0.0f, mTurnLeftTap - dt);
+		mTurnRightTap = Math::Max(0.0f, mTurnRightTap - dt);
 
 		mTokensLabel->SetText(WString((String)mSession->GetTokens()));
 
@@ -663,6 +688,16 @@ namespace td
 			mSettingsButton->SetEnabled(enabled);
 	}
 
+	bool GameHUD::IsTurningLeft() const
+	{
+		return mTurnLeftTap > 0.0f || (mTurnLeftButton && mTurnLeftButton->GetState("pressed"));
+	}
+
+	bool GameHUD::IsTurningRight() const
+	{
+		return mTurnRightTap > 0.0f || (mTurnRightButton && mTurnRightButton->GetState("pressed"));
+	}
+
 	void GameHUD::ShowWin()
 	{
 		mDimmer->SetEnabled(true);
@@ -715,6 +750,10 @@ namespace td
 			mRoot->RemoveFromScene();
 		mRoot = nullptr;
 		mSettingsButton = nullptr;
+		mTurnLeftButton = nullptr;
+		mTurnRightButton = nullptr;
+		mTurnLeftTap = 0.0f;
+		mTurnRightTap = 0.0f;
 		mSourceAnchor = nullptr;
 		mSession = nullptr;
 	}

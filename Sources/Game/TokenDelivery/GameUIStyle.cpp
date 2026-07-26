@@ -126,6 +126,8 @@ namespace td
 		makeButton("Game/UI/blue_btn.png", "blue", true);
 		makeButton("Game/UI/ui_accept_btn.png", "accept", false);
 		makeButton("Game/UI/settings_btn.png", "settings", false);
+		makeButton("Game/UI/tut_key_left.png", "turn left", false);
+		makeButton("Game/UI/tut_key_right.png", "turn right", false);
 
 		// sound/music switch: empty socket is baked into the settings window, the style
 		// draws the ON capsule fading in and the knob sliding left<->right (fixed 123x59)
