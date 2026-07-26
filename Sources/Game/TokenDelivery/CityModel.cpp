@@ -189,7 +189,8 @@ namespace td
 			}
 		}
 
-		void PlaceEdges(UnitOccupancy& occ, Rng& rng, bool wantOffice, Vector<BlockObject>& out)
+		void PlaceEdges(UnitOccupancy& occ, Rng& rng, bool wantOffice, float fillScale,
+						Vector<BlockObject>& out)
 		{
 			int depths[4];
 			EdgeDepths(occ.w, occ.h, rng, depths);
@@ -222,7 +223,7 @@ namespace td
 					continue;
 
 				int run = (edge == EdgeN || edge == EdgeS) ? occ.w : occ.h;
-				float target = FrandRange(rng, edge < 2 ? kFrontFill : kBackFill)*run;
+				float target = FrandRange(rng, edge < 2 ? kFrontFill : kBackFill)*run*fillScale;
 				float built = 0.0f;
 				int along = rng.Range(0, 2);
 				bool officeLeft = edge == officeEdge;
@@ -566,7 +567,7 @@ namespace td
 		int placed = options.centrepiece
 			? PlaceComposites(occ, rng, 1, options.centrepiece, objects) : 0;
 
-		PlaceEdges(occ, rng, options.wantOffice, objects);
+		PlaceEdges(occ, rng, options.wantOffice, options.fillScale, objects);
 		PlaceComposites(occ, rng, want - placed, options.preferred, objects);
 		CloseGaps(occ, rng, objects);
 		ScatterProps(occ, rng, objects);
@@ -814,6 +815,10 @@ namespace td
 				BlockLayoutOptions options;
 				options.wantOffice = wantOffice;
 				options.preferred = rarest.Data();
+				// the rim strips are one cell deep, so any building on them throws its roof
+				// clear over the ring road; they stay mostly greenery and street furniture
+				if (plot.border)
+					options.fillScale = 0.45f;
 				if (p == plazaIdx)
 					options.centrepiece = "plaza_fountain";
 				auto objects = LayoutBlock(units, rng, options);

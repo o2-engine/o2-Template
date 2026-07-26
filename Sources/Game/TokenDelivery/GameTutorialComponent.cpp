@@ -17,13 +17,12 @@ namespace td
 	static const float kDimAlpha = 0.74f;
 	static const float kHintY = -338.0f;
 
-	// the helper character video in the bottom-left corner of the step screens; sits low
-	// enough to keep clear of the intro cards and their captions. The fuel step spotlights
-	// the fuel panel in that same corner, so there the character steps aside to its right
-	static const float kPersHeight = 320.0f;
-	static const float kPersX = -535.0f;
-	static const float kPersFuelX = -305.0f;
-	static const float kPersY = -300.0f;
+	// the helper character video, nearly full screen height at the left edge; the fuel
+	// step spotlights the bottom-left panel, so there the character flips to the right edge
+	static const float kPersHeight = 760.0f;
+	static const float kPersLeftX = -426.0f;
+	static const float kPersRightX = 426.0f;
+	static const float kPersY = -20.0f;
 
 	// fuel panel rect in UI space: HUD root corner (-640, -400) plus the panel offsets
 	static const Vec2F kFuelSpotCenter(-496.0f, -347.0f);
@@ -89,9 +88,10 @@ namespace td
 		const Vec2F cardSize(300.0f, 220.0f);
 		const float cardY = 15.0f;
 		struct PicDef { const char* sprite; float x; const wchar_t* caption; };
-		const PicDef pics[] = { { "Game/UI/tut_pic_load.png", -390.0f, L"1. LOAD" },
-								{ "Game/UI/tut_pic_drive.png", 0.0f, L"2. DRIVE" },
-								{ "Game/UI/tut_pic_deliver.png", 390.0f, L"3. DELIVER" } };
+		// the strip sits right of center: the helper character occupies the left edge
+		const PicDef pics[] = { { "Game/UI/tut_pic_load.png", -180.0f, L"1. LOAD" },
+								{ "Game/UI/tut_pic_drive.png", 130.0f, L"2. DRIVE" },
+								{ "Game/UI/tut_pic_deliver.png", 440.0f, L"3. DELIVER" } };
 		for (auto& pic : pics)
 		{
 			MakePicture(mPictures, pic.sprite, Vec2F(pic.x, cardY), cardSize);
@@ -101,7 +101,7 @@ namespace td
 			caption->layout->offsetMin = Vec2F(pic.x - 150.0f, cardY - 152.0f);
 			caption->layout->offsetMax = Vec2F(pic.x + 150.0f, cardY - 108.0f);
 		}
-		for (float x : { -195.0f, 195.0f })
+		for (float x : { -25.0f, 285.0f })
 			MakePicture(mPictures, "Game/UI/tut_arrow.png", Vec2F(x, cardY), Vec2F(96.0f, 68.0f));
 
 		// steering keycaps of the controls step
@@ -113,9 +113,9 @@ namespace td
 		mKeys->layout->offsetMin = Vec2F();
 		mKeys->layout->offsetMax = Vec2F();
 
-		MakePicture(mKeys, "Game/UI/tut_key_left.png", Vec2F(-249.0f, 0.0f), Vec2F(132.0f, 142.0f));
-		MakePicture(mKeys, "Game/UI/tut_key_right.png", Vec2F(-99.0f, 0.0f), Vec2F(132.0f, 142.0f));
-		MakePicture(mKeys, "Game/UI/tut_key_space.png", Vec2F(150.0f, 0.0f), Vec2F(330.0f, 142.0f));
+		MakePicture(mKeys, "Game/UI/tut_key_left.png", Vec2F(-119.0f, 0.0f), Vec2F(132.0f, 142.0f));
+		MakePicture(mKeys, "Game/UI/tut_key_right.png", Vec2F(31.0f, 0.0f), Vec2F(132.0f, 142.0f));
+		MakePicture(mKeys, "Game/UI/tut_key_space.png", Vec2F(280.0f, 0.0f), Vec2F(330.0f, 142.0f));
 
 		// animated helper character on the left of every step screen: a chroma-keyed
 		// looping video, drawn just above the dim so the flat green backdrop disappears
@@ -131,14 +131,27 @@ namespace td
 			mPersVideo->SetLoop(Loop::Repeat);
 			mPersVideo->SetChromaKeyEnabled(true);
 			mPersVideo->SetKeyColor(Color4(73, 106, 71, 255)); // the flat green of pers.mp4
-			mPersVideo->SetSimilarity(0.3f);
-			mPersVideo->SetSmoothness(0.08f);
+			// the difference key measures rgb distance: the muted green key sits close to
+			// the grey costume tones, a wide similarity makes the body translucent
+			mPersVideo->SetSimilarity(0.1f);
+			mPersVideo->SetSmoothness(0.06f);
 			mPersVideo->SetSpill(0.4f);
 
 			mPersActor->transform->SetSize2D(Vec2F(kPersHeight*9.0f/16.0f, kPersHeight));
-			mPersActor->transform->SetPosition(Vec3F(kPersX, kPersY, 0.0f));
+			mPersActor->transform->SetPosition(Vec3F(kPersLeftX, kPersY, 0.0f));
 			mPersActor->SetEnabled(false);
 		}
+
+		// fullscreen tap catcher on top of the overlay: on mobile web the taps arrive only
+		// through the widget event system, polling the raw cursor state misses them
+		mTapCatcher = mmake<Button>();
+		mTapCatcher->SetName("tutorial tap catcher");
+		mRoot->AddChild(mTapCatcher);
+		mTapCatcher->layout->anchorMin = Vec2F(0.0f, 0.0f);
+		mTapCatcher->layout->anchorMax = Vec2F(1.0f, 1.0f);
+		mTapCatcher->layout->offsetMin = Vec2F(-2000.0f, -2000.0f); // reaches into the window
+		mTapCatcher->layout->offsetMax = Vec2F(2000.0f, 2000.0f);  // overscan past the UI rect
+		mTapCatcher->onClick = [this]() { AdvanceStep(); };
 
 		mRoot->SetEnabled(false);
 	}
@@ -199,9 +212,25 @@ namespace td
 		if (mPersActor)
 		{
 			mPersActor->SetEnabled(mWaiting);
-			mPersActor->transform->SetPosition(
-				Vec3F(mStep == Step::Fuel ? kPersFuelX : kPersX, kPersY, 0.0f));
+			// the fuel step spotlights the bottom-left panel: the character flips over to
+			// the right edge; mirroring can't go through the transform (basis decomposition
+			// drops the negative scale), so a pre-mirrored video swaps in instead
+			bool onRight = mStep == Step::Fuel;
+			mPersActor->transform->SetPosition(Vec3F(onRight ? kPersRightX : kPersLeftX,
+													 kPersY, 0.0f));
+			String persPath = onRight ? "Game/Video/pers_flip.mp4" : "Game/Video/pers.mp4";
+			auto current = mPersVideo->GetVideoAsset();
+			if (!current || current->GetPath() != persPath)
+			{
+				if (auto video = o2Assets.GetAssetRefByType<VideoAsset>(persPath))
+				{
+					mPersVideo->SetVideoAsset(video);
+					mPersVideo->Play();
+				}
+			}
 		}
+		if (mTapCatcher)
+			mTapCatcher->SetEnabled(mWaiting);
 		mDescription->SetEnabled(mWaiting);
 		mHint->SetEnabled(mWaiting);
 
@@ -239,6 +268,25 @@ namespace td
 
 		PlaceLabel(mTitle, 296.0f, 600.0f, 40.0f);
 		PlaceLabel(mDescription, 212.0f, 500.0f, 46.0f);
+	}
+
+	void GameTutorialComponent::AdvanceStep()
+	{
+		if (!mActive || !mWaiting || mTapHold > 0.0f)
+			return;
+
+		int next = (int)mStep + 1;
+		if (next >= (int)Step::Count)
+		{
+			Finish();
+			return;
+		}
+
+		mStep = (Step)next;
+		mWaiting = false;
+		mLiveTime = 0.0f;
+		mWasFilling = false;
+		ApplyStep();
 	}
 
 	bool GameTutorialComponent::IsLiveSegmentOver() const
@@ -303,22 +351,9 @@ namespace td
 
 		if (mWaiting)
 		{
-			bool tap = o2Input.IsCursorPressed() || !o2Input.GetPressedKeys().IsEmpty();
-			if (tap && mTapHold <= 0.0f)
-			{
-				int next = (int)mStep + 1;
-				if (next >= (int)Step::Count)
-				{
-					Finish();
-					return;
-				}
-
-				mStep = (Step)next;
-				mWaiting = false;
-				mLiveTime = 0.0f;
-				mWasFilling = false;
-				ApplyStep();
-			}
+			// taps go through the tap catcher button; here only the any-key path
+			if (!o2Input.GetPressedKeys().IsEmpty())
+				AdvanceStep();
 		}
 		else
 		{
@@ -345,6 +380,7 @@ namespace td
 		mRoot = nullptr;
 		mDim = nullptr;
 		mDimMesh = nullptr;
+		mTapCatcher = nullptr;
 		if (mPersActor)
 			mPersActor->RemoveFromScene();
 		mPersActor = nullptr;

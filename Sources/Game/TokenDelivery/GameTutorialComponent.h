@@ -4,6 +4,7 @@
 #include "TokenDelivery/TutorialDimDrawable.h"
 #include "o2/Scene/Components/VideoComponent.h"
 #include "o2/Scene/UI/Widget.h"
+#include "o2/Scene/UI/Widgets/Button.h"
 #include "o2/Scene/UI/Widgets/Image.h"
 #include "o2/Scene/UI/Widgets/Label.h"
 #include "o2/Utils/Function/Function.h"
@@ -81,6 +82,8 @@ namespace td
 		Ref<Label>  mTitle;       // Step title, large
 		Ref<Label>  mDescription; // Step description under the title
 		Ref<Label>  mHint;        // Pulsing "tap to continue" at the bottom
+		Ref<Button> mTapCatcher;  // Fullscreen invisible button: mobile taps come through
+								  // the widget events, a raw cursor poll misses them
 		Ref<Widget> mPictures;    // Load -> drive -> deliver strip of the intro step
 		Ref<Widget> mKeys;        // Arrow and space keycaps of the controls step
 
@@ -98,6 +101,10 @@ namespace td
 	private:
 		// Applies the current step: texts, illustrations and label placement
 		void ApplyStep();
+
+		// Advances to the next step or finishes the tutorial; called by the tap catcher
+		// button and the any-key check
+		void AdvanceStep();
 
 		// Returns is the live segment of the current step over
 		bool IsLiveSegmentOver() const;
@@ -140,6 +147,7 @@ CLASS_FIELDS_META(td::GameTutorialComponent)
     FIELD().PRIVATE().NAME(mTitle);
     FIELD().PRIVATE().NAME(mDescription);
     FIELD().PRIVATE().NAME(mHint);
+    FIELD().PRIVATE().NAME(mTapCatcher);
     FIELD().PRIVATE().NAME(mPictures);
     FIELD().PRIVATE().NAME(mKeys);
     FIELD().PRIVATE().DEFAULT_VALUE(Step::Intro).NAME(mStep);
@@ -167,6 +175,7 @@ CLASS_METHODS_META(td::GameTutorialComponent)
     FUNCTION().PUBLIC().SIGNATURE(bool, IsPausingGame);
     FUNCTION().PUBLIC().SIGNATURE(Step, GetStep);
     FUNCTION().PRIVATE().SIGNATURE(void, ApplyStep);
+    FUNCTION().PRIVATE().SIGNATURE(void, AdvanceStep);
     FUNCTION().PRIVATE().SIGNATURE(bool, IsLiveSegmentOver);
     FUNCTION().PRIVATE().SIGNATURE(void, UpdateHole, float);
     FUNCTION().PRIVATE().SIGNATURE(void, PlaceLabel, const Ref<Label>&, float, float, float);

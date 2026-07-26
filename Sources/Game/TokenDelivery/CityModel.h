@@ -121,6 +121,9 @@ namespace td
 		const char* centrepiece = nullptr; // Composite placed before the buildings, so it is
 										   // guaranteed the middle of the plot
 		const char* preferred = nullptr;   // Nudge for the courtyard piece choice, may not fit
+		float       fillScale = 1.0f;      // Scales how much of each edge gets built up; the
+										   // one-cell strips along the city rim use less, a
+										   // building there covers the ring road behind it
 	};
 
 	// Lays out one rectangular plot, in units local to its north corner. Exposed for tests.
