@@ -45,10 +45,12 @@ namespace td
 		bool  IsFilling() const { return mFilling; }
 
 		void  DebugSetFuel(float seconds) { mFuel = seconds; } // test hook
+		void  DebugCompleteOrder(int index);                  // test hook: drop-off without driving
 
 		bool  IsOrderCompleted(int index) const { return mCompleted[index]; }
 		int   GetCompletedCount() const;
-		int   GetOrderCompletedThisTick() const { return mCompletedThisTick; } // -1 if none
+		// -1 if none; reading takes the event, so it can't repeat once the session stops ticking
+		int   ConsumeCompletedOrder();
 
 		static CityGenParams ParamsForLevel(int level, const SessionTuning& tuning);
 
@@ -62,7 +64,7 @@ namespace td
 		float         mTokens = 0.0f;
 		bool          mFilling = false;
 		Vector<bool>  mCompleted;
-		int           mCompletedThisTick = -1;
+		int           mPendingCompletedOrder = -1;
 	};
 }
 // --- META ---

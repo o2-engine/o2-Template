@@ -407,12 +407,32 @@ TEST(TokenSession, FillsTokensNearSourceAndDeliversOrder)
 	for (int i = 0; i < 600 && !completed; i++)
 	{
 		session.Tick(1.0f/60.0f, input);
-		completed |= session.GetOrderCompletedThisTick() == 0;
+		completed |= session.ConsumeCompletedOrder() == 0;
 	}
 
 	ASSERT_TRUE(completed);
 	EXPECT_TRUE(session.IsOrderCompleted(0));
 	EXPECT_EQ(session.GetState(), SessionState::Won);
+}
+
+// the win freezes the session, so a non-consuming read would replay the last delivery
+// event on every frame behind the win window
+TEST(TokenSession, CompletedOrderEventDoesNotRepeatAfterTheWin)
+{
+	GameSession session;
+	session.StartWithCity(MakeSessionCity(), TestSessionTuning());
+
+	GameInput input;
+	int completed = -1;
+	for (int i = 0; i < 600 && completed < 0; i++)
+	{
+		session.Tick(1.0f/60.0f, input);
+		completed = session.ConsumeCompletedOrder();
+	}
+
+	ASSERT_EQ(completed, 0);
+	ASSERT_EQ(session.GetState(), SessionState::Won);
+	EXPECT_EQ(session.ConsumeCompletedOrder(), -1);
 }
 
 TEST(TokenSession, NotEnoughTokensLeavesOrderActive)

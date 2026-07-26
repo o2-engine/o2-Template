@@ -194,42 +194,42 @@
   },
   "Cars/player_full_e.png": {
    "pivot": [
-    62,
-    58
+    66,
+    64
    ],
    "size": [
-    125,
-    88
+    132,
+    98
    ]
   },
   "Cars/player_full_n.png": {
    "pivot": [
-    61,
-    58
+    65,
+    63
    ],
    "size": [
-    122,
-    88
+    131,
+    96
    ]
   },
   "Cars/player_full_s.png": {
    "pivot": [
     66,
-    59
+    64
    ],
    "size": [
     132,
-    90
+    98
    ]
   },
   "Cars/player_full_w.png": {
    "pivot": [
-    64,
-    57
+    65,
+    63
    ],
    "size": [
-    128,
-    87
+    131,
+    96
    ]
   },
   "Cars/player_n.png": {
@@ -413,6 +413,16 @@
    ]
   },
   "Props/smoke.png": {
+   "pivot": [
+    32,
+    32
+   ],
+   "size": [
+    64,
+    64
+   ]
+  },
+  "Props/spark.png": {
    "pivot": [
     32,
     32
@@ -740,6 +750,16 @@
    "size": [
     94,
     96
+   ]
+  },
+  "UI/chip.png": {
+   "pivot": [
+    150,
+    160
+   ],
+   "size": [
+    300,
+    321
    ]
   },
   "UI/fuel_bg.png": {

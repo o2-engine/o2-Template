@@ -5,6 +5,7 @@
 #include "TokenDelivery/GameUIStyle.h"
 #include "TokenDelivery/TiltShiftPass.h"
 #include "o2/Render/Pipeline/RenderPipeline.h"
+#include "o2/Render/Render.h"
 #include "o2/Application/Input.h"
 #include "o2/Assets/Assets.h"
 #include "o2/Assets/Types/JavaScriptAsset.h"
@@ -124,8 +125,7 @@ void GameControllerComponent::StartLevel(int level)
 	mPlayerGhostActor->SetDrawingDepth(9000.0f);
 
 	static const CarDrawableComponent::CarKind kTrafficKinds[] = {
-		CarDrawableComponent::CarKind::Van, CarDrawableComponent::CarKind::Sedan,
-		CarDrawableComponent::CarKind::Hatchback
+		CarDrawableComponent::CarKind::Van, CarDrawableComponent::CarKind::Hatchback
 	};
 
 	auto& city = mSession.GetCity();
@@ -151,12 +151,12 @@ void GameControllerComponent::StartLevel(int level)
 		traffic.actor->SetName("traffic car");
 		traffic.actor->SetLayer(kWorldLayer);
 		traffic.drawable = traffic.actor->AddComponent<CarDrawableComponent>();
-		traffic.drawable->SetupCar(kTrafficKinds[i%3]);
+		traffic.drawable->SetupCar(kTrafficKinds[i%2]);
 		traffic.decisionTimer = 1.0f + mTrafficRng.Frand()*2.0f;
 		mTraffic.Add(traffic);
 	}
 
-	mHUD.BindLevel(&mSession, mCity.officeAnchors);
+	mHUD.BindLevel(&mSession, mCity.officeAnchors, mCity.hologram);
 	mHUD.HideWindows();
 
 	// snap the camera to the start
@@ -247,7 +247,7 @@ void GameControllerComponent::OnUpdate(float dt)
 	if (mSession.GetState() == SessionState::Playing)
 		mSession.Tick(dt, CollectInput());
 
-	int completedOrder = mSession.GetOrderCompletedThisTick();
+	int completedOrder = mSession.ConsumeCompletedOrder();
 	if (completedOrder >= 0)
 		mHUD.ShowOrderCompleted(completedOrder);
 
@@ -259,7 +259,8 @@ void GameControllerComponent::OnUpdate(float dt)
 
 	if (!mEndShown)
 	{
-		if (mSession.GetState() == SessionState::Won)
+		// the win window waits until the last delivered tooltip has played its exit
+		if (mSession.GetState() == SessionState::Won && !mHUD.HasVisibleTooltips())
 		{
 			mEndShown = true;
 			mHUD.ShowWin();

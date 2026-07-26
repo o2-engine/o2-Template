@@ -30,7 +30,25 @@ namespace td
 		mFilling = false;
 		mCompleted.Clear();
 		mCompleted.resize(mCity.orders.Count(), false);
-		mCompletedThisTick = -1;
+		mPendingCompletedOrder = -1;
+	}
+
+	void GameSession::DebugCompleteOrder(int index)
+	{
+		if (index < 0 || index >= mCompleted.Count() || mCompleted[index])
+			return;
+
+		mCompleted[index] = true;
+		mPendingCompletedOrder = index;
+		if (GetCompletedCount() == mCity.orders.Count())
+			mState = SessionState::Won;
+	}
+
+	int GameSession::ConsumeCompletedOrder()
+	{
+		int completed = mPendingCompletedOrder;
+		mPendingCompletedOrder = -1;
+		return completed;
 	}
 
 	int GameSession::GetCompletedCount() const
@@ -43,7 +61,6 @@ namespace td
 
 	void GameSession::Tick(float dt, const GameInput& input)
 	{
-		mCompletedThisTick = -1;
 		if (mState != SessionState::Playing)
 			return;
 
@@ -82,7 +99,7 @@ namespace td
 
 			mTokens -= (float)mCity.orders[i].amount;
 			mCompleted[i] = true;
-			mCompletedThisTick = i;
+			mPendingCompletedOrder = i;
 		}
 
 		if (!mCity.orders.IsEmpty() && GetCompletedCount() == mCity.orders.Count())

@@ -48,7 +48,6 @@ void CarDrawableComponent::SetupCar(CarKind kind)
 			break;
 
 		case CarKind::Van:       LoadDirSprites("traffic_blue", mDirSprites, mDirOffsets); break;
-		case CarKind::Sedan:     LoadDirSprites("player_full", mDirSprites, mDirOffsets); break;
 		case CarKind::Hatchback: LoadDirSprites("traffic_sport", mDirSprites, mDirOffsets); break;
 	}
 }
@@ -130,7 +129,6 @@ ENUM_META(CarDrawableComponent::CarKind, CarDrawableComponent__CarKind)
 {
     ENUM_ENTRY(Hatchback);
     ENUM_ENTRY(PlayerPickup);
-    ENUM_ENTRY(Sedan);
     ENUM_ENTRY(Van);
 }
 END_ENUM_META;

@@ -8,6 +8,7 @@
 #include "o2/Render/Render.h"
 #include "o2/Scene/Scene.h"
 #include "o2/Scene/UI/Widget.h"
+#include "o2/Scene/UI/Widgets/Label.h"
 #include "o2/Scene/UI/Widgets/Toggle.h"
 #include "o2/Utils/Bitmap/Bitmap.h"
 #include "o2/Utils/FileSystem/FileSystem.h"
@@ -45,8 +46,8 @@ namespace
 	}
 }
 
-// Renders the four 3D car kinds close-up at different headings — a pure visual check of
-// the projected mesh, shading and depth sorting between overlapping cars
+// Renders every car kind close-up at different headings — a pure visual check of the
+// direction sprites and of depth sorting between overlapping cars
 TEST(TokenDeliveryCars, CloseupRendersAllKinds)
 {
 	o2Scene.AddLayer(td::kWorldLayer);
@@ -65,10 +66,10 @@ TEST(TokenDeliveryCars, CloseupRendersAllKinds)
 		{ CarDrawableComponent::CarKind::PlayerPickup, Vec2F(0.0f, 2.0f), 180.0f },
 		{ CarDrawableComponent::CarKind::PlayerPickup, Vec2F(1.5f, -1.0f), 270.0f },
 		{ CarDrawableComponent::CarKind::Van, Vec2F(1.0f, 0.0f), 90.0f },
-		{ CarDrawableComponent::CarKind::Sedan, Vec2F(0.0f, 1.0f), 180.0f },
+		{ CarDrawableComponent::CarKind::Hatchback, Vec2F(0.0f, 1.0f), 180.0f },
 		{ CarDrawableComponent::CarKind::Hatchback, Vec2F(1.0f, 1.0f), 45.0f },
 		// deliberately overlapping pair to verify car-vs-car depth
-		{ CarDrawableComponent::CarKind::Sedan, Vec2F(2.0f, 1.85f), 90.0f },
+		{ CarDrawableComponent::CarKind::Van, Vec2F(2.0f, 1.85f), 90.0f },
 		{ CarDrawableComponent::CarKind::Van, Vec2F(2.0f, 2.0f), 90.0f },
 	};
 	for (auto& def : defs)
@@ -289,6 +290,66 @@ TEST_F(TokenDeliveryApp, SettingsWindowOpensTogglesAndCloses)
 	AppTestDriver::ReleaseCursor();
 	AppTestDriver::PumpFrames(3);
 	EXPECT_FALSE(settingsWindow->IsEnabled());
+}
+
+TEST_F(TokenDeliveryApp, WinWindowWaitsForTheLastTooltipExit)
+{
+	auto controller = FindController();
+	ASSERT_TRUE(controller);
+	auto hud = o2Scene.FindActor("hud");
+	ASSERT_TRUE(hud);
+	auto winWindow = hud->FindChild("win window");
+	ASSERT_TRUE(winWindow);
+
+	auto& session = controller->GetSessionMutable();
+	for (int i = 0; i < session.GetCity().orders.Count(); i++)
+	{
+		session.DebugCompleteOrder(i);
+		AppTestDriver::PumpFrames(2); // the controller picks the delivery up and starts the flight
+	}
+	ASSERT_EQ(session.GetState(), td::SessionState::Won);
+
+	// the last tooltip keeps the tokens flight and its exit animation on screen
+	EXPECT_TRUE(controller->GetHUD().HasVisibleTooltips());
+	EXPECT_FALSE(winWindow->IsEnabled());
+
+	bool shown = false;
+	for (int i = 0; i < 300 && !shown; i++)
+	{
+		AppTestDriver::PumpFrames(1);
+		shown = winWindow->IsEnabled();
+	}
+	EXPECT_TRUE(shown);
+	EXPECT_FALSE(controller->GetHUD().HasVisibleTooltips());
+}
+
+// paying for the order drops the balance below its price — the delivered bubble must not
+// flash red while it lingers and fades out
+TEST_F(TokenDeliveryApp, DeliveredTooltipTextStaysDarkWhileFadingOut)
+{
+	auto controller = FindController();
+	ASSERT_TRUE(controller);
+
+	auto& session = controller->GetSessionMutable();
+	WString amount = WString((String)session.GetCity().orders[0].amount);
+
+	Ref<Label> label;
+	for (auto& actor : o2Scene.GetRootActors())
+	{
+		auto tooltip = DynamicCast<Widget>(actor);
+		if (!tooltip || actor->GetName() != "order tooltip")
+			continue;
+		if (auto found = tooltip->FindChildByType<Label>(); found && found->GetText() == amount)
+			label = found;
+	}
+	ASSERT_TRUE(label);
+
+	session.DebugCompleteOrder(0);
+	for (int i = 0; i < 90; i++) // linger with the tokens flight, then the exit animation
+	{
+		AppTestDriver::PumpFrames(1);
+		ASSERT_NE(label->GetColor(), Color4(226, 44, 44, 255)) << "frame " << i;
+	}
 }
 
 TEST_F(TokenDeliveryApp, WinWindowRenders)

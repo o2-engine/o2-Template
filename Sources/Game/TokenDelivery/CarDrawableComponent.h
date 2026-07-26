@@ -13,7 +13,7 @@ using namespace o2;
 class CarDrawableComponent: public Component
 {
 public:
-	enum class CarKind { PlayerPickup, Van, Sedan, Hatchback };
+	enum class CarKind { PlayerPickup, Van, Hatchback };
 
 	CarDrawableComponent();
 	explicit CarDrawableComponent(RefCounter* refCounter);
