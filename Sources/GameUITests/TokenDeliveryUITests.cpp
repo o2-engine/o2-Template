@@ -654,6 +654,179 @@ TEST_F(TokenDeliveryApp, WinWindowRenders)
 	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_delivery_win.png");
 }
 
+// The green nav arrow is a manually drawn sprite (widget layers place drawables by
+// axis-aligned rects and never rotate them), orbiting the player car and pointing at the
+// nearest affordable order. Verified by rendered pixels across several targets: the green
+// blob must sit where the logic put it and its tip must lead along the logical heading
+TEST_F(TokenDeliveryApp, NavArrowPointsAtAffordableOrder)
+{
+	auto controller = FindController();
+	ASSERT_TRUE(controller);
+	auto arrow = o2Scene.FindActor("nav arrow");
+	ASSERT_TRUE(arrow);
+
+	// the run starts with no tokens on the source cell: the fallback target is right
+	// under the car and the loading has begun, so the arrow stays hidden
+	EXPECT_FALSE(arrow->IsEnabled());
+
+	auto& session = controller->GetSessionMutable();
+
+	// measures the rendered arrow: finds the green pixels around the logical position
+	// (trying both bitmap row orders), returns the blob centroid error and the tip direction
+	auto measure = [&](float& positionError, Vec2F& tipDir) -> bool
+	{
+		auto shot = AppTestDriver::TakeScreenshot();
+		if (!shot)
+			return false;
+		auto data = (const UInt32*)shot->GetData();
+		Vec2I size = shot->GetSize();
+
+		Vec3F logical = arrow->transform->GetPosition();
+		float pixelsPerUI = (float)size.x/1280.0f;
+		auto isArrowGreen = [&](int px, int py)
+		{
+			UInt32 p = data[py*size.x + px];
+			int a = (int)(p & 0xFF), g = (int)((p >> 8) & 0xFF), b = (int)((p >> 16) & 0xFF);
+			// the arrow greens carry a high blue component the park grass and trees lack
+			return g > 180 && g > a + 40 && g > b + 30 && b > 95;
+		};
+
+		float bestError = 1e9f;
+		bool found = false;
+		for (int flip = 0; flip < 2; flip++)
+		{
+			Vec2F predicted((logical.x/1280.0f + 0.5f)*size.x,
+							flip ? (logical.y/800.0f + 0.5f)*size.y
+								 : (0.5f - logical.y/800.0f)*size.y);
+
+			// green centroid inside the search window around the predicted spot
+			int radius = (int)(45.0f*pixelsPerUI);
+			float sx = 0.0f, sy = 0.0f;
+			int count = 0;
+			for (int py = Math::Max(0, (int)predicted.y - radius);
+				 py < Math::Min(size.y, (int)predicted.y + radius); py++)
+			{
+				for (int px = Math::Max(0, (int)predicted.x - radius);
+					 px < Math::Min(size.x, (int)predicted.x + radius); px++)
+				{
+					if (!isArrowGreen(px, py))
+						continue;
+					sx += (float)px; sy += (float)py;
+					count++;
+				}
+			}
+			if (count < 40)
+				continue;
+
+			Vec2F centroid(sx/(float)count, sy/(float)count);
+			float error = (centroid - predicted).Length()/pixelsPerUI;
+			if (error >= bestError)
+				continue;
+
+			// principal axis of the blob by second moments; the axis sign is picked by the
+			// end spread: the head converges to the tip, the shaft end stays a flat bar
+			float cxx = 0.0f, cyy = 0.0f, cxy = 0.0f;
+			Vector<Vec2F> pixels;
+			for (int py = Math::Max(0, (int)predicted.y - radius);
+				 py < Math::Min(size.y, (int)predicted.y + radius); py++)
+			{
+				for (int px = Math::Max(0, (int)predicted.x - radius);
+					 px < Math::Min(size.x, (int)predicted.x + radius); px++)
+				{
+					if (!isArrowGreen(px, py))
+						continue;
+					Vec2F d = Vec2F((float)px, (float)py) - centroid;
+					cxx += d.x*d.x; cyy += d.y*d.y; cxy += d.x*d.y;
+					pixels.Add(d);
+				}
+			}
+
+			float theta = 0.5f*Math::Atan2F(2.0f*cxy, cxx - cyy);
+			Vec2F axis(Math::Cos(theta), Math::Sin(theta));
+
+			float maxProj = 0.0f;
+			for (auto& d : pixels)
+				maxProj = Math::Max(maxProj, Math::Abs(d.Dot(axis)));
+
+			float spreadPositive = 0.0f, spreadNegative = 0.0f;
+			int countPositive = 0, countNegative = 0;
+			Vec2F perp(-axis.y, axis.x);
+			for (auto& d : pixels)
+			{
+				float proj = d.Dot(axis);
+				if (Math::Abs(proj) < maxProj*0.55f)
+					continue;
+				if (proj > 0.0f) { spreadPositive += Math::Abs(d.Dot(perp)); countPositive++; }
+				else             { spreadNegative += Math::Abs(d.Dot(perp)); countNegative++; }
+			}
+			if (countPositive == 0 || countNegative == 0)
+				continue;
+			if (spreadPositive/(float)countPositive > spreadNegative/(float)countNegative)
+				axis = axis*-1.0f;
+
+			bestError = error;
+			tipDir = Vec2F(axis.x, flip ? axis.y : -axis.y); // back to UI y-up
+			found = true;
+		}
+
+		positionError = bestError;
+		return found;
+	};
+
+	auto expectArrowAimsAt = [&](const char* what)
+	{
+		AppTestDriver::PumpFrames(3);
+		ASSERT_TRUE(arrow->IsEnabled()) << what;
+
+		float positionError = 0.0f;
+		Vec2F tipDir;
+		ASSERT_TRUE(measure(positionError, tipDir)) << what << ": arrow pixels not found";
+		EXPECT_LT(positionError, 25.0f) << what << ": rendered blob is off the logical position";
+
+		float heading = Math::Deg2rad(arrow->transform->GetAngleDegrees());
+		Vec2F logicalDir(Math::Cos(heading), Math::Sin(heading));
+		EXPECT_GT(tipDir.Dot(logicalDir), 0.7f) << what << ": rendered rotation is off the heading";
+
+		// and the heading itself leads from the car towards the target order office
+		int target = session.GetAffordableOrderTarget();
+		ASSERT_GE(target, 0) << what;
+		auto& order = session.GetCity().orders[target];
+		Vec2F carWorld = td::CellToScreen(session.GetCar().GetVisualPos());
+		Vec2F officeWorld = td::CellToScreen(Vec2F((float)order.officeCell.x, (float)order.officeCell.y));
+		EXPECT_GT(logicalDir.Dot((officeWorld - carWorld).Normalized()), 0.6f) << what;
+	};
+
+	// variant 1: the filling stream affords the cheapest order after a while
+	int cheapest = session.GetCity().orders[0].amount;
+	for (auto& order : session.GetCity().orders)
+		cheapest = Math::Min(cheapest, order.amount);
+	for (float waited = 0.0f; waited < 10.0f && session.GetTokens() < cheapest; waited += 0.05f)
+		AppTestDriver::Wait(0.05f);
+	ASSERT_GE(session.GetTokens(), cheapest);
+	expectArrowAimsAt("cheapest affordable order");
+
+	o2FileSystem.FolderCreate(kScreenshotsDir, true);
+	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_delivery_nav_arrow.png");
+
+	// variant 2: everything affordable, the nearest order delivered - the arrow retargets
+	session.DebugSetTokens(500.0f);
+	AppTestDriver::PumpFrames(2);
+	int first = session.GetAffordableOrderTarget();
+	ASSERT_GE(first, 0);
+	session.DebugCompleteOrder(first);
+	expectArrowAimsAt("next order after a delivery");
+	EXPECT_NE(session.GetAffordableOrderTarget(), first);
+
+	// variant 3: every order delivered - the run is won and the arrow leaves the screen
+	for (int i = 0; i < session.GetCity().orders.Count(); i++)
+	{
+		if (!session.IsOrderCompleted(i))
+			session.DebugCompleteOrder(i);
+	}
+	AppTestDriver::PumpFrames(3);
+	EXPECT_FALSE(arrow->IsEnabled());
+}
+
 TEST_F(TokenDeliveryApp, FuelDrainsOverTime)
 {
 	auto controller = FindController();

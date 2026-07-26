@@ -34,6 +34,11 @@ namespace td
 	static const Vec2F kTurnButtonSize(104.0f, 112.0f);
 	static const float kTurnButtonBottom = 26.0f;
 
+	// navigation arrow orbiting the player car
+	static const float kNavArrowOrbit = 96.0f;     // distance from the car center, UI units
+	static const float kNavArrowSize = 56.0f;
+	static const float kNavArrowHideCells = 2.0f;  // this close to the delivery it is just noise
+
 	static const Color4 kAmountColor(34, 41, 65, 255);
 	static const Color4 kAmountShortColor(226, 44, 44, 255); // order the player can't pay yet
 
@@ -199,6 +204,18 @@ namespace td
 										 [this]() { mTurnLeftTap = turnTapTime; });
 		mTurnRightButton = makeTurnButton("turn right", -36.0f,
 										  [this]() { mTurnRightTap = turnTapTime; });
+
+		// green navigation arrow orbiting the player car: points at the order the player
+		// can pay for, or back at the token source while nothing is affordable. Drawn as a
+		// plain sprite through its own UI-layer host — widget layers place their drawables
+		// by axis-aligned rects, so a widget would never rotate the arrow
+		mNavArrowSprite = mmake<Sprite>(String("Game/UI/nav_arrow.png"));
+		mNavActor = mmake<Actor>(ActorCreateMode::InScene);
+		mNavActor->SetName("nav arrow");
+		mNavActor->SetLayer(kUILayer);
+		mNavActor->SetDrawingDepth(15.0f); // above the HUD panels, below the windows
+		mNavActor->AddComponent<TokenVfxComponent>()->onDraw = [this]() { DrawNavArrow(); };
+		mNavActor->SetEnabled(false);
 
 		// completed task panel, slides in from the left edge on order delivery; the slide
 		// is the widget "visible" state animation, so a plain SetEnabled plays it
@@ -542,6 +559,7 @@ namespace td
 			mFillSpawnAccum = 0.0f;
 
 		UpdateVfx(dt);
+		UpdateNavArrow();
 
 		// the task panel slide is its "visible" state animation, only the hold timer is here
 		if (mTaskTimer >= 0.0f)
@@ -642,6 +660,71 @@ namespace td
 		flyer.sizeJitter = 0.82f + Math::Random(0, 100)/100.0f*0.36f;
 		flyer.tilt = (float)Math::Random(-26, 26);
 		mFlyers.Add(flyer);
+	}
+
+	void GameHUDComponent::UpdateNavArrow()
+	{
+		if (!mNavActor)
+			return;
+
+		bool visible = false;
+		Vec2F carUI, direction;
+		if (mSession->GetState() == SessionState::Playing && worldToUI)
+		{
+			Vec2F targetWorld;
+			bool hasTarget = false;
+
+			int order = mSession->GetAffordableOrderTarget();
+			if (order >= 0 && order < mTooltips.Count() && mTooltips[order].widget)
+			{
+				targetWorld = mTooltips[order].target;
+
+				// this close the car is about to deliver anyway, the arrow is just noise
+				float cells = kNavArrowHideCells;
+				for (auto& cell : mSession->GetCity().orders[order].deliveryCells)
+				{
+					cells = Math::Min(cells, (Vec2F((float)cell.x, (float)cell.y)
+											  - mSession->GetCar().GetPos()).Length());
+				}
+				hasTarget = cells >= kNavArrowHideCells;
+			}
+			else if (mSourceAnchor)
+			{
+				Vec3F source = mSourceAnchor->transform->GetWorldPosition();
+				targetWorld = Vec2F(source.x, source.y);
+				hasTarget = !mSession->IsFilling(); // already loading, no need to point there
+			}
+
+			if (hasTarget)
+			{
+				carUI = worldToUI(CellToScreen(mSession->GetCar().GetVisualPos()));
+				direction = worldToUI(targetWorld) - carUI;
+				visible = direction.Length() > 1.0f;
+			}
+		}
+
+		mNavActor->SetEnabled(visible);
+		if (!visible)
+			return;
+
+		direction = direction.Normalized();
+		Vec2F pos = carUI + direction*kNavArrowOrbit;
+		mNavActor->transform->SetPosition(Vec3F(pos.x, pos.y, 0.0f));
+		mNavActor->transform->SetAngleDegrees(Math::Rad2deg(Math::Atan2F(direction.y, direction.x)));
+	}
+
+	void GameHUDComponent::DrawNavArrow()
+	{
+		if (!mNavArrowSprite)
+			return;
+
+		float scale = kNavArrowSize/Math::Max(1.0f, (float)mNavArrowSprite->GetOriginalSize().x);
+		Vec3F pos = mNavActor->transform->GetPosition();
+		mNavArrowSprite->SetPosition(Vec2F(pos.x, pos.y));
+		mNavArrowSprite->SetScale(Vec2F(scale, scale));
+		mNavArrowSprite->SetAngleDegrees(mNavActor->transform->GetAngleDegrees());
+		mNavArrowSprite->SetTransparency(0.8f + 0.2f*Math::Sin(mPulsePhase*4.0f)); // gentle pulse
+		mNavArrowSprite->Draw();
 	}
 
 	void GameHUDComponent::BurstSparks(const Vec2F& pos)
@@ -788,6 +871,10 @@ namespace td
 			mRoot->RemoveFromScene();
 		mRoot = nullptr;
 		mSettingsButton = nullptr;
+		if (mNavActor)
+			mNavActor->RemoveFromScene();
+		mNavActor = nullptr;
+		mNavArrowSprite = nullptr;
 		mTurnLeftButton = nullptr;
 		mTurnRightButton = nullptr;
 		mTurnLeftTap = 0.0f;

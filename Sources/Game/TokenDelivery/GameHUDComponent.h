@@ -27,6 +27,8 @@ namespace td
 		Function<void()> onRetry;     // Lose window button / settings restart callback
 		Function<void()> onNextLevel; // Win window button callback
 
+		Function<Vec2F(const Vec2F&)> worldToUI; // World point to UI space, set by the controller
+
 	public:
 		float taskPanelHoldTime = 2.2f;  // Completed-task panel hold before the slide-out @SERIALIZABLE @EDITOR_PROPERTY @RANGE(0.5, 10)
 		float turnTapTime = 0.35f;       // A steering tap keeps turning for this long @SERIALIZABLE @EDITOR_PROPERTY @RANGE(0.05, 1)
@@ -151,6 +153,9 @@ namespace td
 		Ref<Button> mTurnLeftButton;  // On-screen steering, bottom-right corner
 		Ref<Button> mTurnRightButton; // On-screen steering, bottom-right corner
 
+		Ref<Actor>  mNavActor;       // Navigation arrow host on the UI layer: position and heading
+		Ref<Sprite> mNavArrowSprite; // Green arrow sprite, drawn manually with a real rotation
+
 		float mTurnLeftTap = 0.0f;  // A tap keeps the turn command alive for a moment,
 		float mTurnRightTap = 0.0f; // long enough to catch the crossroad ahead
 
@@ -199,6 +204,13 @@ namespace td
 		// Restarts the spark emitter at the given world point
 		void BurstSparks(const Vec2F& pos);
 
+		// Aims the navigation arrow at the affordable order or the token source; hides it
+		// when there is no target or the car is already next to it
+		void UpdateNavArrow();
+
+		// Draws the arrow sprite at the host pose; called by the host actor draw hook
+		void DrawNavArrow();
+
 		// Advances all flying tokens and triggers the arrival effects
 		void UpdateVfx(float dt);
 
@@ -222,6 +234,7 @@ CLASS_FIELDS_META(td::GameHUDComponent)
 {
     FIELD().PUBLIC().NAME(onRetry);
     FIELD().PUBLIC().NAME(onNextLevel);
+    FIELD().PUBLIC().NAME(worldToUI);
     FIELD().PUBLIC().EDITOR_PROPERTY_ATTRIBUTE().RANGE_ATTRIBUTE(0.5, 10).SERIALIZABLE_ATTRIBUTE().DEFAULT_VALUE(2.2f).NAME(taskPanelHoldTime);
     FIELD().PUBLIC().EDITOR_PROPERTY_ATTRIBUTE().RANGE_ATTRIBUTE(0.05, 1).SERIALIZABLE_ATTRIBUTE().DEFAULT_VALUE(0.35f).NAME(turnTapTime);
     FIELD().PUBLIC().EDITOR_PROPERTY_ATTRIBUTE().RANGE_ATTRIBUTE(0.02, 1).SERIALIZABLE_ATTRIBUTE().DEFAULT_VALUE(0.12f).NAME(tokenStreamInterval);
@@ -241,6 +254,8 @@ CLASS_FIELDS_META(td::GameHUDComponent)
     FIELD().PRIVATE().NAME(mSettingsButton);
     FIELD().PRIVATE().NAME(mTurnLeftButton);
     FIELD().PRIVATE().NAME(mTurnRightButton);
+    FIELD().PRIVATE().NAME(mNavActor);
+    FIELD().PRIVATE().NAME(mNavArrowSprite);
     FIELD().PRIVATE().DEFAULT_VALUE(0.0f).NAME(mTurnLeftTap);
     FIELD().PRIVATE().DEFAULT_VALUE(0.0f).NAME(mTurnRightTap);
     FIELD().PRIVATE().NAME(mTaskPanel);
@@ -283,6 +298,8 @@ CLASS_METHODS_META(td::GameHUDComponent)
     FUNCTION().PRIVATE().SIGNATURE(Vec2F, CarBedPos);
     FUNCTION().PRIVATE().SIGNATURE(void, SpawnTokenToCar);
     FUNCTION().PRIVATE().SIGNATURE(void, BurstSparks, const Vec2F&);
+    FUNCTION().PRIVATE().SIGNATURE(void, UpdateNavArrow);
+    FUNCTION().PRIVATE().SIGNATURE(void, DrawNavArrow);
     FUNCTION().PRIVATE().SIGNATURE(void, UpdateVfx, float);
     FUNCTION().PRIVATE().SIGNATURE(void, DrawVfx);
     FUNCTION().PRIVATE().SIGNATURE(void, ClearVfx);

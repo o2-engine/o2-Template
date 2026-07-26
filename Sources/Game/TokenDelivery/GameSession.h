@@ -80,8 +80,15 @@ namespace td
 		// Enables or disables the fuel drain; off while the tutorial runs
 		void SetFuelDrain(bool enabled) { mFuelDrain = enabled; }
 
+		// Returns the order to navigate to: the nearest affordable undelivered one by cell
+		// distance to its delivery cells, -1 when the player can't pay for any
+		int GetAffordableOrderTarget() const;
+
 		// Sets the fuel directly (tests)
 		void DebugSetFuel(float seconds) { mFuel = seconds; }
+
+		// Sets the collected tokens directly (tests)
+		void DebugSetTokens(float tokens) { mTokens = tokens; }
 
 		// Completes the order without driving to it (tests)
 		void DebugCompleteOrder(int index);

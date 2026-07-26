@@ -114,6 +114,7 @@ namespace td
 			return Vec2F((world.x - cameraPos.x)*uiSize.x/worldSize.x,
 						 (world.y - cameraPos.y)*uiSize.y/worldSize.y);
 		};
+		mHUD->worldToUI = mTutorial->worldToUI; // the nav arrow maps through the same cameras
 		mTutorial->Build();
 	}
 

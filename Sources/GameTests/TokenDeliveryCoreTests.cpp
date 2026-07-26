@@ -506,3 +506,38 @@ TEST(TokenSession, GeneratedLevelStartIsOnSource)
 	EXPECT_TRUE(session.IsFilling()); // player always starts at the token source
 	EXPECT_EQ(session.GetState(), SessionState::Playing);
 }
+
+// the nav arrow target: nearest order the player can pay for right now, skipping the
+// delivered ones; -1 sends the arrow back to the token source
+TEST(TokenSession, AffordableOrderTargetPicksNearestPayableOrder)
+{
+	auto city = MakeRoadCity();
+
+	OrderInfo near;
+	near.name = "Near";
+	near.amount = 50;
+	near.officeCell = Vec2I(2, 1);
+	near.deliveryCells = { Vec2I(2, 2) };
+
+	OrderInfo far;
+	far.name = "Far";
+	far.amount = 30;
+	far.officeCell = Vec2I(5, 1);
+	far.deliveryCells = { Vec2I(5, 2) };
+
+	city.orders = { near, far };
+
+	GameSession session;
+	session.StartWithCity(city, TestSessionTuning()); // the car starts at (1, 2)
+
+	EXPECT_EQ(session.GetAffordableOrderTarget(), -1); // no tokens, nothing is payable
+
+	session.DebugSetTokens(40.0f);
+	EXPECT_EQ(session.GetAffordableOrderTarget(), 1); // only the far order is payable
+
+	session.DebugSetTokens(60.0f);
+	EXPECT_EQ(session.GetAffordableOrderTarget(), 0); // both payable, the near one wins
+
+	session.DebugCompleteOrder(0);
+	EXPECT_EQ(session.GetAffordableOrderTarget(), 1); // delivered orders are skipped
+}

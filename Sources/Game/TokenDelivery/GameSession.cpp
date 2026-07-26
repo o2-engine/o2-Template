@@ -60,6 +60,28 @@ namespace td
 		return count;
 	}
 
+	int GameSession::GetAffordableOrderTarget() const
+	{
+		int best = -1;
+		float bestDistance = 0.0f;
+		for (int i = 0; i < mCity.orders.Count(); i++)
+		{
+			if (mCompleted[i] || (int)mTokens < mCity.orders[i].amount)
+				continue;
+
+			for (auto& cell : mCity.orders[i].deliveryCells)
+			{
+				float distance = (Vec2F((float)cell.x, (float)cell.y) - mCar.GetPos()).Length();
+				if (best < 0 || distance < bestDistance)
+				{
+					best = i;
+					bestDistance = distance;
+				}
+			}
+		}
+		return best;
+	}
+
 	void GameSession::Tick(float dt, const GameInput& input)
 	{
 		if (mState != SessionState::Playing)
