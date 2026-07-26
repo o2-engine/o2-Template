@@ -17,4 +17,7 @@ namespace td::art
 
 	// Pivot in normalized bottom-left coordinates (art pivots are top-left pixel based)
 	Vec2F NormalizedPivot(const SpriteMeta& meta);
+
+	// Path of the generated building prototype of the sprite: Game/Protos/Buildings/<name>.proto
+	String BuildingProtoPath(const char* spritePath);
 }

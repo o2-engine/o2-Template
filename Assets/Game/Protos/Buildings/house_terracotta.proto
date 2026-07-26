@@ -1,0 +1,40 @@
+{
+    "mActor": {
+        "Type": "o2::Actor",
+        "Value": {
+            "mInheritDrawingDepthFromParent": false,
+            "mName": "Game/Buildings/house_terracotta.png",
+            "mSceneLayer": {
+                "Type": "o2::SceneLayer",
+                "Value": {
+                    "mName": "World"
+                }
+            },
+            "Id": 14064294187736596355,
+            "Transform": {
+                "size": {
+                    "x": 418.0,
+                    "y": 276.0,
+                    "z": 0.0
+                },
+                "pivot": {
+                    "x": 0.33253589272499087,
+                    "y": 0.38405799865722659,
+                    "z": 0.0
+                }
+            },
+            "Components": [
+                {
+                    "Type": "o2::ImageComponent",
+                    "Data": {
+                        "mImageAsset": {
+                            "id": "8d7b2180df6e8889d802e8a152719df5",
+                            "path": "Game/Buildings/house_terracotta.png"
+                        },
+                        "mId": 16030125544066024622
+                    }
+                }
+            ]
+        }
+    }
+}

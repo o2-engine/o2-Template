@@ -1,0 +1,40 @@
+{
+    "mActor": {
+        "Type": "o2::Actor",
+        "Value": {
+            "mInheritDrawingDepthFromParent": false,
+            "mName": "Game/Buildings/house_tall.png",
+            "mSceneLayer": {
+                "Type": "o2::SceneLayer",
+                "Value": {
+                    "mName": "World"
+                }
+            },
+            "Id": 13303855286437085329,
+            "Transform": {
+                "size": {
+                    "x": 376.0,
+                    "y": 349.0,
+                    "z": 0.0
+                },
+                "pivot": {
+                    "x": 0.26595744490623476,
+                    "y": 0.143266499042511,
+                    "z": 0.0
+                }
+            },
+            "Components": [
+                {
+                    "Type": "o2::ImageComponent",
+                    "Data": {
+                        "mImageAsset": {
+                            "id": "57c73b8f8f85d50e74778eb6410f4d6d",
+                            "path": "Game/Buildings/house_tall.png"
+                        },
+                        "mId": 10997959369359241918
+                    }
+                }
+            ]
+        }
+    }
+}

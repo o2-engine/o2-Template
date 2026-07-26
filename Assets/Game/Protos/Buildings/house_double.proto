@@ -1,0 +1,40 @@
+{
+    "mActor": {
+        "Type": "o2::Actor",
+        "Value": {
+            "mInheritDrawingDepthFromParent": false,
+            "mName": "Game/Buildings/house_double.png",
+            "mSceneLayer": {
+                "Type": "o2::SceneLayer",
+                "Value": {
+                    "mName": "World"
+                }
+            },
+            "Id": 1729620273058321722,
+            "Transform": {
+                "size": {
+                    "x": 491.0,
+                    "y": 365.0,
+                    "z": 0.0
+                },
+                "pivot": {
+                    "x": 0.30549898743629458,
+                    "y": 0.20821917057037354,
+                    "z": 0.0
+                }
+            },
+            "Components": [
+                {
+                    "Type": "o2::ImageComponent",
+                    "Data": {
+                        "mImageAsset": {
+                            "id": "d6f981640c5eb4b99ffff887df3f318c",
+                            "path": "Game/Buildings/house_double.png"
+                        },
+                        "mId": 13210058568506962617
+                    }
+                }
+            ]
+        }
+    }
+}

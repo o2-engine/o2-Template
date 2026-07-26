@@ -2,9 +2,30 @@
 #include "TokenDelivery/CityViewBuilder.h"
 
 #include "TokenDelivery/ArtSprites.h"
+#include "o2/Assets/Assets.h"
+#include "o2/Assets/Types/ActorAsset.h"
+#include "o2/Assets/Types/JavaScriptAsset.h"
+#include "o2/Scene/Components/ScriptableComponent.h"
 
 namespace td
 {
+	// instantiates a generated prototype when it exists, otherwise builds the sprite by
+	// code — the fallback path for a run before the assets generator has been executed
+	static Ref<Actor> MakeProtoSprite(const String& protoPath, const char* spritePath,
+									  const Vec2F& worldPos, float depth, const Ref<Actor>& parent)
+	{
+		auto proto = o2Assets.GetAssetRefByType<ActorAsset>(protoPath);
+		if (!proto)
+			return art::MakeSprite(spritePath, kWorldLayer, worldPos, depth, parent);
+
+		auto actor = mmake<Actor>(proto, ActorCreateMode::InScene);
+		if (parent)
+			parent->AddChild(actor, false);
+		actor->transform->SetWorldPosition(Vec3F(worldPos.x, worldPos.y, 0.0f));
+		actor->SetDrawingDepth(depth);
+		return actor;
+	}
+
 	static const char* RoadTilePath(int mask)
 	{
 		static const char* names[16] = {
@@ -101,7 +122,8 @@ namespace td
 			float depth = IsoDepth(fpCenter) + 0.25f;
 
 			String path = BuildingPath(building.spriteId);
-			auto actor = art::MakeSprite(path.Data(), kWorldLayer, pos, depth, handles.root);
+			auto actor = MakeProtoSprite(art::BuildingProtoPath(path.Data()), path.Data(),
+										 pos, depth, handles.root);
 
 			if (building.orderIndex >= 0)
 			{
@@ -127,10 +149,18 @@ namespace td
 
 			if (decor.spriteId == "fountain")
 			{
-				auto hologram = art::MakeSprite("Game/Props/chip.png", kWorldLayer,
+				// generated prototype carries the scale and the HologramPulse script
+				auto hologram = MakeProtoSprite("Game/Protos/Hologram.proto",
+												"Game/Props/chip.png",
 												pos + Vec2F(0.0f, 140.0f), depth + 0.05f,
 												handles.root);
-				hologram->transform->SetScale(Vec3F(0.9f, 0.9f, 1.0f));
+				if (!hologram->GetComponent<ScriptableComponent>())
+				{
+					hologram->transform->SetScale(Vec3F(0.9f, 0.9f, 1.0f));
+					auto script = o2Assets.GetAssetRefByType<JavaScriptAsset>(String("Scripts/HologramPulse.js"));
+					if (script)
+						hologram->AddComponent<ScriptableComponent>()->SetScript(script);
+				}
 				handles.hologram = hologram;
 			}
 		}

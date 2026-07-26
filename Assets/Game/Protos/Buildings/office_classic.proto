@@ -1,0 +1,40 @@
+{
+    "mActor": {
+        "Type": "o2::Actor",
+        "Value": {
+            "mInheritDrawingDepthFromParent": false,
+            "mName": "Game/Buildings/office_classic.png",
+            "mSceneLayer": {
+                "Type": "o2::SceneLayer",
+                "Value": {
+                    "mName": "World"
+                }
+            },
+            "Id": 11288091581814133499,
+            "Transform": {
+                "size": {
+                    "x": 296.0,
+                    "y": 216.0,
+                    "z": 0.0
+                },
+                "pivot": {
+                    "x": 0.3378378450870514,
+                    "y": 0.23148149251937867,
+                    "z": 0.0
+                }
+            },
+            "Components": [
+                {
+                    "Type": "o2::ImageComponent",
+                    "Data": {
+                        "mImageAsset": {
+                            "id": "d3adede35365343ca6302e3c1f49a60e",
+                            "path": "Game/Buildings/office_classic.png"
+                        },
+                        "mId": 16369586970015627051
+                    }
+                }
+            ]
+        }
+    }
+}

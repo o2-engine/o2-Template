@@ -15,6 +15,7 @@ namespace td
 
 	enum class Dir { N = 0, E = 1, S = 2, W = 3 };
 
+	// Returns the cell step of the direction
 	inline Vec2I DirVec(Dir d)
 	{
 		switch (d)
@@ -26,32 +27,45 @@ namespace td
 		}
 	}
 
+	// Returns the reverse direction
 	inline Dir Opposite(Dir d) { return (Dir)(((int)d + 2)%4); }
-	inline Dir RightOf(Dir d) { return (Dir)(((int)d + 1)%4); }
-	inline Dir LeftOf(Dir d) { return (Dir)(((int)d + 3)%4); }
-	inline int DirBit(Dir d) { return 1 << (int)d; } // matches road tile naming order NESW
 
+	// Returns the direction right of the given one
+	inline Dir RightOf(Dir d) { return (Dir)(((int)d + 1)%4); }
+
+	// Returns the direction left of the given one
+	inline Dir LeftOf(Dir d) { return (Dir)(((int)d + 3)%4); }
+
+	// Returns the direction bit; matches road tile naming order NESW
+	inline int DirBit(Dir d) { return 1 << (int)d; }
+
+	// Projects a cell position to screen space
 	inline Vec2F CellToScreen(const Vec2F& cell)
 	{
 		return Vec2F((cell.x - cell.y)*kTileHalfW, -(cell.x + cell.y)*kTileHalfH);
 	}
 
+	// Unprojects a screen point back to cell space
 	inline Vec2F ScreenToCell(const Vec2F& screen)
 	{
 		float a = screen.x/kTileHalfW, b = -screen.y/kTileHalfH;
 		return Vec2F((a + b)*0.5f, (b - a)*0.5f);
 	}
 
-	// draw depth grows toward the camera; static objects set it once, movers every frame
+	// Returns the draw depth of the cell; grows toward the camera. Static objects set it
+	// once, movers every frame
 	inline float IsoDepth(const Vec2F& cell) { return cell.x + cell.y; }
 
-	// deterministic xorshift rng for world generation
+	// ----------------------------------------------
+	// Deterministic xorshift rng for world generation
+	// ----------------------------------------------
 	struct Rng
 	{
-		UInt32 state;
+		UInt32 state; // Generator state, never zero
 
 		explicit Rng(UInt32 seed): state(seed ? seed : 0x9e3779b9u) {}
 
+		// Returns the next raw 32-bit value
 		UInt32 Next()
 		{
 			state ^= state << 13;
@@ -60,11 +74,13 @@ namespace td
 			return state;
 		}
 
+		// Returns a value in the inclusive range
 		int Range(int minInclusive, int maxInclusive)
 		{
 			return minInclusive + (int)(Next()%(UInt32)(maxInclusive - minInclusive + 1));
 		}
 
+		// Returns a value in [0, 1)
 		float Frand() { return (Next() >> 8)*(1.0f/16777216.0f); }
 	};
 }

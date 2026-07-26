@@ -1,0 +1,40 @@
+{
+    "mActor": {
+        "Type": "o2::Actor",
+        "Value": {
+            "mInheritDrawingDepthFromParent": false,
+            "mName": "Game/Buildings/house_cream.png",
+            "mSceneLayer": {
+                "Type": "o2::SceneLayer",
+                "Value": {
+                    "mName": "World"
+                }
+            },
+            "Id": 12560450579191945819,
+            "Transform": {
+                "size": {
+                    "x": 345.0,
+                    "y": 188.0,
+                    "z": 0.0
+                },
+                "pivot": {
+                    "x": 0.28985506296157839,
+                    "y": 0.2765957713127136,
+                    "z": 0.0
+                }
+            },
+            "Components": [
+                {
+                    "Type": "o2::ImageComponent",
+                    "Data": {
+                        "mImageAsset": {
+                            "id": "aa760396736347d32e299381e5fec0bd",
+                            "path": "Game/Buildings/house_cream.png"
+                        },
+                        "mId": 9821620639256367255
+                    }
+                }
+            ]
+        }
+    }
+}

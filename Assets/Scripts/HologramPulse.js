@@ -1,6 +1,7 @@
 // Soft scale pulsing for the token hologram above the fountain.
-// Attached via ScriptableComponent; the class name must match the file name.
-class HologramPulse extends o2.Component
+// Attached via ScriptableComponent; the class must be a global own property named
+// after the file (a top-level `class X {}` is a lexical binding and is not found).
+HologramPulse = class HologramPulse extends o2.Component
 {
 	constructor()
 	{
@@ -15,6 +16,6 @@ class HologramPulse extends o2.Component
 	{
 		this._time += dt;
 		var s = this.baseScale + this.amplitude*Math.sin(this._time*this.speed);
-		this._actor.transform.SetScale2D(new Vec2(s, s));
+		this._actor.GetTransform().SetScale2D(new Vec2(s, s));
 	}
 }

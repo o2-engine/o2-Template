@@ -2,130 +2,165 @@
 #include "TokenDelivery/CarDrawableComponent.h"
 
 #include "TokenDelivery/ArtSprites.h"
+#include "o2/Assets/Assets.h"
+#include "o2/Assets/Types/ImageAsset.h"
+#include "o2/Render/Particles/ParticlesEffects.h"
+#include "o2/Render/Particles/ParticlesEmitterShapes.h"
 #include "o2/Scene/Actor.h"
+#include "o2/Utils/Math/ColorGradient.h"
 
-CarDrawableComponent::CarDrawableComponent():
-	CarDrawableComponent(nullptr)
-{}
-
-CarDrawableComponent::CarDrawableComponent(RefCounter* refCounter):
-	Component(refCounter)
+namespace td
 {
-	mPuffSprite = mmake<Sprite>(String("Game/Props/smoke.png"));
-}
+	CarDrawableComponent::CarDrawableComponent():
+		CarDrawableComponent(nullptr)
+	{}
 
-static void LoadDirSprites(const char* prefix, Vector<Ref<Sprite>>& sprites,
-						   Vector<Vec2F>& offsets)
-{
-	static const char* kDirs[] = { "e", "s", "w", "n" }; // indexed by angle/90 (0 = E)
-	for (auto dir : kDirs)
+	CarDrawableComponent::CarDrawableComponent(RefCounter* refCounter):
+		Component(refCounter)
+	{}
+
+	static void LoadDirSprites(const char* prefix, Vector<Ref<Sprite>>& sprites,
+							   Vector<Vec2F>& offsets)
 	{
-		String path = String("Game/Cars/") + prefix + "_" + dir + ".png";
-		auto sprite = mmake<Sprite>(path);
-		Vec2F offset;
-		if (auto meta = td::art::Find(path.Data()))
+		static const char* kDirs[] = { "e", "s", "w", "n" }; // indexed by angle/90 (0 = E)
+		for (auto dir : kDirs)
 		{
-			sprite->SetSize(Vec2F((float)meta->w, (float)meta->h));
-			offset = Vec2F(meta->w*0.5f - meta->px, meta->py - meta->h*0.5f);
-		}
-		sprites.Add(sprite);
-		offsets.Add(offset);
-	}
-}
-
-void CarDrawableComponent::SetupCar(CarKind kind)
-{
-	mDirSprites.Clear();
-	mDirOffsets.Clear();
-	mDirSpritesFull.Clear();
-	mDirOffsetsFull.Clear();
-
-	switch (kind)
-	{
-		case CarKind::PlayerPickup:
-			LoadDirSprites("player", mDirSprites, mDirOffsets);
-			LoadDirSprites("player_full", mDirSpritesFull, mDirOffsetsFull);
-			break;
-
-		case CarKind::Van:       LoadDirSprites("traffic_blue", mDirSprites, mDirOffsets); break;
-		case CarKind::Hatchback: LoadDirSprites("traffic_sport", mDirSprites, mDirOffsets); break;
-	}
-}
-
-void CarDrawableComponent::SetPose(const Vec2F& cellPos, float angleDeg, float smokeIntensity)
-{
-	mCellPos = cellPos;
-	mAngle = angleDeg;
-	mSmoke = smokeIntensity;
-}
-
-void CarDrawableComponent::OnUpdate(float dt)
-{
-	for (auto& puff : mPuffs)
-		puff.age += dt;
-	mPuffs.RemoveAll([](const Puff& p) { return p.age >= p.lifetime; });
-
-	if (mSmoke > 0.05f)
-	{
-		mPuffSpawnAccum += dt*(6.0f + 24.0f*mSmoke);
-		while (mPuffSpawnAccum >= 1.0f)
-		{
-			mPuffSpawnAccum -= 1.0f;
-			float rad = Math::Deg2rad(mAngle);
-			Vec2F back(-Math::Cos(rad)*0.25f, -Math::Sin(rad)*0.25f);
-			Vec2F side(-back.y, back.x);
-			float jitter = (Math::Random(0, 100)/100.0f - 0.5f)*0.2f;
-			Puff puff;
-			puff.cellPos = mCellPos + back + side*jitter;
-			mPuffs.Add(puff);
+			String path = String("Game/Cars/") + prefix + "_" + dir + ".png";
+			auto sprite = mmake<Sprite>(path);
+			Vec2F offset;
+			if (auto meta = art::Find(path.Data()))
+			{
+				sprite->SetSize(Vec2F((float)meta->w, (float)meta->h));
+				offset = Vec2F(meta->w*0.5f - meta->px, meta->py - meta->h*0.5f);
+			}
+			sprites.Add(sprite);
+			offsets.Add(offset);
 		}
 	}
-	else
-		mPuffSpawnAccum = 0.0f;
-}
 
-void CarDrawableComponent::OnDraw()
-{
-	if (mDirSprites.IsEmpty())
-		return;
-
-	// pick the direction sprite set by the heading quadrant (0=E, 90=S, ...)
-	int quadrant = (int)Math::Round(mAngle/90.0f) % 4;
-	if (quadrant < 0)
-		quadrant += 4;
-
-	bool full = mFilled && !mDirSpritesFull.IsEmpty();
-	auto& sprite = full ? mDirSpritesFull[quadrant] : mDirSprites[quadrant];
-	Vec2F carScreen = td::CellToScreen(mCellPos)
-					+ (full ? mDirOffsetsFull[quadrant] : mDirOffsets[quadrant]);
-
-	if (mGhost)
+	void CarDrawableComponent::SetupCar(CarKind kind)
 	{
-		// translucent copy above buildings so the occluded car stays trackable
-		sprite->SetTransparency(0.25f);
+		mKind = kind;
+
+		mDirSprites.Clear();
+		mDirOffsets.Clear();
+		mDirSpritesFull.Clear();
+		mDirOffsetsFull.Clear();
+
+		switch (kind)
+		{
+			case CarKind::PlayerPickup:
+				LoadDirSprites("player", mDirSprites, mDirOffsets);
+				LoadDirSprites("player_full", mDirSpritesFull, mDirOffsetsFull);
+				break;
+
+			case CarKind::Van:       LoadDirSprites("traffic_blue", mDirSprites, mDirOffsets); break;
+			case CarKind::Hatchback: LoadDirSprites("traffic_sport", mDirSprites, mDirOffsets); break;
+		}
+
+		// the smoke child sorts independently just under the car; created here when the
+		// actor is not a prototype instance that already carries it
+		if (auto owner = GetActor())
+		{
+			auto smoke = owner->FindChild("smoke");
+			if (!smoke)
+			{
+				smoke = mmake<Actor>(owner->IsOnScene() ? ActorCreateMode::InScene
+													    : ActorCreateMode::NotInScene);
+				smoke->SetName("smoke");
+				owner->AddChild(smoke, false);
+				SetupSmokeEmitter(smoke->AddComponent<ParticlesEmitterComponent>());
+			}
+			smoke->SetDrawingDepthInheritFromParent(false);
+			mSmokeEmitter = smoke->GetComponent<ParticlesEmitterComponent>();
+		}
+	}
+
+	void CarDrawableComponent::SetupSmokeEmitter(const Ref<ParticlesEmitterComponent>& emitter)
+	{
+		auto source = mmake<SingleSpriteParticleSource>();
+		source->image = o2Assets.GetAssetRefByType<ImageAsset>(String("Game/Props/smoke.png"));
+		emitter->SetParticlesSource(source);
+
+		emitter->SetShape(mmake<CircleParticlesEmitterShape>());
+
+		// world-relative, so the emitted puffs stay behind while the car drives away
+		emitter->SetParticlesRelativity(false);
+		emitter->SetMaxParticles(32);
+		emitter->SetParticlesPerSecond(0.0f);
+		emitter->SetParticlesLifetime(0.6f);
+		emitter->SetInitialSize(0.6f);
+		emitter->SetInitialSizeRange(0.1f);
+		emitter->SetInitialSpeed(45.0f);
+		emitter->SetInitialSpeedRange(15.0f);
+		emitter->SetEmitParticlesMoveDirection(90.0f); // drifts upwards
+		emitter->SetEmitParticlesMoveDirectionRange(25.0f);
+
+		auto grow = mmake<ParticlesSizeEffect>();
+		grow->curve = mmake<Curve>(Vector<Vec2F>{ Vec2F(0.0f, 1.0f), Vec2F(1.0f, 2.4f) });
+		emitter->AddEffect(grow);
+
+		auto fade = mmake<ParticlesColorEffect>();
+		fade->colorGradient = mmake<ColorGradient>(Color4(255, 255, 255, 140),
+												   Color4(255, 255, 255, 0));
+		emitter->AddEffect(fade);
+	}
+
+	void CarDrawableComponent::SetPose(const Vec2F& cellPos, float angleDeg, float smokeIntensity)
+	{
+		mCellPos = cellPos;
+		mAngle = angleDeg;
+
+		if (mSmokeEmitter)
+		{
+			// the ghost silhouette must not double the smoke of the real car
+			mSmokeEmitter->SetParticlesPerSecond(
+				!mGhost && smokeIntensity > 0.05f ? 6.0f + 24.0f*smokeIntensity : 0.0f);
+			mSmokeEmitter->GetActor()->SetDrawingDepth(IsoDepth(mCellPos) - 0.02f);
+		}
+	}
+
+	void CarDrawableComponent::OnStart()
+	{
+		if (mDirSprites.IsEmpty())
+			SetupCar(mKind);
+	}
+
+	void CarDrawableComponent::OnDraw()
+	{
+		if (mDirSprites.IsEmpty())
+			return;
+
+		// pick the direction sprite set by the heading quadrant (0=E, 90=S, ...)
+		int quadrant = (int)Math::Round(mAngle/90.0f) % 4;
+		if (quadrant < 0)
+			quadrant += 4;
+
+		bool full = mFilled && !mDirSpritesFull.IsEmpty();
+		auto& sprite = full ? mDirSpritesFull[quadrant] : mDirSprites[quadrant];
+		Vec2F carScreen = CellToScreen(mCellPos)
+						+ (full ? mDirOffsetsFull[quadrant] : mDirOffsets[quadrant]);
+
+		if (mGhost)
+		{
+			// translucent copy above buildings so the occluded car stays trackable
+			sprite->SetTransparency(0.25f);
+			sprite->SetPosition(carScreen);
+			sprite->Draw();
+			sprite->SetTransparency(1.0f);
+			return;
+		}
+
+		// the ground shadow is baked into the car sprites
 		sprite->SetPosition(carScreen);
 		sprite->Draw();
-		sprite->SetTransparency(1.0f);
-		return;
 	}
-
-	for (auto& puff : mPuffs)
-	{
-		float t = puff.age/puff.lifetime;
-		Vec2F screen = td::CellToScreen(puff.cellPos);
-		mPuffSprite->SetPosition(screen + Vec2F(0.0f, 10.0f + 30.0f*t));
-		mPuffSprite->SetScale(Vec2F(0.6f + t*0.9f, 0.6f + t*0.9f));
-		mPuffSprite->SetTransparency(0.55f*(1.0f - t));
-		mPuffSprite->Draw();
-	}
-
-	// the ground shadow is baked into the car sprites
-	sprite->SetPosition(carScreen);
-	sprite->Draw();
 }
+
+DECLARE_TEMPLATE_CLASS(o2::LinkRef<td::CarDrawableComponent>);
 // --- META ---
 
-ENUM_META(CarDrawableComponent::CarKind, CarDrawableComponent__CarKind)
+ENUM_META(td::CarDrawableComponent::CarKind, td__CarDrawableComponent__CarKind)
 {
     ENUM_ENTRY(Hatchback);
     ENUM_ENTRY(PlayerPickup);
@@ -133,5 +168,5 @@ ENUM_META(CarDrawableComponent::CarKind, CarDrawableComponent__CarKind)
 }
 END_ENUM_META;
 
-DECLARE_CLASS(CarDrawableComponent, CarDrawableComponent);
+DECLARE_CLASS(td::CarDrawableComponent, td__CarDrawableComponent);
 // --- END META ---

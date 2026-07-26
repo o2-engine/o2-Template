@@ -1,0 +1,144 @@
+{
+    "mActor": {
+        "Type": "o2::Actor",
+        "Value": {
+            "mInheritDrawingDepthFromParent": false,
+            "mName": "player car",
+            "mSceneLayer": {
+                "Type": "o2::SceneLayer",
+                "Value": {
+                    "mName": "World"
+                }
+            },
+            "Id": 17312208212841619407,
+            "Transform": {
+                "pivot": {
+                    "x": 0.5,
+                    "y": 0.5,
+                    "z": 0.0
+                }
+            },
+            "Children": [
+                {
+                    "Type": "o2::Actor",
+                    "Data": {
+                        "mInheritDrawingDepthFromParent": false,
+                        "mName": "smoke",
+                        "Id": 17977490943749615624,
+                        "Transform": {
+                            "pivot": {
+                                "x": 0.5,
+                                "y": 0.5,
+                                "z": 0.0
+                            }
+                        },
+                        "Components": [
+                            {
+                                "Type": "o2::ParticlesEmitterComponent",
+                                "Data": {
+                                    "mDuration": 0.7000000476837158,
+                                    "mEndTime": 0.7000000476837158,
+                                    "mParticlesSource": {
+                                        "Type": "o2::SingleSpriteParticleSource",
+                                        "Value": {
+                                            "image": {
+                                                "id": "324e3bb25edfe0371f23bad1ce386a29",
+                                                "path": "Game/Props/smoke.png"
+                                            }
+                                        }
+                                    },
+                                    "mShape": {
+                                        "Type": "o2::CircleParticlesEmitterShape",
+                                        "Value": {}
+                                    },
+                                    "mEffects": [
+                                        {
+                                            "Type": "o2::ParticlesSizeEffect",
+                                            "Value": {
+                                                "curve": {
+                                                    "Type": "o2::Curve",
+                                                    "Value": {
+                                                        "mKeys": [
+                                                            {
+                                                                "uid": 16737327686114420646,
+                                                                "value": 1.0,
+                                                                "rightSupportValue": 0.7000000476837158,
+                                                                "rightSupportPosition": 0.5
+                                                            },
+                                                            {
+                                                                "uid": 16316530202060620956,
+                                                                "value": 2.4000000953674318,
+                                                                "position": 1.0,
+                                                                "leftSupportValue": -0.7000000476837158,
+                                                                "leftSupportPosition": -0.5
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Type": "o2::ParticlesColorEffect",
+                                            "Value": {
+                                                "colorGradient": {
+                                                    "Type": "o2::ColorGradient",
+                                                    "Value": {
+                                                        "mKeys": [
+                                                            {
+                                                                "uid": 16827676182474713212,
+                                                                "color": {
+                                                                    "r": 255,
+                                                                    "g": 255,
+                                                                    "b": 255,
+                                                                    "a": 140
+                                                                }
+                                                            },
+                                                            {
+                                                                "uid": 5610215749674361999,
+                                                                "color": {
+                                                                    "r": 255,
+                                                                    "g": 255,
+                                                                    "b": 255,
+                                                                    "a": 0
+                                                                },
+                                                                "position": 1.0
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ],
+                                    "mParticlesNumLimit": 32,
+                                    "mIsParticlesRelative": false,
+                                    "mParticlesLifetime": 0.6000000238418579,
+                                    "mEmitParticlesPerSecond": 0.0,
+                                    "mInitialSize": 0.6000000238418579,
+                                    "mInitialSizeRange": 0.10000000149011612,
+                                    "mInitialSpeed": 45.0,
+                                    "mInitialSpeedRangle": 15.0,
+                                    "mInitialMoveDirection": 90.0,
+                                    "mInitialMoveDirectionRange": 25.0,
+                                    "mId": 12828182460854521602,
+                                    "mPivot": {
+                                        "x": 0.5,
+                                        "y": 0.5,
+                                        "z": 0.0
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            ],
+            "Components": [
+                {
+                    "Type": "td::CarDrawableComponent",
+                    "Data": {
+                        "mId": 7282376732287358351
+                    }
+                }
+            ]
+        }
+    }
+}

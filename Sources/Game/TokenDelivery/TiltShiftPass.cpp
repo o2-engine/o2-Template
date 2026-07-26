@@ -116,6 +116,8 @@ void main()
 #endif
 }
 
+namespace td
+{
 bool TiltShiftPass::EnsureResources()
 {
 	Vec2I resolution = o2Render.GetResolution();
@@ -178,7 +180,8 @@ void TiltShiftPass::Execute(RenderPassContext& context)
 	mScreenQuad->SetPosition(Vec2F(context.camera.GetPosition().x, context.camera.GetPosition().y));
 	mScreenQuad->Draw();
 }
+}
 // --- META ---
 
-DECLARE_CLASS(TiltShiftPass, TiltShiftPass);
+DECLARE_CLASS(td::TiltShiftPass, td__TiltShiftPass);
 // --- END META ---

@@ -2,6 +2,7 @@
 #include "TokenDelivery/ArtSprites.h"
 
 #include "o2/Scene/Components/ImageComponent.h"
+#include "o2/Utils/FileSystem/FileSystem.h"
 
 namespace td::art
 {
@@ -18,6 +19,13 @@ namespace td::art
 	Vec2F NormalizedPivot(const SpriteMeta& meta)
 	{
 		return Vec2F((float)meta.px/(float)meta.w, 1.0f - (float)meta.py/(float)meta.h);
+	}
+
+	String BuildingProtoPath(const char* spritePath)
+	{
+		String name = o2FileSystem.GetFileNameWithoutExtension(
+			o2FileSystem.GetPathWithoutDirectories(String(spritePath)));
+		return String("Game/Protos/Buildings/") + name + ".proto";
 	}
 
 	Ref<Actor> MakeSprite(const char* path, const String& layer, const Vec2F& worldPos,

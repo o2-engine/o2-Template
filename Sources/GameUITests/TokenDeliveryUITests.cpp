@@ -3,6 +3,7 @@
 
 #include "TokenDelivery/GameControllerComponent.h"
 #include "TokenDelivery/TokenDeliveryGame.h"
+#include "TokenDelivery/TrafficCarComponent.h"
 #include "o2/Application/Application.h"
 #include "o2/Application/Input.h"
 #include "o2/Application/VKCodes.h"
@@ -185,6 +186,41 @@ protected:
 	}
 };
 
+// The game boots by loading Bootstrap.scn: cameras and the game actor with its three
+// components come from the scene data, wired through serialized LinkRefs, and the level
+// entities are instantiated from the generated .proto assets
+TEST_F(TokenDeliveryApp, BootstrapSceneProvidesCamerasAndLinks)
+{
+	auto controller = FindController();
+	ASSERT_TRUE(controller);
+
+	// cameras are scene actors from the asset, not code-built
+	auto worldCamera = DynamicCast<CameraActor>(o2Scene.FindActor("world camera"));
+	auto uiCamera = DynamicCast<CameraActor>(o2Scene.FindActor("ui camera"));
+	ASSERT_TRUE(worldCamera);
+	ASSERT_TRUE(uiCamera);
+	EXPECT_TRUE(worldCamera->GetRenderPipeline()); // tilt-shift pipeline came deserialized
+	EXPECT_TRUE(worldCamera->GetComponent<ScriptableComponent>()); // CameraFollow.js
+
+	// the component links resolved onto the game actor
+	ASSERT_TRUE(controller->GetHUD());
+	ASSERT_TRUE(controller->GetTutorial());
+	EXPECT_EQ(controller->GetHUD()->GetActor()->GetName(), "token delivery");
+
+	// the player car is a prototype instance
+	auto playerCar = o2Scene.FindActor("player car");
+	ASSERT_TRUE(playerCar);
+	EXPECT_TRUE(playerCar->GetPrototype());
+
+	// traffic cars carry the drawable, the AI script and the traffic component
+	auto trafficCar = o2Scene.FindActor("traffic car");
+	ASSERT_TRUE(trafficCar);
+	EXPECT_TRUE(trafficCar->GetPrototype());
+	EXPECT_TRUE(trafficCar->GetComponent<CarDrawableComponent>());
+	EXPECT_TRUE(trafficCar->GetComponent<ScriptableComponent>());
+	EXPECT_TRUE(trafficCar->GetComponent<TrafficCarComponent>());
+}
+
 TEST_F(TokenDeliveryApp, CityBuildsAndRenders)
 {
 	auto controller = FindController();
@@ -275,7 +311,7 @@ TEST_F(TokenDeliveryApp, CompletedTaskPanelSlidesInAndOut)
 	ASSERT_TRUE(panel);
 	EXPECT_FALSE(panel->IsEnabled());
 
-	controller->GetHUD().ShowOrderCompleted(0);
+	controller->GetHUD()->ShowOrderCompleted(0);
 	AppTestDriver::Wait(0.6f); // fully slid in from the left
 	EXPECT_TRUE(panel->IsEnabled());
 
@@ -347,7 +383,7 @@ TEST_F(TokenDeliveryApp, WinWindowWaitsForTheLastTooltipExit)
 	ASSERT_EQ(session.GetState(), td::SessionState::Won);
 
 	// the last tooltip keeps the tokens flight and its exit animation on screen
-	EXPECT_TRUE(controller->GetHUD().HasVisibleTooltips());
+	EXPECT_TRUE(controller->GetHUD()->HasVisibleTooltips());
 	EXPECT_FALSE(winWindow->IsEnabled());
 
 	// the tooltip lingers 1.3s for the token flight and then plays a 0.44s exit; poll by
@@ -359,7 +395,7 @@ TEST_F(TokenDeliveryApp, WinWindowWaitsForTheLastTooltipExit)
 		shown = winWindow->IsEnabled();
 	}
 	EXPECT_TRUE(shown);
-	EXPECT_FALSE(controller->GetHUD().HasVisibleTooltips());
+	EXPECT_FALSE(controller->GetHUD()->HasVisibleTooltips());
 }
 
 // paying for the order drops the balance below its price — the delivered bubble must not
@@ -427,7 +463,7 @@ TEST_F(TokenDeliveryApp, WinWindowRenders)
 	auto controller = FindController();
 	ASSERT_TRUE(controller);
 
-	controller->GetHUD().ShowWin();
+	controller->GetHUD()->ShowWin();
 	AppTestDriver::Wait(0.3f);
 
 	o2FileSystem.FolderCreate(kScreenshotsDir, true);
@@ -477,12 +513,12 @@ protected:
 
 	// a step freezes the game when its live segment is over: that frozen frame carries the
 	// step text and is the one worth a screenshot
-	bool WaitForStepText(const Ref<GameControllerComponent>& controller, GameTutorial::Step step)
+	bool WaitForStepText(const Ref<GameControllerComponent>& controller, GameTutorialComponent::Step step)
 	{
 		auto& tutorial = controller->GetTutorial();
 		for (int i = 0; i < 900; i++)
 		{
-			if (tutorial.GetStep() == step && tutorial.IsPausingGame())
+			if (tutorial->GetStep() == step && tutorial->IsPausingGame())
 			{
 				AppTestDriver::Wait(0.4f); // overlay fade and spotlight settle
 				return true;
@@ -508,9 +544,9 @@ TEST_F(TokenDeliveryTutorial, EveryStepFreezesTheGameAndWaitsForATap)
 	auto& tutorial = controller->GetTutorial();
 	auto& session = controller->GetSession();
 
-	ASSERT_TRUE(tutorial.IsActive());
-	ASSERT_EQ(tutorial.GetStep(), GameTutorial::Step::Intro);
-	EXPECT_TRUE(tutorial.IsPausingGame());
+	ASSERT_TRUE(tutorial->IsActive());
+	ASSERT_EQ(tutorial->GetStep(), GameTutorialComponent::Step::Intro);
+	EXPECT_TRUE(tutorial->IsPausingGame());
 
 	// the frozen intro moves nothing: no driving, no fuel burn
 	Vec2F carBefore = session.GetCar().GetPos();
@@ -522,22 +558,22 @@ TEST_F(TokenDeliveryTutorial, EveryStepFreezesTheGameAndWaitsForATap)
 
 	// a tap releases the pause and the truck loads tokens under the spotlight
 	AppTestDriver::Click(Vec2F(0.0f, 0.0f));
-	ASSERT_EQ(tutorial.GetStep(), GameTutorial::Step::Loading);
-	EXPECT_FALSE(tutorial.IsPausingGame());
-	ASSERT_TRUE(WaitForStepText(controller, GameTutorial::Step::Loading));
+	ASSERT_EQ(tutorial->GetStep(), GameTutorialComponent::Step::Loading);
+	EXPECT_FALSE(tutorial->IsPausingGame());
+	ASSERT_TRUE(WaitForStepText(controller, GameTutorialComponent::Step::Loading));
 	EXPECT_GT(session.GetTokens(), 0);
 	AppTestDriver::SaveScreenshot(kScreenshotsDir + "tutorial_2_load.png");
 
 	// any key continues as well
 	PressAnyKey(VK_SPACE);
-	ASSERT_EQ(tutorial.GetStep(), GameTutorial::Step::Controls);
-	ASSERT_TRUE(WaitForStepText(controller, GameTutorial::Step::Controls));
+	ASSERT_EQ(tutorial->GetStep(), GameTutorialComponent::Step::Controls);
+	ASSERT_TRUE(WaitForStepText(controller, GameTutorialComponent::Step::Controls));
 	EXPECT_NE(session.GetCar().GetPos(), carBefore); // the live segment drove the truck
 	AppTestDriver::SaveScreenshot(kScreenshotsDir + "tutorial_3_controls.png");
 
 	PressAnyKey(VK_LEFT);
-	ASSERT_EQ(tutorial.GetStep(), GameTutorial::Step::Fuel);
-	ASSERT_TRUE(WaitForStepText(controller, GameTutorial::Step::Fuel));
+	ASSERT_EQ(tutorial->GetStep(), GameTutorialComponent::Step::Fuel);
+	ASSERT_TRUE(WaitForStepText(controller, GameTutorialComponent::Step::Fuel));
 	AppTestDriver::SaveScreenshot(kScreenshotsDir + "tutorial_4_fuel.png");
 
 	// the tank is still full: the whole intro holds the timer
@@ -545,8 +581,8 @@ TEST_F(TokenDeliveryTutorial, EveryStepFreezesTheGameAndWaitsForATap)
 
 	// the last tap ends the tutorial and hands the game over
 	AppTestDriver::Click(Vec2F(0.0f, 0.0f));
-	EXPECT_FALSE(tutorial.IsActive());
-	EXPECT_FALSE(tutorial.IsPausingGame());
+	EXPECT_FALSE(tutorial->IsActive());
+	EXPECT_FALSE(tutorial->IsPausingGame());
 
 	AppTestDriver::Wait(1.0f);
 	EXPECT_LT(session.GetFuel(), fuelBefore - 0.5f);

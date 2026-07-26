@@ -1,0 +1,88 @@
+{
+    "mActor": {
+        "Type": "o2::Actor",
+        "Value": {
+            "mInheritDrawingDepthFromParent": false,
+            "mName": "spark emitter",
+            "mSceneLayer": {
+                "Type": "o2::SceneLayer",
+                "Value": {
+                    "mName": "World"
+                }
+            },
+            "Id": 3780451924033196081,
+            "Transform": {
+                "pivot": {
+                    "x": 0.5,
+                    "y": 0.5,
+                    "z": 0.0
+                }
+            },
+            "Components": [
+                {
+                    "Type": "o2::ParticlesEmitterComponent",
+                    "Data": {
+                        "mDuration": 0.5099999904632568,
+                        "mEndTime": 0.5099999904632568,
+                        "mParticlesSource": {
+                            "Type": "o2::SingleSpriteParticleSource",
+                            "Value": {
+                                "image": {
+                                    "id": "e5605cd2295e37e75ff6f4d3bff03f0e",
+                                    "path": "Game/Props/spark.png"
+                                }
+                            }
+                        },
+                        "mShape": {
+                            "Type": "o2::CircleParticlesEmitterShape",
+                            "Value": {}
+                        },
+                        "mEffects": [
+                            {
+                                "Type": "o2::ParticlesColorEffect",
+                                "Value": {
+                                    "colorGradient": {
+                                        "Type": "o2::ColorGradient",
+                                        "Value": {
+                                            "mKeys": [
+                                                {
+                                                    "uid": 12578061060860215697
+                                                },
+                                                {
+                                                    "uid": 14490007526799712928,
+                                                    "color": {
+                                                        "r": 255,
+                                                        "g": 255,
+                                                        "b": 255,
+                                                        "a": 0
+                                                    },
+                                                    "position": 1.0
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        ],
+                        "mParticlesNumLimit": 48,
+                        "mIsParticlesRelative": false,
+                        "mEmissionDuration": 0.05999999865889549,
+                        "mParticlesLifetime": 0.44999998807907107,
+                        "mEmitParticlesPerSecond": 130.0,
+                        "mInitialSize": 0.6200000047683716,
+                        "mInitialSizeRange": 0.1860000044107437,
+                        "mInitialSpeed": 190.0,
+                        "mInitialSpeedRangle": 90.0,
+                        "mInitialMoveDirectionRange": 360.0,
+                        "mId": 5550064718237081791,
+                        "mPivot": {
+                            "x": 0.5,
+                            "y": 0.5,
+                            "z": 0.0
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}

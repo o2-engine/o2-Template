@@ -1,0 +1,40 @@
+{
+    "mActor": {
+        "Type": "o2::Actor",
+        "Value": {
+            "mInheritDrawingDepthFromParent": false,
+            "mName": "Game/Buildings/house_cafe.png",
+            "mSceneLayer": {
+                "Type": "o2::SceneLayer",
+                "Value": {
+                    "mName": "World"
+                }
+            },
+            "Id": 12458577953787326888,
+            "Transform": {
+                "size": {
+                    "x": 304.0,
+                    "y": 227.0,
+                    "z": 0.0
+                },
+                "pivot": {
+                    "x": 0.32894736528396609,
+                    "y": 0.22026431560516358,
+                    "z": 0.0
+                }
+            },
+            "Components": [
+                {
+                    "Type": "o2::ImageComponent",
+                    "Data": {
+                        "mImageAsset": {
+                            "id": "04fa618b1930caac089ca9350688697a",
+                            "path": "Game/Buildings/house_cafe.png"
+                        },
+                        "mId": 6211412839704040978
+                    }
+                }
+            ]
+        }
+    }
+}
