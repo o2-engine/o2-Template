@@ -15,13 +15,26 @@ void GameApplication::OnStarted()
 {
 	o2Application.SetWindowSize(Vec2I(1280, 800));
 
-	td::LaunchTokenDelivery();
+	mSplash.Show();
 }
 
 void GameApplication::OnUpdate(float dt)
 {
 	o2Application.windowCaption = String("Token Delivery") +
 		"; FPS: " + (String)((int)o2Time.GetFPS());
+
+	if (!mGameStarted)
+	{
+		mSplash.Update(dt);
+		if (mSplash.IsFinished())
+		{
+			// booting here is safe: the application update runs outside the scene update,
+			// and loading the bootstrap scene clears the whole scene, splash included
+			mSplash.Clear();
+			td::LaunchTokenDelivery();
+			mGameStarted = true;
+		}
+	}
 }
 
 void GameApplication::OnDraw()

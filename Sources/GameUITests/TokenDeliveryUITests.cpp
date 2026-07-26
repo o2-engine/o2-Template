@@ -2,14 +2,17 @@
 #include <gtest/gtest.h>
 
 #include "TokenDelivery/GameControllerComponent.h"
+#include "TokenDelivery/SplashScreen.h"
 #include "TokenDelivery/TokenDeliveryGame.h"
 #include "TokenDelivery/TrafficCarComponent.h"
+#include "TokenDelivery/TutorialDimDrawable.h"
 #include "o2/Application/Application.h"
 #include "o2/Application/Input.h"
 #include "o2/Application/VKCodes.h"
 #include "o2/Render/Render.h"
 #include "o2/Scene/Scene.h"
 #include "o2/Scene/UI/Widget.h"
+#include "o2/Scene/UI/WidgetLayout.h"
 #include "o2/Scene/UI/Widgets/Label.h"
 #include "o2/Scene/UI/Widgets/Toggle.h"
 #include "o2/Utils/Bitmap/Bitmap.h"
@@ -92,6 +95,135 @@ TEST(TokenDeliveryCars, CloseupRendersAllKinds)
 
 	o2FileSystem.FolderCreate(kScreenshotsDir, true);
 	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_delivery_cars.png");
+
+	o2Scene.Clear(true);
+	o2Scene.UpdateDestroyingEntities();
+	AppTestDriver::PumpFrames(2);
+}
+
+// Boot splash: a white screen with the large dark engine caption that slowly grows and
+// hands over to the game after about a second
+TEST(Splash, ShowsGrowingCaptionAndFinishesInAboutASecond)
+{
+	td::SplashScreen splash;
+	splash.Show();
+	AppTestDriver::PumpFrames(3);
+
+	auto caption = o2Scene.FindActor("splash caption");
+	ASSERT_TRUE(caption);
+	float scaleBefore = caption->transform->GetScale().x;
+
+	// half a second in: still showing, the caption has grown
+	for (float waited = 0.0f; waited < 0.5f; waited += 0.05f)
+	{
+		AppTestDriver::Wait(0.05f);
+		splash.Update(0.05f);
+	}
+	EXPECT_FALSE(splash.IsFinished());
+	EXPECT_GT(caption->transform->GetScale().x, scaleBefore);
+
+	auto screenshot = AppTestDriver::TakeScreenshot();
+	ASSERT_TRUE(screenshot);
+	o2FileSystem.FolderCreate(kScreenshotsDir, true);
+	AppTestDriver::SaveScreenshot(kScreenshotsDir + "splash.png");
+
+	auto data = (const UInt32*)screenshot->GetData();
+	Vec2I size = screenshot->GetSize();
+	auto pixelSum = [&](int px, int py)
+	{
+		UInt32 pixel = data[py*size.x + px];
+		return (int)(pixel & 0xFF) + (int)((pixel >> 8) & 0xFF) + (int)((pixel >> 16) & 0xFF);
+	};
+
+	// white background in the corner, dark caption pixels along the center line
+	EXPECT_GT(pixelSum(size.x/10, size.y/10), 700);
+	int darkOnCenterLine = 0;
+	for (int px = 0; px < size.x; px++)
+	{
+		if (pixelSum(px, size.y/2) < 400)
+			darkOnCenterLine++;
+	}
+	EXPECT_GT(darkOnCenterLine, 20) << "the caption must be visible";
+
+	// the rest of the second passes and the splash reports done
+	for (float waited = 0.0f; waited < 0.7f; waited += 0.05f)
+		splash.Update(0.05f);
+	EXPECT_TRUE(splash.IsFinished());
+
+	splash.Clear();
+	o2Scene.UpdateDestroyingEntities();
+	AppTestDriver::PumpFrames(2);
+	EXPECT_FALSE(o2Scene.FindActor("splash caption"));
+
+	o2Scene.Clear(true);
+	o2Scene.UpdateDestroyingEntities();
+	AppTestDriver::PumpFrames(2);
+}
+
+// The tutorial dim is one solid mesh: the old four-sprite composition left subpixel seams
+// (bright stripes of the game showing through) between the independently rounded widget
+// rects at fractional hole coordinates
+TEST(TutorialDim, FractionalHoleLeavesNoSeams)
+{
+	o2Scene.AddLayer(td::kUILayer);
+
+	auto camera = mmake<CameraActor>();
+	camera->SetName("dim test camera");
+	camera->SetFixedSize(Vec2F(1280.0f, 800.0f));
+	camera->drawLayers.SetLayers(Vector<String>{ td::kUILayer });
+	camera->fillBackground = true;
+	camera->fillColor = Color4(255, 255, 255, 255);
+
+	auto overlay = mmake<Widget>();
+	overlay->SetName("dim overlay");
+	overlay->SetLayer(td::kUILayer);
+	overlay->layout->anchorMin = Vec2F(0.0f, 0.0f);
+	overlay->layout->anchorMax = Vec2F(0.0f, 0.0f);
+	overlay->layout->offsetMin = Vec2F(-640.0f, -400.0f);
+	overlay->layout->offsetMax = Vec2F(640.0f, 400.0f);
+
+	auto dim = mmake<TutorialDimDrawable>();
+	overlay->AddLayer("dim", dim);
+
+	// adversarial fractional edges, like a frame of the spotlight flight after the car
+	const Vec2F holeCenter(0.437f, -0.618f);
+	const Vec2F holeRadius(235.37f, 235.37f);
+	dim->SetHole(holeCenter, holeRadius);
+
+	AppTestDriver::PumpFrames(5);
+	auto screenshot = AppTestDriver::TakeScreenshot();
+	ASSERT_TRUE(screenshot);
+
+	auto data = (const UInt32*)screenshot->GetData();
+	Vec2I size = screenshot->GetSize();
+	auto pixelSum = [&](int px, int py)
+	{
+		UInt32 pixel = data[py*size.x + px];
+		return (int)(pixel & 0xFF) + (int)((pixel >> 8) & 0xFF) + (int)((pixel >> 16) & 0xFF);
+	};
+
+	// every pixel outside the hole (with a soft-edge margin, symmetric so the bitmap row
+	// order doesn't matter) must be dimmed; a seam lets the white background bleed through
+	const float kMarginX = holeRadius.x + 42.0f;
+	const float kMarginY = holeRadius.y + 42.0f;
+	int brightOutside = 0;
+	for (int py = 0; py < size.y; py++)
+	{
+		for (int px = 0; px < size.x; px++)
+		{
+			float ux = ((float)px/(float)size.x - 0.5f)*1280.0f;
+			float uy = ((float)py/(float)size.y - 0.5f)*800.0f;
+			if (Math::Abs(ux) < kMarginX && Math::Abs(uy) < kMarginY)
+				continue;
+
+			if (pixelSum(px, py) > 600)
+				brightOutside++;
+		}
+	}
+	EXPECT_EQ(brightOutside, 0) << "bright seams in the dim";
+
+	// the hole itself stays open: the background shows through its center
+	EXPECT_GT(pixelSum(size.x/2, size.y/2), 600);
 
 	o2Scene.Clear(true);
 	o2Scene.UpdateDestroyingEntities();

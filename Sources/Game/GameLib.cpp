@@ -10,6 +10,7 @@ extern void __RegisterClass__td__GameTutorialComponent();
 extern void __RegisterClass__td__TiltShiftPass();
 extern void __RegisterClass__td__TokenVfxComponent();
 extern void __RegisterClass__td__TrafficCarComponent();
+extern void __RegisterClass__td__TutorialDimDrawable();
 
 
 extern void InitializeTypesGameLib()
@@ -26,4 +27,5 @@ extern void InitializeTypesGameLib()
     __RegisterClass__td__TiltShiftPass();
     __RegisterClass__td__TokenVfxComponent();
     __RegisterClass__td__TrafficCarComponent();
+    __RegisterClass__td__TutorialDimDrawable();
 }

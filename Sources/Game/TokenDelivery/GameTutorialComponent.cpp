@@ -12,10 +12,7 @@
 
 namespace td
 {
-	static const Color4 kDimColor(16, 22, 38, 255);
-	static const float  kDimAlpha = 0.74f;
-	static const float  kDimEdge = 2000.0f; // dim parts run past the screen into the overscan
-
+	static const float kDimAlpha = 0.74f;
 	static const float kHintY = -338.0f;
 
 	// fuel panel rect in UI space: HUD root corner (-640, -400) plus the panel offsets
@@ -54,19 +51,10 @@ namespace td
 		mDim->layout->offsetMax = Vec2F();
 		mDim->SetTransparency(kDimAlpha);
 
-		for (auto& part : mDimParts)
-		{
-			part = mmake<Widget>();
-			part->AddLayer("back", mmake<Sprite>(kDimColor));
-			mDim->AddChild(part);
-			part->layout->anchorMin = Vec2F(0.5f, 0.5f);
-			part->layout->anchorMax = Vec2F(0.5f, 0.5f);
-		}
-
-		mSpotlight = o2UI.CreateImage("Game/UI/tut_spotlight.png");
-		mDim->AddChild(mSpotlight);
-		mSpotlight->layout->anchorMin = Vec2F(0.5f, 0.5f);
-		mSpotlight->layout->anchorMax = Vec2F(0.5f, 0.5f);
+		// one solid mesh with the spotlight hole: abutting sprite rects left subpixel
+		// seams between their independently rounded layouts
+		mDimMesh = mmake<TutorialDimDrawable>();
+		mDim->AddLayer("dim", mDimMesh);
 
 		mTitle = MakeGameLabel(mRoot, L"", 40);
 		mDescription = MakeGameLabel(mRoot, L"", 22);
@@ -251,28 +239,7 @@ namespace td
 		float lerp = Math::Min(1.0f, dt*8.0f);
 		mHoleCenter = mHoleRadius.x < 1.0f ? center : Math::Lerp(mHoleCenter, center, lerp);
 		mHoleRadius = Math::Lerp(mHoleRadius, radius, lerp);
-		PlaceHole(mHoleCenter, mHoleRadius);
-	}
-
-	void GameTutorialComponent::PlaceHole(const Vec2F& center, const Vec2F& radius)
-	{
-		float x0 = center.x - radius.x, x1 = center.x + radius.x;
-		float y0 = center.y - radius.y, y1 = center.y + radius.y;
-
-		auto place = [](const Ref<Widget>& part, float left, float bottom, float right, float top)
-		{
-			part->layout->offsetMin = Vec2F(left, bottom);
-			part->layout->offsetMax = Vec2F(right, top);
-		};
-		// edges are shared exactly: overlapping parts would double the dim into a seam
-		place(mDimParts[0], -kDimEdge, -kDimEdge, x0, kDimEdge);
-		place(mDimParts[1], x1, -kDimEdge, kDimEdge, kDimEdge);
-		place(mDimParts[2], x0, y1, x1, kDimEdge);
-		place(mDimParts[3], x0, -kDimEdge, x1, y0);
-
-		mSpotlight->SetEnabled(radius.x > 1.0f);
-		mSpotlight->layout->offsetMin = Vec2F(x0, y0);
-		mSpotlight->layout->offsetMax = Vec2F(x1, y1);
+		mDimMesh->SetHole(mHoleCenter, mHoleRadius);
 	}
 
 	void GameTutorialComponent::Update(float dt)
@@ -336,9 +303,7 @@ namespace td
 
 		mRoot = nullptr;
 		mDim = nullptr;
-		for (auto& part : mDimParts)
-			part = nullptr;
-		mSpotlight = nullptr;
+		mDimMesh = nullptr;
 		mTitle = nullptr;
 		mDescription = nullptr;
 		mHint = nullptr;

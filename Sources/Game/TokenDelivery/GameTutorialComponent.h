@@ -1,6 +1,7 @@
 #pragma once
 
 #include "TokenDelivery/GameSession.h"
+#include "TokenDelivery/TutorialDimDrawable.h"
 #include "o2/Scene/UI/Widget.h"
 #include "o2/Scene/UI/Widgets/Image.h"
 #include "o2/Scene/UI/Widgets/Label.h"
@@ -70,8 +71,9 @@ namespace td
 
 		Ref<Widget> mRoot;        // Overlay root widget, the fixed 1280x800 UI rect
 		Ref<Widget> mDim;         // Holds the dim at its own transparency, content stays solid
-		Ref<Widget> mDimParts[4]; // Solid dim around the spotlight hole: left, right, top, bottom
-		Ref<Image>  mSpotlight;   // Radial hole tile, butts up against the four parts
+
+		Ref<TutorialDimDrawable> mDimMesh; // Solid dim mesh with the spotlight hole, layer of mDim
+
 		Ref<Label>  mTitle;       // Step title, large
 		Ref<Label>  mDescription; // Step description under the title
 		Ref<Label>  mHint;        // Pulsing "tap to continue" at the bottom
@@ -98,9 +100,6 @@ namespace td
 
 		// Moves the spotlight hole towards the current step target
 		void UpdateHole(float dt);
-
-		// Places the four dim parts and the spotlight around the hole rect
-		void PlaceHole(const Vec2F& center, const Vec2F& radius);
 
 		// Centers the label at the given height
 		void PlaceLabel(const Ref<Label>& label, float y, float halfWidth, float halfHeight);
@@ -131,8 +130,7 @@ CLASS_FIELDS_META(td::GameTutorialComponent)
     FIELD().PRIVATE().DEFAULT_VALUE(nullptr).NAME(mSession);
     FIELD().PRIVATE().NAME(mRoot);
     FIELD().PRIVATE().NAME(mDim);
-    FIELD().PRIVATE().NAME(mDimParts);
-    FIELD().PRIVATE().NAME(mSpotlight);
+    FIELD().PRIVATE().NAME(mDimMesh);
     FIELD().PRIVATE().NAME(mTitle);
     FIELD().PRIVATE().NAME(mDescription);
     FIELD().PRIVATE().NAME(mHint);
@@ -165,7 +163,6 @@ CLASS_METHODS_META(td::GameTutorialComponent)
     FUNCTION().PRIVATE().SIGNATURE(void, ApplyStep);
     FUNCTION().PRIVATE().SIGNATURE(bool, IsLiveSegmentOver);
     FUNCTION().PRIVATE().SIGNATURE(void, UpdateHole, float);
-    FUNCTION().PRIVATE().SIGNATURE(void, PlaceHole, const Vec2F&, const Vec2F&);
     FUNCTION().PRIVATE().SIGNATURE(void, PlaceLabel, const Ref<Label>&, float, float, float);
     FUNCTION().PRIVATE().SIGNATURE(Ref<Image>, MakePicture, const Ref<Widget>&, const String&, const Vec2F&, const Vec2F&);
 }
