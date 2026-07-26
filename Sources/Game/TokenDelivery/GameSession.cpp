@@ -26,6 +26,7 @@ namespace td
 				   mCity.playerStartDir);
 		mState = SessionState::Playing;
 		mFuel = tuning.fuelTime;
+		mFuelDrain = true;
 		mTokens = 0.0f;
 		mFilling = false;
 		mCompleted.Clear();
@@ -64,7 +65,8 @@ namespace td
 		if (mState != SessionState::Playing)
 			return;
 
-		mFuel = Math::Max(0.0f, mFuel - dt);
+		if (mFuelDrain)
+			mFuel = Math::Max(0.0f, mFuel - dt);
 
 		CarInput carInput;
 		carInput.turnLeft = input.turnLeft;

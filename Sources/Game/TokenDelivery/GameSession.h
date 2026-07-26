@@ -44,6 +44,8 @@ namespace td
 		float GetFuelFraction() const { return mFuel/mTuning.fuelTime; }
 		bool  IsFilling() const { return mFilling; }
 
+		void  SetFuelDrain(bool enabled) { mFuelDrain = enabled; } // off while the tutorial runs
+
 		void  DebugSetFuel(float seconds) { mFuel = seconds; } // test hook
 		void  DebugCompleteOrder(int index);                  // test hook: drop-off without driving
 
@@ -63,6 +65,7 @@ namespace td
 		float         mFuel = 0.0f;
 		float         mTokens = 0.0f;
 		bool          mFilling = false;
+		bool          mFuelDrain = true;
 		Vector<bool>  mCompleted;
 		int           mPendingCompletedOrder = -1;
 	};

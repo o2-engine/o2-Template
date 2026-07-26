@@ -34,6 +34,8 @@ namespace td
 		// the win window waits for the last one to leave
 		bool HasVisibleTooltips() const;
 
+		void SetSettingsEnabled(bool enabled); // off while the tutorial eats every tap
+
 		void ShowWin();
 		void ShowLose();
 		void ShowSettings();
@@ -88,6 +90,8 @@ namespace td
 		Ref<Sprite> mChipSprite;
 		float       mFillSpawnAccum = 0.0f;
 		float       mChipNativeW = 200.0f;
+
+		Ref<Button> mSettingsButton;
 
 		Ref<Widget> mTaskPanel;        // completed task panel, slides in from the left
 		Ref<Label>  mTaskLabel;

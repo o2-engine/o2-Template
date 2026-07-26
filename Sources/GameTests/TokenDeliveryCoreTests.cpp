@@ -474,6 +474,28 @@ TEST(TokenSession, FuelRunsOutAndLosesWhenOrdersRemain)
 	EXPECT_TRUE(session.GetCar().IsStopped());
 }
 
+// the intro tutorial plays over live game segments: the run must still start on a full tank
+TEST(TokenSession, FrozenFuelDoesNotDrainWhileTheCarDrives)
+{
+	GameSession session;
+	session.StartWithCity(MakeRoadCity(), TestSessionTuning()); // no orders, the run never ends
+	session.SetFuelDrain(false);
+
+	GameInput input;
+	float startFuel = session.GetFuel();
+	Vec2F startPos = session.GetCar().GetPos();
+	for (int i = 0; i < 120; i++)
+		session.Tick(1.0f/60.0f, input);
+
+	EXPECT_FLOAT_EQ(session.GetFuel(), startFuel);
+	EXPECT_NE(session.GetCar().GetPos(), startPos);
+
+	session.SetFuelDrain(true);
+	for (int i = 0; i < 60; i++)
+		session.Tick(1.0f/60.0f, input);
+	EXPECT_LT(session.GetFuel(), startFuel);
+}
+
 TEST(TokenSession, GeneratedLevelStartIsOnSource)
 {
 	GameSession session;

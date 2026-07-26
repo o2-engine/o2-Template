@@ -4,6 +4,7 @@
 #include "TokenDelivery/CityViewBuilder.h"
 #include "TokenDelivery/GameHUD.h"
 #include "TokenDelivery/GameSession.h"
+#include "TokenDelivery/GameTutorial.h"
 #include "o2/Scene/CameraActor.h"
 
 using namespace o2;
@@ -13,14 +14,16 @@ using namespace o2;
 class GameControllerComponent: public Component
 {
 public:
-	static UInt32 sForcedSeed; // when non-zero, levels generate with this seed (tests)
+	static UInt32 sForcedSeed;      // when non-zero, levels generate with this seed (tests)
+	static bool   sTutorialEnabled; // the intro tutorial plays once, on the first level
 
 	GameControllerComponent();
 	explicit GameControllerComponent(RefCounter* refCounter);
 
 	const td::GameSession& GetSession() const { return mSession; }
 	td::GameSession& GetSessionMutable() { return mSession; }
-	td::GameHUD& GetHUD() { return mHUD; } // test hook
+	td::GameHUD& GetHUD() { return mHUD; }           // test hook
+	td::GameTutorial& GetTutorial() { return mTutorial; } // test hook
 	int GetLevel() const { return mLevel; }
 
 	void StartLevel(int level);
@@ -31,6 +34,7 @@ public:
 private:
 	td::GameSession      mSession;
 	td::GameHUD          mHUD;
+	td::GameTutorial     mTutorial;
 	td::CityViewHandles  mCity;
 
 	Ref<Actor>                 mPlayerActor;
@@ -57,6 +61,7 @@ private:
 	int  mLevel = 1;
 	bool mEndShown = false;
 	bool mHUDBuilt = false;
+	bool mTutorialShown = false;
 
 	void OnStart() override;
 	void OnUpdate(float dt) override;
@@ -81,6 +86,7 @@ CLASS_FIELDS_META(GameControllerComponent)
 {
     FIELD().PRIVATE().NAME(mSession);
     FIELD().PRIVATE().NAME(mHUD);
+    FIELD().PRIVATE().NAME(mTutorial);
     FIELD().PRIVATE().NAME(mCity);
     FIELD().PRIVATE().NAME(mPlayerActor);
     FIELD().PRIVATE().NAME(mPlayerCar);
@@ -93,6 +99,7 @@ CLASS_FIELDS_META(GameControllerComponent)
     FIELD().PRIVATE().DEFAULT_VALUE(1).NAME(mLevel);
     FIELD().PRIVATE().DEFAULT_VALUE(false).NAME(mEndShown);
     FIELD().PRIVATE().DEFAULT_VALUE(false).NAME(mHUDBuilt);
+    FIELD().PRIVATE().DEFAULT_VALUE(false).NAME(mTutorialShown);
 }
 END_META;
 CLASS_METHODS_META(GameControllerComponent)
@@ -103,6 +110,7 @@ CLASS_METHODS_META(GameControllerComponent)
     FUNCTION().PUBLIC().SIGNATURE(const td::GameSession&, GetSession);
     FUNCTION().PUBLIC().SIGNATURE(td::GameSession&, GetSessionMutable);
     FUNCTION().PUBLIC().SIGNATURE(td::GameHUD&, GetHUD);
+    FUNCTION().PUBLIC().SIGNATURE(td::GameTutorial&, GetTutorial);
     FUNCTION().PUBLIC().SIGNATURE(int, GetLevel);
     FUNCTION().PUBLIC().SIGNATURE(void, StartLevel, int);
     FUNCTION().PRIVATE().SIGNATURE(void, OnStart);

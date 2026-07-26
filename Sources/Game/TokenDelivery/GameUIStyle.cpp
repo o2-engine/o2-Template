@@ -30,6 +30,38 @@ namespace td
 		return font;
 	}
 
+	Ref<Label> MakeGameLabel(const Ref<Widget>& parent, const WString& text, int height,
+							 const String& style)
+	{
+		auto label = o2UI.CreateLabel(text, style);
+		if (auto drawable = label->GetLayerDrawable<Text>("text"))
+		{
+			// widget style cloning resets the Text drawable (font, color, aligns, font
+			// style) to engine defaults — reapply everything here
+			drawable->SetFontAsset(GameUIFont());
+			drawable->SetHeight(height);
+			drawable->SetHorAlign(HorAlign::Middle);
+			drawable->SetVerAlign(VerAlign::Middle);
+			drawable->SetColor(style == "dark" ? Color4(34, 41, 65, 255)
+							 : style == "quest" ? Color4(248, 240, 216, 255)
+							 : Color4(255, 255, 255, 255));
+			if (style == "quest")
+			{
+				auto fontStyle = mmake<FontStyle>();
+				fontStyle->AddEffect<FontStrokeEffect>(2.5f, Color4(44, 58, 82, 220), 100);
+				drawable->SetFontStyle(fontStyle);
+			}
+			else if (style == "standard")
+			{
+				auto fontStyle = mmake<FontStyle>();
+				fontStyle->AddEffect<FontShadowEffect>(2.0f, Vec2I(1, -2), Color4(30, 40, 60, 90));
+				drawable->SetFontStyle(fontStyle);
+			}
+		}
+		parent->AddChild(label);
+		return label;
+	}
+
 	static Ref<Text> MakeStyleText(int height, const Color4& color, bool shadow, bool stroke)
 	{
 		auto text = mmake<Text>(GameUIFont());

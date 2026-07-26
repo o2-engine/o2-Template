@@ -17,6 +17,7 @@
 using namespace td;
 
 UInt32 GameControllerComponent::sForcedSeed = 0;
+bool GameControllerComponent::sTutorialEnabled = true;
 
 GameControllerComponent::GameControllerComponent():
 	GameControllerComponent(nullptr)
@@ -28,6 +29,11 @@ GameControllerComponent::GameControllerComponent(RefCounter* refCounter):
 
 void GameControllerComponent::OnStart()
 {
+	// the scene starts a component of a starting actor twice (actor list and component
+	// list both hold it), and a second setup would rebuild the HUD over a running level
+	if (mHUDBuilt)
+		return;
+
 	SetupScene();
 	StartLevel(1);
 }
@@ -62,6 +68,18 @@ void GameControllerComponent::SetupScene()
 	mHUD.onNextLevel = [this]() { StartLevel(mLevel + 1); };
 	mHUD.Build();
 	mHUDBuilt = true;
+
+	// the world camera stretches 1760x1100 over the viewport, the UI camera fits 1280x800
+	// into it: both scales collapse into one ratio per axis
+	mTutorial.worldToUI = [this](const Vec2F& world)
+	{
+		Vec2F worldSize = mWorldCamera->GetFittedOrFixedSize();
+		Vec2F uiSize = mUICamera->GetRenderCamera().GetSize2D();
+		Vec3F cameraPos = mWorldCamera->transform->GetPosition();
+		return Vec2F((world.x - cameraPos.x)*uiSize.x/worldSize.x,
+					 (world.y - cameraPos.y)*uiSize.y/worldSize.y);
+	};
+	mTutorial.Build();
 }
 
 void GameControllerComponent::ClearLevel()
@@ -162,6 +180,13 @@ void GameControllerComponent::StartLevel(int level)
 	// snap the camera to the start
 	Vec2F startScreen = CellToScreen(mSession.GetCar().GetPos());
 	mWorldCamera->transform->SetPosition(Vec3F(startScreen.x, startScreen.y, 0.0f));
+
+	// the car starts on a token source cell, so the tutorial can show the loading right away
+	if (sTutorialEnabled && !mTutorialShown)
+	{
+		mTutorialShown = true;
+		mTutorial.Start(&mSession);
+	}
 }
 
 GameInput GameControllerComponent::CollectInput() const
@@ -244,18 +269,26 @@ void GameControllerComponent::OnUpdate(float dt)
 		return;
 	}
 
-	if (mSession.GetState() == SessionState::Playing)
+	// the tutorial freezes the world while a step is read, and holds the fuel timer for
+	// the whole intro so the run starts with a full tank
+	bool paused = mTutorial.IsPausingGame();
+	float gameDt = paused ? 0.0f : dt;
+	mSession.SetFuelDrain(!mTutorial.IsActive());
+
+	if (!paused && mSession.GetState() == SessionState::Playing)
 		mSession.Tick(dt, CollectInput());
 
 	int completedOrder = mSession.ConsumeCompletedOrder();
 	if (completedOrder >= 0)
 		mHUD.ShowOrderCompleted(completedOrder);
 
-	SyncCarView(dt);
-	SyncTraffic(dt);
-	FollowCamera(dt);
+	SyncCarView(gameDt);
+	SyncTraffic(gameDt);
+	FollowCamera(gameDt);
 
-	mHUD.Update(dt);
+	mHUD.Update(gameDt);
+	mHUD.SetSettingsEnabled(!mTutorial.IsActive());
+	mTutorial.Update(dt);
 
 	if (!mEndShown)
 	{

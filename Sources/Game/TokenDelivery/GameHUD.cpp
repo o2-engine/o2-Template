@@ -98,33 +98,7 @@ namespace td
 	Ref<Label> GameHUD::MakeLabel(const Ref<Widget>& parent, const WString& text, int height,
 								  const String& style)
 	{
-		auto label = o2UI.CreateLabel(text, style);
-		if (auto drawable = label->GetLayerDrawable<Text>("text"))
-		{
-			// widget style cloning resets the Text drawable (font, color, aligns, font
-			// style) to engine defaults — reapply everything here
-			drawable->SetFontAsset(GameUIFont());
-			drawable->SetHeight(height);
-			drawable->SetHorAlign(HorAlign::Middle);
-			drawable->SetVerAlign(VerAlign::Middle);
-			drawable->SetColor(style == "dark" ? Color4(34, 41, 65, 255)
-							 : style == "quest" ? Color4(248, 240, 216, 255)
-							 : Color4(255, 255, 255, 255));
-			if (style == "quest")
-			{
-				auto fontStyle = mmake<FontStyle>();
-				fontStyle->AddEffect<FontStrokeEffect>(2.5f, Color4(44, 58, 82, 220), 100);
-				drawable->SetFontStyle(fontStyle);
-			}
-			else if (style == "standard")
-			{
-				auto fontStyle = mmake<FontStyle>();
-				fontStyle->AddEffect<FontShadowEffect>(2.0f, Vec2I(1, -2), Color4(30, 40, 60, 90));
-				drawable->SetFontStyle(fontStyle);
-			}
-		}
-		parent->AddChild(label);
-		return label;
+		return MakeGameLabel(parent, text, height, style);
 	}
 
 	void GameHUD::Build()
@@ -187,13 +161,13 @@ namespace td
 		}
 
 		// settings, top-right
-		auto settings = o2UI.CreateWidget<Button>("settings");
-		mRoot->AddChild(settings);
-		settings->layout->anchorMin = Vec2F(1.0f, 1.0f);
-		settings->layout->anchorMax = Vec2F(1.0f, 1.0f);
-		settings->layout->offsetMin = Vec2F(-88.0f, -88.0f);
-		settings->layout->offsetMax = Vec2F(-24.0f, -24.0f);
-		settings->onClick = [this]() { ShowSettings(); };
+		mSettingsButton = o2UI.CreateWidget<Button>("settings");
+		mRoot->AddChild(mSettingsButton);
+		mSettingsButton->layout->anchorMin = Vec2F(1.0f, 1.0f);
+		mSettingsButton->layout->anchorMax = Vec2F(1.0f, 1.0f);
+		mSettingsButton->layout->offsetMin = Vec2F(-88.0f, -88.0f);
+		mSettingsButton->layout->offsetMax = Vec2F(-24.0f, -24.0f);
+		mSettingsButton->onClick = [this]() { ShowSettings(); };
 
 		// completed task panel, slides in from the left edge on order delivery
 		mTaskPanel = mmake<Widget>();
@@ -683,6 +657,12 @@ namespace td
 			mSparkEmitter->Stop();
 	}
 
+	void GameHUD::SetSettingsEnabled(bool enabled)
+	{
+		if (mSettingsButton && mSettingsButton->IsEnabled() != enabled)
+			mSettingsButton->SetEnabled(enabled);
+	}
+
 	void GameHUD::ShowWin()
 	{
 		mDimmer->SetEnabled(true);
@@ -734,6 +714,7 @@ namespace td
 		if (mRoot)
 			mRoot->RemoveFromScene();
 		mRoot = nullptr;
+		mSettingsButton = nullptr;
 		mSourceAnchor = nullptr;
 		mSession = nullptr;
 	}
