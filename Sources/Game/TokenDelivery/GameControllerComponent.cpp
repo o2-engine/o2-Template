@@ -84,6 +84,9 @@ namespace td
 
 		BuildGameUIStyles();
 
+		mAudio = mmake<GameAudio>();
+		mAudio->Load();
+
 		auto owner = GetActor();
 		if (!mHUD)
 			mHUD = owner->GetComponent<GameHUDComponent>();
@@ -92,6 +95,7 @@ namespace td
 
 		mHUD->onRetry = [this]() { StartLevel(mLevel); };
 		mHUD->onNextLevel = [this]() { StartLevel(mLevel + 1); };
+		mHUD->SetAudio(mAudio);
 		mHUD->Build();
 		mHUDBuilt = true;
 
@@ -312,8 +316,9 @@ namespace td
 		}
 
 		// the tutorial freezes the world while a step is read, and holds the fuel timer for
-		// the whole intro so the run starts with a full tank
-		bool paused = mTutorial->IsPausingGame();
+		// the whole intro so the run starts with a full tank; the settings window pauses
+		// the same way — the car stands and the fuel holds
+		bool paused = mTutorial->IsPausingGame() || mHUD->IsSettingsOpen();
 		float gameDt = paused ? 0.0f : dt;
 		mSession.SetFuelDrain(!mTutorial->IsActive());
 
@@ -337,14 +342,23 @@ namespace td
 			if (mSession.GetState() == SessionState::Won && !mHUD->HasVisibleTooltips())
 			{
 				mEndShown = true;
+				mAudio->PlayWin();
 				mHUD->ShowWin();
 			}
 			else if (mSession.GetState() == SessionState::Lost)
 			{
 				mEndShown = true;
+				mAudio->PlayLose();
 				mHUD->ShowLose();
 			}
 		}
+
+		auto& car = mSession.GetCar();
+		bool driving = !paused && mSession.GetState() == SessionState::Playing;
+		mAudio->SetDriving(driving ? car.GetSpeed()/mSession.GetTuning().car.maxSpeed : 0.0f);
+		mAudio->SetDrift(driving ? car.GetDriftIntensity() : 0.0f);
+		mAudio->SetMusicActive(!mEndShown);
+		mAudio->Update(dt);
 	}
 }
 

@@ -8,20 +8,16 @@ namespace td
 	TutorialDimDrawable::TutorialDimDrawable()
 	{
 		Sprite spotlight(String("Game/UI/tut_spotlight.png"));
-		auto texture = spotlight.GetTexture();
-		mMesh = mmake<Mesh>(texture, 8, 10);
+		mMesh = mmake<Mesh>(spotlight.GetTexture(), 8, 10);
 
-		mUVRect = RectF(0.0f, 0.0f, 1.0f, 1.0f);
-		if (texture)
-		{
-			// half texel inset keeps bilinear sampling inside the atlas region
-			Vec2F texSize = (Vec2F)texture->GetSize();
-			RectI src = spotlight.GetTextureSrcRect();
-			mUVRect.left = ((float)src.left + 0.5f)/texSize.x;
-			mUVRect.right = ((float)src.right - 0.5f)/texSize.x;
-			mUVRect.top = ((float)src.top + 0.5f)/texSize.y;
-			mUVRect.bottom = ((float)src.bottom - 0.5f)/texSize.y;
-		}
+		// mesh UVs are normalized inside the source rect, the renderer remaps them into the
+		// texture (atlas page); a half-texel inset keeps bilinear sampling on the opaque
+		// border texels instead of blending with the transparent atlas padding
+		RectI src = spotlight.GetTextureSrcRect();
+		mMesh->SetTextureSrcRect(src);
+		Vec2F inset(0.5f/Math::Max(1.0f, (float)src.Width()),
+					0.5f/Math::Max(1.0f, (float)Math::Abs(src.Height())));
+		mUVRect = RectF(inset.x, inset.y, 1.0f - inset.x, 1.0f - inset.y);
 	}
 
 	void TutorialDimDrawable::SetHole(const Vec2F& center, const Vec2F& radius)

@@ -484,6 +484,13 @@ TEST_F(TokenDeliveryApp, SettingsWindowOpensTogglesAndCloses)
 	AppTestDriver::Click(UIToScreen(Vec2F(92.5f, 75.5f)));
 	AppTestDriver::PumpFrames(3);
 	EXPECT_FALSE(toggle->GetValue());
+
+	// the switch drives the sound bank: effects muted, the music channel untouched
+	auto audio = FindController()->GetAudio();
+	ASSERT_TRUE(audio);
+	EXPECT_FALSE(audio->IsSoundEnabled());
+	EXPECT_TRUE(audio->IsMusicEnabled());
+
 	AppTestDriver::Wait(0.3f); // knob slides to the off side
 	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_delivery_settings_off.png");
 
@@ -495,6 +502,43 @@ TEST_F(TokenDeliveryApp, SettingsWindowOpensTogglesAndCloses)
 	AppTestDriver::ReleaseCursor();
 	AppTestDriver::PumpFrames(3);
 	EXPECT_FALSE(settingsWindow->IsEnabled());
+}
+
+// The settings window pauses the round: the car stands still and the fuel timer holds
+// until the window is accepted away
+TEST_F(TokenDeliveryApp, SettingsWindowPausesTheGame)
+{
+	auto controller = FindController();
+	ASSERT_TRUE(controller);
+	auto hud = o2Scene.FindActor("hud");
+	ASSERT_TRUE(hud);
+	auto settingsWindow = hud->FindChild("settings window");
+	ASSERT_TRUE(settingsWindow);
+
+	auto& session = controller->GetSession();
+	AppTestDriver::Wait(0.5f); // the car gets rolling
+	EXPECT_GT(session.GetCar().GetSpeed(), 0.1f);
+
+	AppTestDriver::Click(UIToScreen(Vec2F(584.0f, 344.0f))); // settings gear
+	AppTestDriver::PumpFrames(3);
+	ASSERT_TRUE(settingsWindow->IsEnabled());
+	EXPECT_TRUE(controller->IsWorldPaused());
+
+	Vec2F carBefore = session.GetCar().GetPos();
+	float fuelBefore = session.GetFuel();
+	AppTestDriver::Wait(0.7f);
+	EXPECT_EQ(session.GetCar().GetPos(), carBefore);
+	EXPECT_FLOAT_EQ(session.GetFuel(), fuelBefore);
+
+	// accept closes the window; the round resumes: the car drives and the fuel burns
+	AppTestDriver::Click(UIToScreen(Vec2F(0.0f, -172.0f)));
+	AppTestDriver::PumpFrames(3);
+	EXPECT_FALSE(settingsWindow->IsEnabled());
+	EXPECT_FALSE(controller->IsWorldPaused());
+
+	AppTestDriver::Wait(0.7f);
+	EXPECT_NE(session.GetCar().GetPos(), carBefore);
+	EXPECT_LT(session.GetFuel(), fuelBefore - 0.3f);
 }
 
 TEST_F(TokenDeliveryApp, WinWindowWaitsForTheLastTooltipExit)
@@ -528,6 +572,12 @@ TEST_F(TokenDeliveryApp, WinWindowWaitsForTheLastTooltipExit)
 	}
 	EXPECT_TRUE(shown);
 	EXPECT_FALSE(controller->GetHUD()->HasVisibleTooltips());
+
+	// the win window swaps the gameplay music for the win jingle
+	auto audio = controller->GetAudio();
+	ASSERT_TRUE(audio);
+	EXPECT_FALSE(audio->GetMusicPlayer()->IsPlaying());
+	EXPECT_TRUE(audio->GetWinPlayer()->IsPlaying());
 }
 
 // paying for the order drops the balance below its price — the delivered bubble must not
@@ -741,6 +791,12 @@ TEST_F(TokenDeliveryApp, FuelRunOutShowsLoseWindowAndRetryRestarts)
 	AppTestDriver::Wait(2.5f); // fuel dies, the car rolls to a stop, the lose window pops
 	ASSERT_EQ(controller->GetSession().GetState(), td::SessionState::Lost);
 
+	// the lose window swaps the gameplay music for the lose jingle
+	auto audio = controller->GetAudio();
+	ASSERT_TRUE(audio);
+	EXPECT_FALSE(audio->GetMusicPlayer()->IsPlaying());
+	EXPECT_FALSE(audio->GetEnginePlayer()->IsPlaying()); // the car stands, the engine is off
+
 	o2FileSystem.FolderCreate(kScreenshotsDir, true);
 	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_delivery_lose.png");
 
@@ -749,4 +805,5 @@ TEST_F(TokenDeliveryApp, FuelRunOutShowsLoseWindowAndRetryRestarts)
 	AppTestDriver::PumpFrames(3);
 	EXPECT_EQ(controller->GetSession().GetState(), td::SessionState::Playing);
 	EXPECT_GT(controller->GetSession().GetFuel(), 30.0f);
+	EXPECT_TRUE(audio->GetMusicPlayer()->IsPlaying()); // the music returns with the new round
 }

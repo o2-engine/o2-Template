@@ -1,6 +1,7 @@
 {
     "Type": "o2::ImageAsset::Meta",
     "Value": {
-        "mId": "5ebe3bc2c6c029e670698b5455c7ffbb"
+        "mId": "5ebe3bc2c6c029e670698b5455c7ffbb",
+        "atlasId": "223894061d098f267d2666e926ad81f5"
     }
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "TokenDelivery/GameAudio.h"
 #include "TokenDelivery/GameSession.h"
 #include "o2/Scene/Components/ParticlesEmitterComponent.h"
 #include "o2/Scene/UI/Widget.h"
@@ -38,6 +39,9 @@ namespace td
 		// Constructor with ref counter
 		explicit GameHUDComponent(RefCounter* refCounter);
 
+		// Binds the game sound bank: button clicks, token ticks and the settings switches
+		void SetAudio(const Ref<GameAudio>& audio) { mAudio = audio; }
+
 		// Creates all widgets: panels, buttons, windows and the token flight vfx host
 		void Build();
 
@@ -75,6 +79,9 @@ namespace td
 
 		// Shows the settings window over the dimmer
 		void ShowSettings();
+
+		// Returns is the settings window up; the controller pauses the game while it is
+		bool IsSettingsOpen() const;
 
 		// Hides the dimmer and every popup window
 		void HideWindows();
@@ -120,6 +127,8 @@ namespace td
 
 	private:
 		GameSession* mSession = nullptr; // Bound level state, owned by the controller
+
+		Ref<GameAudio> mAudio; // Game sound bank, owned by the controller
 
 		Ref<Widget> mRoot;        // HUD root widget, the fixed 1280x800 UI rect
 		Ref<Label>  mTokensLabel; // Token counter in the top-left panel
@@ -170,6 +179,9 @@ namespace td
 		// Creates the settings window over the baked background art
 		void BuildSettingsWindow();
 
+		// Plays the button click one-shot; wired into every button and switch
+		void PlayClick();
+
 		// Creates a game-styled label under the parent widget
 		Ref<Label> MakeLabel(const Ref<Widget>& parent, const WString& text, int height,
 							 const String& style = "standard");
@@ -214,6 +226,7 @@ CLASS_FIELDS_META(td::GameHUDComponent)
     FIELD().PUBLIC().EDITOR_PROPERTY_ATTRIBUTE().RANGE_ATTRIBUTE(0.05, 1).SERIALIZABLE_ATTRIBUTE().DEFAULT_VALUE(0.35f).NAME(turnTapTime);
     FIELD().PUBLIC().EDITOR_PROPERTY_ATTRIBUTE().RANGE_ATTRIBUTE(0.02, 1).SERIALIZABLE_ATTRIBUTE().DEFAULT_VALUE(0.12f).NAME(tokenStreamInterval);
     FIELD().PRIVATE().DEFAULT_VALUE(nullptr).NAME(mSession);
+    FIELD().PRIVATE().NAME(mAudio);
     FIELD().PRIVATE().NAME(mRoot);
     FIELD().PRIVATE().NAME(mTokensLabel);
     FIELD().PRIVATE().NAME(mFuelSegments);
@@ -247,6 +260,7 @@ CLASS_METHODS_META(td::GameHUDComponent)
 
     FUNCTION().PUBLIC().CONSTRUCTOR();
     FUNCTION().PUBLIC().CONSTRUCTOR(RefCounter*);
+    FUNCTION().PUBLIC().SIGNATURE(void, SetAudio, const Ref<GameAudio>&);
     FUNCTION().PUBLIC().SIGNATURE(void, Build);
     FUNCTION().PUBLIC().SIGNATURE(void, Clear);
     FUNCTION().PUBLIC().SIGNATURE(void, BindLevel, GameSession*, const Vector<Ref<Actor>>&, const Ref<Actor>&);
@@ -259,9 +273,11 @@ CLASS_METHODS_META(td::GameHUDComponent)
     FUNCTION().PUBLIC().SIGNATURE(void, ShowWin);
     FUNCTION().PUBLIC().SIGNATURE(void, ShowLose);
     FUNCTION().PUBLIC().SIGNATURE(void, ShowSettings);
+    FUNCTION().PUBLIC().SIGNATURE(bool, IsSettingsOpen);
     FUNCTION().PUBLIC().SIGNATURE(void, HideWindows);
     FUNCTION().PRIVATE().SIGNATURE(Ref<Widget>, MakeResultWindow, const String&, const String&, const Vec2F&, const Vec2F&, const WString&, float, const WString&, float, const WString&, const Function<void()>&);
     FUNCTION().PRIVATE().SIGNATURE(void, BuildSettingsWindow);
+    FUNCTION().PRIVATE().SIGNATURE(void, PlayClick);
     FUNCTION().PRIVATE().SIGNATURE(Ref<Label>, MakeLabel, const Ref<Widget>&, const WString&, int, const String&);
     FUNCTION().PRIVATE().SIGNATURE(float, UpdateTooltipExit, OrderTooltip&, float);
     FUNCTION().PRIVATE().SIGNATURE(Vec2F, CarBedPos);

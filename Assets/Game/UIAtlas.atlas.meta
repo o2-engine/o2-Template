@@ -1,0 +1,9 @@
+{
+    "Type": "o2::AtlasAsset::Meta",
+    "Value": {
+        "mId": "2be3ca86c11164c1208a808332387b80",
+        "common": {
+            "border": 2
+        }
+    }
+}

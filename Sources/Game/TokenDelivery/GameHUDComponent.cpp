@@ -180,7 +180,7 @@ namespace td
 		mSettingsButton->layout->anchorMax = Vec2F(1.0f, 1.0f);
 		mSettingsButton->layout->offsetMin = Vec2F(-88.0f, -88.0f);
 		mSettingsButton->layout->offsetMax = Vec2F(-24.0f, -24.0f);
-		mSettingsButton->onClick = [this]() { ShowSettings(); };
+		mSettingsButton->onClick = [this]() { PlayClick(); ShowSettings(); };
 
 		// steering keys duplicated in the bottom-right corner for mouse and touch
 		auto makeTurnButton = [&](const String& style, float right, const Function<void()>& onTap)
@@ -192,7 +192,7 @@ namespace td
 			button->layout->anchorMax = Vec2F(1.0f, 0.0f);
 			button->layout->offsetMin = Vec2F(right - kTurnButtonSize.x, kTurnButtonBottom);
 			button->layout->offsetMax = Vec2F(right, kTurnButtonBottom + kTurnButtonSize.y);
-			button->onClick = onTap;
+			button->onClick = [this, onTap]() { PlayClick(); onTap(); };
 			return button;
 		};
 		mTurnLeftButton = makeTurnButton("turn left", -156.0f,
@@ -276,12 +276,12 @@ namespace td
 									  Vec2F(-231.0f, -123.0f), Vec2F(232.0f, 187.0f),
 									  L"MISSION COMPLETE!", 170.0f,
 									  L"All orders have been\nsuccessfully delivered.", 100.0f,
-									  L"CONTINUE", [this]() { onNextLevel(); });
+									  L"CONTINUE", [this]() { PlayClick(); onNextLevel(); });
 		mLoseWindow = MakeResultWindow("lose window", "Game/UI/wnd_loose_bg.png",
 									   Vec2F(-231.0f, -121.0f), Vec2F(231.0f, 194.0f),
 									   L"OUT OF FUEL", 158.0f,
 									   L"Your delivery truck has run out of fuel.\nRefill and try again!", 96.0f,
-									   L"TRY AGAIN", [this]() { onRetry(); });
+									   L"TRY AGAIN", [this]() { PlayClick(); onRetry(); });
 		BuildSettingsWindow();
 	}
 
@@ -367,8 +367,17 @@ namespace td
 		mSoundToggle->layout->anchorMax = Vec2F(0.0f, 0.0f);
 		mSoundToggle->layout->offsetMin = Vec2F(241.0f, 216.0f);
 		mSoundToggle->layout->offsetMax = Vec2F(364.0f, 275.0f);
-		mSoundToggle->SetValue(true);
-		mSoundToggle->SetStateForcible("value", true);
+		mSoundToggle->SetValue(!mAudio || mAudio->IsSoundEnabled());
+		mSoundToggle->SetStateForcible("value", mSoundToggle->GetValue());
+
+		// the click plays after the switch applies, so turning the sound off goes silent
+		// and turning it on is already audible
+		mSoundToggle->onToggleByUser = [this](bool value)
+		{
+			if (mAudio)
+				mAudio->SetSoundEnabled(value);
+			PlayClick();
+		};
 
 		mMusicToggle = o2UI.CreateWidget<Toggle>("switch");
 		mSettingsWindow->AddChild(mMusicToggle);
@@ -376,8 +385,15 @@ namespace td
 		mMusicToggle->layout->anchorMax = Vec2F(0.0f, 0.0f);
 		mMusicToggle->layout->offsetMin = Vec2F(241.0f, 105.0f);
 		mMusicToggle->layout->offsetMax = Vec2F(364.0f, 164.0f);
-		mMusicToggle->SetValue(true);
-		mMusicToggle->SetStateForcible("value", true);
+		mMusicToggle->SetValue(!mAudio || mAudio->IsMusicEnabled());
+		mMusicToggle->SetStateForcible("value", mMusicToggle->GetValue());
+
+		mMusicToggle->onToggleByUser = [this](bool value)
+		{
+			if (mAudio)
+				mAudio->SetMusicEnabled(value);
+			PlayClick();
+		};
 
 		auto accept = o2UI.CreateWidget<Button>("accept");
 		mSettingsWindow->AddChild(accept);
@@ -385,7 +401,7 @@ namespace td
 		accept->layout->anchorMax = Vec2F(0.5f, 0.0f);
 		accept->layout->offsetMin = Vec2F(-75.0f, -44.0f);
 		accept->layout->offsetMax = Vec2F(75.0f, 40.0f);
-		accept->onClick = [this]() { HideWindows(); };
+		accept->onClick = [this]() { PlayClick(); HideWindows(); };
 
 		mSettingsWindow->SetEnabled(false);
 	}
@@ -657,8 +673,10 @@ namespace td
 			if (flyer.age < flyer.duration)
 				continue;
 
-			// arrival: sparks + bounce on the target
+			// arrival: sparks + credit tick + bounce on the target
 			BurstSparks(flyer.target);
+			if (mAudio)
+				mAudio->PlayChips();
 			if (!flyer.toCar && flyer.tooltipIndex >= 0 && flyer.tooltipIndex < mTooltips.Count())
 				mTooltips[flyer.tooltipIndex].bounce = 0.0f;
 
@@ -723,6 +741,17 @@ namespace td
 	{
 		mDimmer->SetEnabled(true);
 		mSettingsWindow->SetEnabled(true);
+	}
+
+	bool GameHUDComponent::IsSettingsOpen() const
+	{
+		return mSettingsWindow && mSettingsWindow->IsEnabled();
+	}
+
+	void GameHUDComponent::PlayClick()
+	{
+		if (mAudio)
+			mAudio->PlayButton();
 	}
 
 	void GameHUDComponent::HideWindows()

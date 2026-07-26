@@ -11,6 +11,7 @@
 #include "TokenDelivery/TrafficCarComponent.h"
 #include "o2/Assets/Assets.h"
 #include "o2/Assets/Types/ActorAsset.h"
+#include "o2/Assets/Types/AtlasAsset.h"
 #include "o2/Assets/Types/ImageAsset.h"
 #include "o2/Assets/Types/JavaScriptAsset.h"
 #include "o2/Assets/Types/SceneAsset.h"
@@ -157,6 +158,74 @@ namespace td
 		return SaveProto(actor, String(kProtosDir) + "SparkBurst.proto");
 	}
 
+	static AssetRef<AtlasAsset> EnsureAtlas(const String& path)
+	{
+		if (auto existing = o2Assets.GetAssetRefByType<AtlasAsset>(path))
+			return existing;
+
+		ReseedUidRandom();
+		auto atlas = AssetRef<AtlasAsset>::CreateAsset();
+		atlas->Save(path);
+		return atlas;
+	}
+
+	static void AssignToAtlas(const String& imagePath, const AssetRef<AtlasAsset>& atlas)
+	{
+		auto image = o2Assets.GetAssetRefByType<ImageAsset>(imagePath);
+		if (!image)
+			return;
+
+		// Save without a loaded bitmap rewrites only the .meta, the png stays untouched
+		if (image->GetAtlasUID() != atlas->GetUID())
+		{
+			image->SetAtlas(atlas->GetUID());
+			image->Save();
+		}
+	}
+
+	// world sprites and UI pack into two atlases; ground tiles stay standalone — they abut
+	// on screen and the atlas padding is transparent, so sampling past a packed tile edge
+	// would draw seams between tiles. The backdrop is a single huge image, an atlas page
+	// would mostly carry it alone
+	static void ConfigureAtlases()
+	{
+		auto setupMeta = [](const AssetRef<AtlasAsset>& atlas)
+		{
+			auto meta = atlas->GetMeta();
+			meta->common.maxSize = Vec2I(2048, 2048);
+			meta->common.border = 2;
+			// None on every platform including WebAssembly: WebGL2 guarantees no compressed
+			// texture format without extensions (S3TC is desktop-only, ASTC mobile-only, and
+			// the engine has no ETC2), and the flat-color art downloads far smaller as png
+			// atlas pages than as DXT/ASTC blocks
+			meta->common.compression = TextureCompression::None;
+			atlas->Save();
+		};
+
+		auto worldAtlas = EnsureAtlas("Game/WorldAtlas.atlas");
+		auto uiAtlas = EnsureAtlas("Game/UIAtlas.atlas");
+		setupMeta(worldAtlas);
+		setupMeta(uiAtlas);
+
+		for (auto& sprite : art::kSprites)
+		{
+			String path(sprite.path);
+			if (path.StartsWith("Game/Buildings/") || path.StartsWith("Game/Cars/") ||
+				path.StartsWith("Game/Props/"))
+			{
+				AssignToAtlas(path, worldAtlas);
+			}
+		}
+
+		auto uiFolder = o2FileSystem.GetFolderInfo(o2Assets.GetAssetsPath() + "Game/UI");
+		for (auto& file : uiFolder.files)
+		{
+			String fileName = o2FileSystem.GetPathWithoutDirectories(file.path);
+			if (fileName.EndsWith(".png"))
+				AssignToAtlas(String("Game/UI/") + fileName, uiAtlas);
+		}
+	}
+
 	// the bootstrap scene: layers, both cameras and the game actor with the controller,
 	// HUD and tutorial components linked together
 	static void MakeBootstrapScene(const AssetRef<ActorAsset>& playerProto,
@@ -221,6 +290,8 @@ namespace td
 	{
 		o2Scene.AddLayer(kWorldLayer);
 		o2Scene.AddLayer(kUILayer);
+
+		ConfigureAtlases();
 
 		auto playerProto = MakeCarProto(String(kProtosDir) + "PlayerCar.proto", "player car",
 										CarDrawableComponent::CarKind::PlayerPickup, false);

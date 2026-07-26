@@ -2,6 +2,7 @@
 
 #include "TokenDelivery/CarDrawableComponent.h"
 #include "TokenDelivery/CityViewBuilder.h"
+#include "TokenDelivery/GameAudio.h"
 #include "TokenDelivery/GameHUDComponent.h"
 #include "TokenDelivery/GameSession.h"
 #include "TokenDelivery/GameTutorialComponent.h"
@@ -49,8 +50,14 @@ namespace td
 		// Returns the current level number
 		int GetLevel() const { return mLevel; }
 
-		// Returns is the world frozen while the tutorial waits for a tap
-		bool IsWorldPaused() const { return mTutorial && mTutorial->IsPausingGame(); }
+		// Returns the game sound bank
+		const Ref<GameAudio>& GetAudio() const { return mAudio; }
+
+		// Returns is the world frozen: the tutorial waits for a tap or the settings are open
+		bool IsWorldPaused() const
+		{
+			return (mTutorial && mTutorial->IsPausingGame()) || (mHUD && mHUD->IsSettingsOpen());
+		}
 
 		// Clears the current level and generates the given one
 		void StartLevel(int level);
@@ -79,6 +86,8 @@ namespace td
 
 		GameSession     mSession; // Headless round logic: city, car, tokens, orders, fuel
 		CityViewHandles mCity;    // Static city view of the current level
+
+		Ref<GameAudio> mAudio; // Game sound bank, shared with the HUD
 
 		Ref<Actor>                mPlayerActor;      // Player car view actor
 		Ref<CarDrawableComponent> mPlayerCar;        // Player car drawable
@@ -142,6 +151,7 @@ CLASS_FIELDS_META(td::GameControllerComponent)
     FIELD().PRIVATE().EDITOR_PROPERTY_ATTRIBUTE().SERIALIZABLE_ATTRIBUTE().NAME(mTrafficHatchbackProto);
     FIELD().PRIVATE().NAME(mSession);
     FIELD().PRIVATE().NAME(mCity);
+    FIELD().PRIVATE().NAME(mAudio);
     FIELD().PRIVATE().NAME(mPlayerActor);
     FIELD().PRIVATE().NAME(mPlayerCar);
     FIELD().PRIVATE().NAME(mPlayerGhostActor);
@@ -164,6 +174,7 @@ CLASS_METHODS_META(td::GameControllerComponent)
     FUNCTION().PUBLIC().SIGNATURE(const LinkRef<GameHUDComponent>&, GetHUD);
     FUNCTION().PUBLIC().SIGNATURE(const LinkRef<GameTutorialComponent>&, GetTutorial);
     FUNCTION().PUBLIC().SIGNATURE(int, GetLevel);
+    FUNCTION().PUBLIC().SIGNATURE(const Ref<GameAudio>&, GetAudio);
     FUNCTION().PUBLIC().SIGNATURE(bool, IsWorldPaused);
     FUNCTION().PUBLIC().SIGNATURE(void, StartLevel, int);
     FUNCTION().PUBLIC().SIGNATURE(void, SetSceneLinks, const Ref<CameraActor>&, const Ref<CameraActor>&, const Ref<GameHUDComponent>&, const Ref<GameTutorialComponent>&, const AssetRef<ActorAsset>&, const AssetRef<ActorAsset>&, const AssetRef<ActorAsset>&);
