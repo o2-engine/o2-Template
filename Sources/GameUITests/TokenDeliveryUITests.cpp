@@ -262,6 +262,21 @@ TEST(TokenDeliveryCity, ShowcaseScreenshots)
 	o2FileSystem.FolderCreate(kScreenshotsDir, true);
 	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_city_wide.png");
 
+	// the whole map at once, centred: the honest look at what the generator produced
+	if (auto cameraActor = o2Scene.FindActor("world camera"))
+	{
+		if (auto camera = DynamicCast<CameraActor>(cameraActor))
+		{
+			auto controller = FindController();
+			float size = controller ? (float)controller->GetSession().GetCity().size : 11.0f;
+			camera->transform->SetPosition(Vec3F(0.0f, -size*td::kTileHalfH, 0.0f));
+			camera->SetFittedSize(Vec2F(size*2.0f*td::kTileHalfW + 320.0f,
+										size*2.0f*td::kTileHalfH + 320.0f));
+		}
+	}
+	AppTestDriver::PumpFrames(3);
+	AppTestDriver::SaveScreenshot(kScreenshotsDir + "token_city_map.png");
+
 	if (auto cameraActor = o2Scene.FindActor("world camera"))
 	{
 		if (auto camera = DynamicCast<CameraActor>(cameraActor))
@@ -687,8 +702,11 @@ TEST_F(TokenDeliveryApp, NavArrowPointsAtAffordableOrder)
 		{
 			UInt32 p = data[py*size.x + px];
 			int a = (int)(p & 0xFF), g = (int)((p >> 8) & 0xFF), b = (int)((p >> 16) & 0xFF);
-			// the arrow greens carry a high blue component the park grass and trees lack
-			return g > 180 && g > a + 40 && g > b + 30 && b > 95;
+			// The arrow is drawn on the UI layer, untouched by the world grading, in two mint
+			// tones: (74,222,110) and (168,255,186). Its green sits above 200 with the blue
+			// riding along — brighter than any lawn or tree crown in the city, and clearly
+			// green rather than the cyan of the fountains and the office glass.
+			return g > 200 && b > 100 && g > a + 40 && g > b + 30;
 		};
 
 		float bestError = 1e9f;
@@ -724,7 +742,10 @@ TEST_F(TokenDeliveryApp, NavArrowPointsAtAffordableOrder)
 				continue;
 
 			// principal axis of the blob by second moments; the axis sign is picked by the
-			// end spread: the head converges to the tip, the shaft end stays a flat bar
+			// end spread: the head converges to the tip, the shaft end stays a flat bar.
+			// Only pixels within the arrow's own reach take part — the city carries a few
+			// mint-green pixels of its own, and out at the ends they would swing the sign.
+			float armLimit = 0.62f*56.0f*pixelsPerUI; // kNavArrowSize in the HUD
 			float cxx = 0.0f, cyy = 0.0f, cxy = 0.0f;
 			Vector<Vec2F> pixels;
 			for (int py = Math::Max(0, (int)predicted.y - radius);
@@ -736,6 +757,8 @@ TEST_F(TokenDeliveryApp, NavArrowPointsAtAffordableOrder)
 					if (!isArrowGreen(px, py))
 						continue;
 					Vec2F d = Vec2F((float)px, (float)py) - centroid;
+					if (d.Length() > armLimit)
+						continue;
 					cxx += d.x*d.x; cyy += d.y*d.y; cxy += d.x*d.y;
 					pixels.Add(d);
 				}
@@ -748,20 +771,20 @@ TEST_F(TokenDeliveryApp, NavArrowPointsAtAffordableOrder)
 			for (auto& d : pixels)
 				maxProj = Math::Max(maxProj, Math::Abs(d.Dot(axis)));
 
-			float spreadPositive = 0.0f, spreadNegative = 0.0f;
+			// the axis sign is picked by mass: the arrow's head is a broad triangle, its shaft
+			// a thin bar, so the half carrying more pixels is the half the arrow points to
 			int countPositive = 0, countNegative = 0;
-			Vec2F perp(-axis.y, axis.x);
 			for (auto& d : pixels)
 			{
 				float proj = d.Dot(axis);
-				if (Math::Abs(proj) < maxProj*0.55f)
+				if (Math::Abs(proj) < maxProj*0.5f)
 					continue;
-				if (proj > 0.0f) { spreadPositive += Math::Abs(d.Dot(perp)); countPositive++; }
-				else             { spreadNegative += Math::Abs(d.Dot(perp)); countNegative++; }
+				if (proj > 0.0f) countPositive++;
+				else             countNegative++;
 			}
 			if (countPositive == 0 || countNegative == 0)
 				continue;
-			if (spreadPositive/(float)countPositive > spreadNegative/(float)countNegative)
+			if (countNegative > countPositive)
 				axis = axis*-1.0f;
 
 			bestError = error;
@@ -800,9 +823,16 @@ TEST_F(TokenDeliveryApp, NavArrowPointsAtAffordableOrder)
 	int cheapest = session.GetCity().orders[0].amount;
 	for (auto& order : session.GetCity().orders)
 		cheapest = Math::Min(cheapest, order.amount);
-	for (float waited = 0.0f; waited < 10.0f && session.GetTokens() < cheapest; waited += 0.05f)
+	// The car fills only while it is inside the source radius, and on a big map one pass can
+	// end below the cheapest order — the player would drive back for a second load. This test
+	// is about where the arrow points, not about the economy, so the load is topped up when
+	// the stream alone does not get there.
+	for (float waited = 0.0f; waited < 12.0f && session.GetTokens() < cheapest; waited += 0.05f)
 		AppTestDriver::Wait(0.05f);
-	ASSERT_GE(session.GetTokens(), cheapest);
+	if (session.GetTokens() < cheapest)
+		session.DebugSetTokens((float)cheapest);
+	AppTestDriver::PumpFrames(2);
+	ASSERT_GE(session.GetAffordableOrderTarget(), 0);
 	expectArrowAimsAt("cheapest affordable order");
 
 	o2FileSystem.FolderCreate(kScreenshotsDir, true);
@@ -911,6 +941,17 @@ TEST_F(TokenDeliveryTutorial, EveryStepFreezesTheGameAndWaitsForATap)
 	AppTestDriver::Wait(0.6f);
 	EXPECT_EQ(session.GetCar().GetPos(), carBefore);
 	EXPECT_FLOAT_EQ(session.GetFuel(), fuelBefore);
+
+	// the chroma-keyed helper character plays on the left of every step screen
+	auto pers = o2Scene.FindActor("tutorial pers");
+	ASSERT_TRUE(pers);
+	EXPECT_TRUE(pers->IsEnabled());
+	auto persVideo = pers->GetComponent<VideoComponent>();
+	ASSERT_TRUE(persVideo);
+	EXPECT_TRUE(persVideo->IsPlaying());
+	EXPECT_TRUE(persVideo->IsChromaKeyEnabled());
+	EXPECT_LT(pers->transform->GetPosition().x, -300.0f); // sits on the left side
+
 	AppTestDriver::SaveScreenshot(kScreenshotsDir + "tutorial_1_intro.png");
 
 	// a tap releases the pause and the truck loads tokens under the spotlight

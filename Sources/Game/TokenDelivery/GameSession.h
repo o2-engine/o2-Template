@@ -18,8 +18,8 @@ namespace td
 
 		int baseOrders = 3;    // Orders on the first level
 		int maxOrders = 8;     // Orders cap for the late levels
-		int baseCitySize = 15; // City size on the first level
-		int maxCitySize = 19;  // City size cap for the late levels
+		int baseCitySize = 19; // City size on the first level
+		int maxCitySize = 25;  // City size cap for the late levels
 	};
 
 	enum class SessionState { Playing, Won, Lost };

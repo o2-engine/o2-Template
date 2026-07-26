@@ -13,6 +13,10 @@ namespace td
 	constexpr float kTileHalfH = 64.0f;
 	constexpr float kZScale = 64.0f; // screen pixels per one cell of height
 
+	// Block art is laid out on a grid finer than the road cell: a cell holds kUnitsPerCell
+	// squared units, so a house is sized in units and several of them share one cell.
+	constexpr int kUnitsPerCell = 4;
+
 	enum class Dir { N = 0, E = 1, S = 2, W = 3 };
 
 	// Returns the cell step of the direction
@@ -38,6 +42,13 @@ namespace td
 
 	// Returns the direction bit; matches road tile naming order NESW
 	inline int DirBit(Dir d) { return 1 << (int)d; }
+
+	// Cell position of a unit grid node. Unit (0, 0) is the north corner of cell (0, 0), which
+	// in cell coordinates — those name cell centers — sits at (-0.5, -0.5)
+	inline Vec2F UnitToCell(const Vec2F& unit)
+	{
+		return unit/(float)kUnitsPerCell - Vec2F(0.5f, 0.5f);
+	}
 
 	// Projects a cell position to screen space
 	inline Vec2F CellToScreen(const Vec2F& cell)

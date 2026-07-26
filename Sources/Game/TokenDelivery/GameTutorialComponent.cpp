@@ -5,6 +5,8 @@
 #include "TokenDelivery/GameUIStyle.h"
 #include "o2/Animation/AnimationClip.h"
 #include "o2/Application/Input.h"
+#include "o2/Assets/Assets.h"
+#include "o2/Assets/Types/VideoAsset.h"
 #include "o2/Render/Sprite.h"
 #include "o2/Scene/UI/UIManager.h"
 #include "o2/Scene/UI/WidgetLayer.h"
@@ -14,6 +16,14 @@ namespace td
 {
 	static const float kDimAlpha = 0.74f;
 	static const float kHintY = -338.0f;
+
+	// the helper character video in the bottom-left corner of the step screens; sits low
+	// enough to keep clear of the intro cards and their captions. The fuel step spotlights
+	// the fuel panel in that same corner, so there the character steps aside to its right
+	static const float kPersHeight = 320.0f;
+	static const float kPersX = -535.0f;
+	static const float kPersFuelX = -305.0f;
+	static const float kPersY = -300.0f;
 
 	// fuel panel rect in UI space: HUD root corner (-640, -400) plus the panel offsets
 	static const Vec2F kFuelSpotCenter(-496.0f, -347.0f);
@@ -107,6 +117,29 @@ namespace td
 		MakePicture(mKeys, "Game/UI/tut_key_right.png", Vec2F(-99.0f, 0.0f), Vec2F(132.0f, 142.0f));
 		MakePicture(mKeys, "Game/UI/tut_key_space.png", Vec2F(150.0f, 0.0f), Vec2F(330.0f, 142.0f));
 
+		// animated helper character on the left of every step screen: a chroma-keyed
+		// looping video, drawn just above the dim so the flat green backdrop disappears
+		if (auto pers = o2Assets.GetAssetRefByType<VideoAsset>(String("Game/Video/pers.mp4")))
+		{
+			mPersActor = mmake<Actor>(ActorCreateMode::InScene);
+			mPersActor->SetName("tutorial pers");
+			mPersActor->SetLayer(kUILayer);
+			mPersActor->SetDrawingDepth(201.0f);
+
+			mPersVideo = mPersActor->AddComponent<VideoComponent>();
+			mPersVideo->SetVideoAsset(pers);
+			mPersVideo->SetLoop(Loop::Repeat);
+			mPersVideo->SetChromaKeyEnabled(true);
+			mPersVideo->SetKeyColor(Color4(73, 106, 71, 255)); // the flat green of pers.mp4
+			mPersVideo->SetSimilarity(0.3f);
+			mPersVideo->SetSmoothness(0.08f);
+			mPersVideo->SetSpill(0.4f);
+
+			mPersActor->transform->SetSize2D(Vec2F(kPersHeight*9.0f/16.0f, kPersHeight));
+			mPersActor->transform->SetPosition(Vec3F(kPersX, kPersY, 0.0f));
+			mPersActor->SetEnabled(false);
+		}
+
 		mRoot->SetEnabled(false);
 	}
 
@@ -163,6 +196,12 @@ namespace td
 		mPictures->SetEnabled(mWaiting && mStep == Step::Intro);
 		mKeys->SetEnabled(mWaiting && mStep == Step::Controls);
 		mTitle->SetEnabled(mWaiting);
+		if (mPersActor)
+		{
+			mPersActor->SetEnabled(mWaiting);
+			mPersActor->transform->SetPosition(
+				Vec3F(mStep == Step::Fuel ? kPersFuelX : kPersX, kPersY, 0.0f));
+		}
 		mDescription->SetEnabled(mWaiting);
 		mHint->SetEnabled(mWaiting);
 
@@ -249,6 +288,8 @@ namespace td
 
 		mFade = Math::Clamp01(mFade + (mActive ? dt*4.0f : -dt*3.0f));
 		mRoot->SetTransparency(mFade);
+		if (mPersVideo)
+			mPersVideo->SetTransparency(mFade); // a plain actor is outside the widget fade
 
 		if (!mActive)
 		{
@@ -304,6 +345,10 @@ namespace td
 		mRoot = nullptr;
 		mDim = nullptr;
 		mDimMesh = nullptr;
+		if (mPersActor)
+			mPersActor->RemoveFromScene();
+		mPersActor = nullptr;
+		mPersVideo = nullptr;
 		mTitle = nullptr;
 		mDescription = nullptr;
 		mHint = nullptr;

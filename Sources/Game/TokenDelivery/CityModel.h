@@ -10,30 +10,32 @@ namespace td
 {
 	enum class GroundKind { Grass = 0, Pavement = 1, Road = 2 };
 
-	// ------------------------------------------
-	// Placed building: sprite, footprint, order
-	// ------------------------------------------
-	struct BuildingInfo
+	enum class ObjectKind { House = 0, Office = 1, Prop = 2, Composite = 3 };
+
+	// ---------------------------------------------------------------------------------
+	// One placed piece of block art: a house, an office, a single prop or a composite —
+	// a whole ready-made courtyard piece such as a market or a playground.
+	// Positioned on the unit grid (kUnitsPerCell units per road cell).
+	// ---------------------------------------------------------------------------------
+	struct BlockObject
 	{
-		String spriteId;        // Art manifest key without folder/extension, e.g. "house_brick_a"
-		Vec2I  cell;            // Top-left footprint cell (min i, min j)
-		Vec2I  footprint;       // Occupied cells
-		int    orderIndex = -1; // Delivery order index, >= 0 for offices
+		String     spriteId;                    // Art manifest key in Game/Blocks, no extension
+		Vec2I      unit;                        // North corner in grid units
+		Vec2I      unitSize;                    // Footprint in grid units
+		ObjectKind kind = ObjectKind::Prop;
+		int        orderIndex = -1;             // Delivery order index, >= 0 for offices
+
+		// Returns the north corner in cell coordinates — where the sprite pivot goes
+		Vec2F CornerCell() const { return UnitToCell(Vec2F((float)unit.x, (float)unit.y)); }
 
 		// Returns the footprint center in cell coordinates
-		Vec2F FootprintCenter() const
+		Vec2F CenterCell() const
 		{
-			return Vec2F(cell.x + footprint.x*0.5f - 0.5f, cell.y + footprint.y*0.5f - 0.5f);
+			return UnitToCell(Vec2F(unit.x + unitSize.x*0.5f, unit.y + unitSize.y*0.5f));
 		}
-	};
 
-	// -----------------------------
-	// Placed decor prop of the city
-	// -----------------------------
-	struct DecorInfo
-	{
-		String spriteId; // "tree_big", "tree_small", "kiosk", "bench", "lamp", "fountain"
-		Vec2F  cellPos;  // Position in cell coordinates
+		// Returns the cell the footprint starts in
+		Vec2I Cell() const { return Vec2I(unit.x/kUnitsPerCell, unit.y/kUnitsPerCell); }
 	};
 
 	// ------------------------------------------
@@ -52,7 +54,7 @@ namespace td
 	// ----------------------
 	struct CityGenParams
 	{
-		int size = 11;            // Grid side in cells
+		int size = 15;            // Grid side in cells
 		int ordersCount = 3;      // Delivery orders (offices) to place
 		int minOrderAmount = 35;  // Order price lower bound
 		int maxOrderAmount = 150; // Order price upper bound
@@ -67,12 +69,11 @@ namespace td
 	{
 		int size = 0; // Grid side in cells
 
-		Vector<GroundKind>   ground;    // Ground kinds, size*size, row-major [j*size + i]
-		Vector<BuildingInfo> buildings; // Placed buildings
-		Vector<DecorInfo>    decors;    // Placed decor props
-		Vector<OrderInfo>    orders;    // Delivery orders
+		Vector<GroundKind>  ground;  // Ground kinds, size*size, row-major [j*size + i]
+		Vector<BlockObject> objects; // Everything standing on the blocks, in draw order
+		Vector<OrderInfo>   orders;  // Delivery orders
 
-		Vec2I         fountainCell;  // Token source fountain cell
+		Vec2F         fountainCell;  // Token source: center of the plaza block's fountain
 		Vector<Vec2I> sourceCells;   // Road cells where the car refills tokens
 		Vec2I         playerStart;   // Player car start cell
 		Dir           playerStartDir = Dir::E; // Player car start heading
@@ -106,11 +107,29 @@ namespace td
 		Vector<Vec2I> ReachableRoadCells(const Vec2I& from) const;
 	};
 
-	// Generates the city: perpendicular road grid, blocks with sidewalks, a park block with
-	// the token fountain, office buildings for orders, houses and decor. Deterministic by seed.
+	// Generates the city: perpendicular road grid, then a block layout for every plot between
+	// the streets — buildings around the back edges, one composite courtyard piece inside, a
+	// few props and deliberate open ground. Deterministic by seed.
 	CityModel GenerateCity(const CityGenParams& params, UInt32 seed);
+
+	// -------------------------------
+	// What one plot is asked to hold
+	// -------------------------------
+	struct BlockLayoutOptions
+	{
+		bool        wantOffice = false;  // Place an office and make it a delivery target
+		const char* centrepiece = nullptr; // Composite placed before the buildings, so it is
+										   // guaranteed the middle of the plot
+		const char* preferred = nullptr;   // Nudge for the courtyard piece choice, may not fit
+	};
+
+	// Lays out one rectangular plot, in units local to its north corner. Exposed for tests.
+	Vector<BlockObject> LayoutBlock(const Vec2I& plotUnits, Rng& rng,
+									const BlockLayoutOptions& options = BlockLayoutOptions());
 }
 // --- META ---
 
 PRE_ENUM_META(td::GroundKind);
+
+PRE_ENUM_META(td::ObjectKind);
 // --- END META ---

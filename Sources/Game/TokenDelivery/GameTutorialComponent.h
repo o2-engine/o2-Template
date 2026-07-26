@@ -2,6 +2,7 @@
 
 #include "TokenDelivery/GameSession.h"
 #include "TokenDelivery/TutorialDimDrawable.h"
+#include "o2/Scene/Components/VideoComponent.h"
 #include "o2/Scene/UI/Widget.h"
 #include "o2/Scene/UI/Widgets/Image.h"
 #include "o2/Scene/UI/Widgets/Label.h"
@@ -74,6 +75,9 @@ namespace td
 
 		Ref<TutorialDimDrawable> mDimMesh; // Solid dim mesh with the spotlight hole, layer of mDim
 
+		Ref<Actor>          mPersActor; // Animated helper character on the left of the steps
+		Ref<VideoComponent> mPersVideo; // Chroma-keyed looping video of the character
+
 		Ref<Label>  mTitle;       // Step title, large
 		Ref<Label>  mDescription; // Step description under the title
 		Ref<Label>  mHint;        // Pulsing "tap to continue" at the bottom
@@ -131,6 +135,8 @@ CLASS_FIELDS_META(td::GameTutorialComponent)
     FIELD().PRIVATE().NAME(mRoot);
     FIELD().PRIVATE().NAME(mDim);
     FIELD().PRIVATE().NAME(mDimMesh);
+    FIELD().PRIVATE().NAME(mPersActor);
+    FIELD().PRIVATE().NAME(mPersVideo);
     FIELD().PRIVATE().NAME(mTitle);
     FIELD().PRIVATE().NAME(mDescription);
     FIELD().PRIVATE().NAME(mHint);

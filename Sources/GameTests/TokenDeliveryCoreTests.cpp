@@ -87,25 +87,68 @@ TEST(TokenCityGen, RoadMaskMatchesNeighbours)
 	}
 }
 
-TEST(TokenCityGen, BuildingsDoNotOverlap)
+TEST(TokenCityGen, BlockObjectsDoNotOverlapAndStayOffTheRoad)
 {
 	for (UInt32 seed = 1; seed <= 10; seed++)
 	{
 		auto city = GenerateCity(CityGenParams(), seed*31);
 		Vector<Vec2I> taken;
-		for (auto& b : city.buildings)
+		for (auto& o : city.objects)
 		{
-			for (int j = 0; j < b.footprint.y; j++)
+			for (int j = 0; j < o.unitSize.y; j++)
 			{
-				for (int i = 0; i < b.footprint.x; i++)
+				for (int i = 0; i < o.unitSize.x; i++)
 				{
-					Vec2I c = b.cell + Vec2I(i, j);
-					ASSERT_TRUE(city.InBounds(c));
-					ASSERT_FALSE(city.IsRoad(c)) << "seed " << seed;
-					ASSERT_FALSE(taken.Contains(c)) << "seed " << seed;
-					taken.Add(c);
+					Vec2I unit = o.unit + Vec2I(i, j);
+					Vec2I cell(unit.x/kUnitsPerCell, unit.y/kUnitsPerCell);
+					ASSERT_TRUE(city.InBounds(cell)) << "seed " << seed;
+					ASSERT_FALSE(city.IsRoad(cell)) << "seed " << seed << " " << o.spriteId;
+					ASSERT_FALSE(taken.Contains(unit)) << "seed " << seed << " " << o.spriteId;
+					taken.Add(unit);
 				}
 			}
+		}
+	}
+}
+
+// every plot keeps open ground: the layout must not fill a block edge to edge
+TEST(TokenCityGen, BlocksKeepOpenGround)
+{
+	for (UInt32 seed = 1; seed <= 6; seed++)
+	{
+		Rng rng(seed*577u);
+		for (Vec2I plot : { Vec2I(8, 8), Vec2I(12, 12), Vec2I(16, 12) })
+		{
+			BlockLayoutOptions options;
+			options.wantOffice = seed%2 == 0;
+			auto objects = LayoutBlock(plot, rng, options);
+			int used = 0;
+			for (auto& o : objects)
+				used += o.unitSize.x*o.unitSize.y;
+			float open = 1.0f - used/(float)(plot.x*plot.y);
+			EXPECT_GT(open, 0.15f) << "plot " << plot.x << "x" << plot.y << " seed " << seed;
+		}
+	}
+}
+
+// buildings belong on the plot perimeter; nothing but props and composites goes inside
+TEST(TokenCityGen, BuildingsStayOnThePerimeter)
+{
+	Rng rng(9001u);
+	for (int attempt = 0; attempt < 8; attempt++)
+	{
+		Vec2I plot(16, 12);
+		BlockLayoutOptions options;
+		options.wantOffice = attempt%2 == 0;
+		for (auto& o : LayoutBlock(plot, rng, options))
+		{
+			if (o.kind != ObjectKind::House && o.kind != ObjectKind::Office)
+				continue;
+
+			bool touchesEdge = o.unit.x == 0 || o.unit.y == 0 ||
+							   o.unit.x + o.unitSize.x == plot.x ||
+							   o.unit.y + o.unitSize.y == plot.y;
+			EXPECT_TRUE(touchesEdge) << o.spriteId << " at " << o.unit.x << "," << o.unit.y;
 		}
 	}
 }
@@ -115,7 +158,7 @@ TEST(TokenCityGen, DeterministicBySeed)
 	auto a = GenerateCity(CityGenParams(), 42);
 	auto b = GenerateCity(CityGenParams(), 42);
 	ASSERT_EQ(a.ground, b.ground);
-	ASSERT_EQ(a.buildings.Count(), b.buildings.Count());
+	ASSERT_EQ(a.objects.Count(), b.objects.Count());
 	ASSERT_EQ(a.orders.Count(), b.orders.Count());
 	for (int i = 0; i < a.orders.Count(); i++)
 		EXPECT_EQ(a.orders[i].amount, b.orders[i].amount);
@@ -368,19 +411,20 @@ namespace
 	{
 		CityModel m = MakeRoadCity();
 		m.sourceCells.Add(Vec2I(1, 2));
-		m.fountainCell = Vec2I(1, 1);
+		m.fountainCell = Vec2F(1.0f, 1.0f);
 
-		BuildingInfo office;
-		office.spriteId = "office_classic";
-		office.cell = Vec2I(4, 1);
-		office.footprint = Vec2I(1, 1);
+		BlockObject office;
+		office.spriteId = "office_glass_chip";
+		office.unit = Vec2I(4, 1)*kUnitsPerCell;
+		office.unitSize = Vec2I(4, 4);
+		office.kind = ObjectKind::Office;
 		office.orderIndex = 0;
-		m.buildings.Add(office);
+		m.objects.Add(office);
 
 		OrderInfo order;
 		order.name = "London";
 		order.amount = 50;
-		order.officeCell = office.cell;
+		order.officeCell = Vec2I(4, 1);
 		order.deliveryCells.Add(Vec2I(4, 2));
 		m.orders.Add(order);
 		return m;
@@ -541,3 +585,5 @@ TEST(TokenSession, AffordableOrderTargetPicksNearestPayableOrder)
 	session.DebugCompleteOrder(0);
 	EXPECT_EQ(session.GetAffordableOrderTarget(), 1); // delivered orders are skipped
 }
+
+

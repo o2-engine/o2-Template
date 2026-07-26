@@ -1,5 +1,607 @@
 {
  "sprites": {
+  "Blocks/bench.png": {
+   "footprint": [
+    2,
+    1
+   ],
+   "pivot": [
+    33,
+    52
+   ],
+   "size": [
+    98,
+    100
+   ]
+  },
+  "Blocks/bicycle_rack.png": {
+   "footprint": [
+    2,
+    1
+   ],
+   "pivot": [
+    44,
+    52
+   ],
+   "size": [
+    120,
+    100
+   ]
+  },
+  "Blocks/bus_stop.png": {
+   "footprint": [
+    3,
+    2
+   ],
+   "pivot": [
+    72,
+    118
+   ],
+   "size": [
+    175,
+    198
+   ]
+  },
+  "Blocks/bush_round.png": {
+   "footprint": [
+    1,
+    1
+   ],
+   "pivot": [
+    38,
+    47
+   ],
+   "size": [
+    76,
+    79
+   ]
+  },
+  "Blocks/community_garden.png": {
+   "footprint": [
+    5,
+    5
+   ],
+   "pivot": [
+    160,
+    80
+   ],
+   "size": [
+    320,
+    240
+   ]
+  },
+  "Blocks/dog_park.png": {
+   "footprint": [
+    6,
+    5
+   ],
+   "pivot": [
+    160,
+    56
+   ],
+   "size": [
+    352,
+    233
+   ]
+  },
+  "Blocks/fence_segment.png": {
+   "footprint": [
+    1,
+    1
+   ],
+   "pivot": [
+    39,
+    52
+   ],
+   "size": [
+    78,
+    84
+   ]
+  },
+  "Blocks/flowerbed.png": {
+   "footprint": [
+    2,
+    1
+   ],
+   "pivot": [
+    46,
+    30
+   ],
+   "size": [
+    124,
+    78
+   ]
+  },
+  "Blocks/fountain_park.png": {
+   "footprint": [
+    4,
+    4
+   ],
+   "pivot": [
+    116,
+    31
+   ],
+   "size": [
+    233,
+    159
+   ]
+  },
+  "Blocks/hedge_segment.png": {
+   "footprint": [
+    1,
+    1
+   ],
+   "pivot": [
+    37,
+    48
+   ],
+   "size": [
+    74,
+    80
+   ]
+  },
+  "Blocks/house_bakery.png": {
+   "footprint": [
+    3,
+    4
+   ],
+   "pivot": [
+    137,
+    164
+   ],
+   "size": [
+    244,
+    276
+   ]
+  },
+  "Blocks/house_brick_dormer.png": {
+   "footprint": [
+    3,
+    3
+   ],
+   "pivot": [
+    96,
+    178
+   ],
+   "size": [
+    193,
+    274
+   ]
+  },
+  "Blocks/house_brick_red.png": {
+   "footprint": [
+    3,
+    3
+   ],
+   "pivot": [
+    96,
+    124
+   ],
+   "size": [
+    197,
+    220
+   ]
+  },
+  "Blocks/house_cafe_terrace.png": {
+   "footprint": [
+    4,
+    3
+   ],
+   "pivot": [
+    101,
+    145
+   ],
+   "size": [
+    229,
+    257
+   ]
+  },
+  "Blocks/house_corner_bay.png": {
+   "footprint": [
+    5,
+    5
+   ],
+   "pivot": [
+    160,
+    246
+   ],
+   "size": [
+    325,
+    407
+   ]
+  },
+  "Blocks/house_cream_blue.png": {
+   "footprint": [
+    3,
+    3
+   ],
+   "pivot": [
+    98,
+    132
+   ],
+   "size": [
+    199,
+    228
+   ]
+  },
+  "Blocks/house_half_timber.png": {
+   "footprint": [
+    3,
+    3
+   ],
+   "pivot": [
+    102,
+    156
+   ],
+   "size": [
+    217,
+    252
+   ]
+  },
+  "Blocks/house_narrow_tall.png": {
+   "footprint": [
+    2,
+    3
+   ],
+   "pivot": [
+    99,
+    199
+   ],
+   "size": [
+    167,
+    279
+   ]
+  },
+  "Blocks/house_row_long.png": {
+   "footprint": [
+    9,
+    3
+   ],
+   "pivot": [
+    99,
+    214
+   ],
+   "size": [
+    391,
+    407
+   ]
+  },
+  "Blocks/house_shop_awning.png": {
+   "footprint": [
+    4,
+    3
+   ],
+   "pivot": [
+    96,
+    173
+   ],
+   "size": [
+    245,
+    286
+   ]
+  },
+  "Blocks/house_stone_shutters.png": {
+   "footprint": [
+    4,
+    3
+   ],
+   "pivot": [
+    105,
+    200
+   ],
+   "size": [
+    248,
+    313
+   ]
+  },
+  "Blocks/house_terracotta.png": {
+   "footprint": [
+    3,
+    3
+   ],
+   "pivot": [
+    111,
+    142
+   ],
+   "size": [
+    207,
+    239
+   ]
+  },
+  "Blocks/house_townhouse_pair.png": {
+   "footprint": [
+    6,
+    3
+   ],
+   "pivot": [
+    98,
+    223
+   ],
+   "size": [
+    298,
+    367
+   ]
+  },
+  "Blocks/house_villa_garden.png": {
+   "footprint": [
+    5,
+    4
+   ],
+   "pivot": [
+    132,
+    193
+   ],
+   "size": [
+    292,
+    337
+   ]
+  },
+  "Blocks/kiosk_hex.png": {
+   "footprint": [
+    3,
+    3
+   ],
+   "pivot": [
+    94,
+    126
+   ],
+   "size": [
+    189,
+    222
+   ]
+  },
+  "Blocks/kiosk_rect.png": {
+   "footprint": [
+    3,
+    2
+   ],
+   "pivot": [
+    72,
+    113
+   ],
+   "size": [
+    177,
+    193
+   ]
+  },
+  "Blocks/lamp_post.png": {
+   "footprint": [
+    1,
+    1
+   ],
+   "pivot": [
+    30,
+    132
+   ],
+   "size": [
+    59,
+    164
+   ]
+  },
+  "Blocks/market_stalls.png": {
+   "footprint": [
+    7,
+    5
+   ],
+   "pivot": [
+    160,
+    123
+   ],
+   "size": [
+    402,
+    315
+   ]
+  },
+  "Blocks/office_classic_columns.png": {
+   "footprint": [
+    5,
+    5
+   ],
+   "pivot": [
+    161,
+    207
+   ],
+   "size": [
+    330,
+    367
+   ]
+  },
+  "Blocks/office_glass_chip.png": {
+   "footprint": [
+    5,
+    5
+   ],
+   "pivot": [
+    161,
+    280
+   ],
+   "size": [
+    323,
+    440
+   ]
+  },
+  "Blocks/office_loft_startup.png": {
+   "footprint": [
+    7,
+    5
+   ],
+   "pivot": [
+    164,
+    254
+   ],
+   "size": [
+    388,
+    447
+   ]
+  },
+  "Blocks/office_tech_cube.png": {
+   "footprint": [
+    6,
+    6
+   ],
+   "pivot": [
+    192,
+    208
+   ],
+   "size": [
+    408,
+    401
+   ]
+  },
+  "Blocks/parasol_tables.png": {
+   "footprint": [
+    2,
+    2
+   ],
+   "pivot": [
+    80,
+    108
+   ],
+   "size": [
+    159,
+    172
+   ]
+  },
+  "Blocks/pergola.png": {
+   "footprint": [
+    3,
+    2
+   ],
+   "pivot": [
+    75,
+    113
+   ],
+   "size": [
+    182,
+    193
+   ]
+  },
+  "Blocks/phone_booth.png": {
+   "footprint": [
+    1,
+    1
+   ],
+   "pivot": [
+    50,
+    101
+   ],
+   "size": [
+    99,
+    133
+   ]
+  },
+  "Blocks/planter_box.png": {
+   "footprint": [
+    1,
+    1
+   ],
+   "pivot": [
+    42,
+    46
+   ],
+   "size": [
+    85,
+    78
+   ]
+  },
+  "Blocks/playground.png": {
+   "footprint": [
+    4,
+    4
+   ],
+   "pivot": [
+    146,
+    76
+   ],
+   "size": [
+    292,
+    204
+   ]
+  },
+  "Blocks/plaza_fountain.png": {
+   "footprint": [
+    6,
+    6
+   ],
+   "pivot": [
+    192,
+    157
+   ],
+   "size": [
+    393,
+    349
+   ]
+  },
+  "Blocks/statue_pedestal.png": {
+   "footprint": [
+    2,
+    2
+   ],
+   "pivot": [
+    56,
+    99
+   ],
+   "size": [
+    111,
+    163
+   ]
+  },
+  "Blocks/trash_bin.png": {
+   "footprint": [
+    1,
+    1
+   ],
+   "pivot": [
+    22,
+    46
+   ],
+   "size": [
+    43,
+    78
+   ]
+  },
+  "Blocks/tree_big.png": {
+   "footprint": [
+    2,
+    2
+   ],
+   "pivot": [
+    102,
+    166
+   ],
+   "size": [
+    204,
+    230
+   ]
+  },
+  "Blocks/tree_pine.png": {
+   "footprint": [
+    2,
+    2
+   ],
+   "pivot": [
+    63,
+    165
+   ],
+   "size": [
+    126,
+    229
+   ]
+  },
+  "Blocks/tree_small.png": {
+   "footprint": [
+    1,
+    1
+   ],
+   "pivot": [
+    51,
+    89
+   ],
+   "size": [
+    102,
+    121
+   ]
+  },
   "Buildings/house_brick_a.png": {
    "footprint": [
     1,

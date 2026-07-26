@@ -39,14 +39,9 @@ namespace td
 		return names[mask & 15];
 	}
 
-	static String BuildingPath(const String& spriteId)
+	static String BlockPath(const String& spriteId)
 	{
-		return String("Game/Buildings/") + spriteId + ".png";
-	}
-
-	static String PropPath(const String& spriteId)
-	{
-		return String("Game/Props/") + spriteId + ".png";
+		return String("Game/Blocks/") + spriteId + ".png";
 	}
 
 	CityViewHandles BuildCityView(const CityModel& city)
@@ -113,56 +108,50 @@ namespace td
 			}
 		}
 
-		// buildings; office anchors sit above the sprite top for tooltips
+		// block art: houses, offices, composites and props. The sprite pivot is its footprint's
+		// north corner, the depth comes from the footprint center so cars sort against it.
 		handles.officeAnchors.resize(city.orders.Count());
-		for (auto& building : city.buildings)
+		for (auto& object : city.objects)
 		{
-			Vec2F fpCenter = building.FootprintCenter();
-			Vec2F pos = CellToScreen(fpCenter);
-			float depth = IsoDepth(fpCenter) + 0.25f;
+			Vec2F pos = CellToScreen(object.CornerCell());
+			Vec2F center = object.CenterCell();
+			float depth = IsoDepth(center) + (object.kind == ObjectKind::Composite ? 0.05f : 0.25f);
 
-			String path = BuildingPath(building.spriteId);
-			auto actor = MakeProtoSprite(art::BuildingProtoPath(path.Data()), path.Data(),
-										 pos, depth, handles.root);
+			String path = BlockPath(object.spriteId);
+			art::MakeSprite(path.Data(), kWorldLayer, pos, depth, handles.root);
 
-			if (building.orderIndex >= 0)
+			if (object.orderIndex >= 0 && object.orderIndex < handles.officeAnchors.Count())
 			{
+				// over the middle of the building and above its roof: an office covers more
+				// than one cell, and a tooltip hanging off its north corner points nowhere
 				auto meta = art::Find(path.Data());
-				float topOffset = meta ? (float)meta->py + 50.0f : 250.0f;
+				float top = pos.y + (meta ? (float)meta->py + 50.0f : 250.0f);
 
 				auto anchor = mmake<Actor>(ActorCreateMode::InScene);
 				anchor->SetName("office anchor");
 				anchor->SetLayer(kWorldLayer);
 				handles.root->AddChild(anchor, false);
-				anchor->transform->SetWorldPosition(Vec3F(pos.x, pos.y + topOffset, 0.0f));
-				handles.officeAnchors[building.orderIndex] = anchor;
+				anchor->transform->SetWorldPosition(Vec3F(CellToScreen(center).x, top, 0.0f));
+				handles.officeAnchors[object.orderIndex] = anchor;
 			}
+
 		}
 
-		// props
-		for (auto& decor : city.decors)
+		// the token source hologram hangs over the plaza fountain; the same composite may well
+		// be used as a courtyard piece elsewhere, so it is placed from the model, not per sprite
 		{
-			Vec2F pos = CellToScreen(decor.cellPos);
-			float depth = IsoDepth(decor.cellPos) + 0.1f;
-			String path = PropPath(decor.spriteId);
-			auto actor = art::MakeSprite(path.Data(), kWorldLayer, pos, depth, handles.root);
-
-			if (decor.spriteId == "fountain")
+			Vec2F over = CellToScreen(city.fountainCell);
+			auto hologram = MakeProtoSprite("Game/Protos/Hologram.proto", "Game/Props/chip.png",
+											over + Vec2F(0.0f, 150.0f),
+											IsoDepth(city.fountainCell) + 1.0f, handles.root);
+			if (!hologram->GetComponent<ScriptableComponent>())
 			{
-				// generated prototype carries the scale and the HologramPulse script
-				auto hologram = MakeProtoSprite("Game/Protos/Hologram.proto",
-												"Game/Props/chip.png",
-												pos + Vec2F(0.0f, 140.0f), depth + 0.05f,
-												handles.root);
-				if (!hologram->GetComponent<ScriptableComponent>())
-				{
-					hologram->transform->SetScale(Vec3F(0.9f, 0.9f, 1.0f));
-					auto script = o2Assets.GetAssetRefByType<JavaScriptAsset>(String("Scripts/HologramPulse.js"));
-					if (script)
-						hologram->AddComponent<ScriptableComponent>()->SetScript(script);
-				}
-				handles.hologram = hologram;
+				hologram->transform->SetScale(Vec3F(0.9f, 0.9f, 1.0f));
+				auto script = o2Assets.GetAssetRefByType<JavaScriptAsset>(String("Scripts/HologramPulse.js"));
+				if (script)
+					hologram->AddComponent<ScriptableComponent>()->SetScript(script);
 			}
+			handles.hologram = hologram;
 		}
 
 		return handles;
