@@ -54,6 +54,14 @@ android {
         release {
             minifyEnabled false
             signingConfig signingConfigs.debug
+
+            // AGP configures the native build as RelWithDebInfo, which o2 still treats as a
+            // development configuration and leaves the Tracy listener thread running
+            externalNativeBuild {
+                cmake {
+                    arguments '-DO2_TRACY=OFF'
+                }
+            }
         }
     }
 
@@ -78,8 +86,12 @@ tasks.register('copyProjectSettings', Copy) {
     into "${buildDir}/generated/projectSettingsAssets"
 }
 
+// Every task that reads the assets source dirs needs the generated file in place first. Lint
+// (release only) reads them too and fails validation without an explicit dependency.
 tasks.whenTaskAdded { task ->
-    if (task.name == 'preBuild' || task.name.startsWith('merge') && task.name.endsWith('Assets')) {
+    if (task.name == 'preBuild'
+        || (task.name.startsWith('merge') && task.name.endsWith('Assets'))
+        || task.name.toLowerCase().contains('lint')) {
         task.dependsOn 'copyProjectSettings'
     }
 }

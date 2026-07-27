@@ -357,7 +357,10 @@
         {
             "label": "android-prebuild-native",
             "type": "shell",
-            "command": "cmake --build --preset mac -j 8 --target AssetsBuilder && mkdir -p ${workspaceFolder}/BuiltAssets/Android && rsync -a --delete ${workspaceFolder}/BuiltAssets/Mac/ ${workspaceFolder}/BuiltAssets/Android/",
+            // ditto, not rsync: /usr/bin/rsync is Apple's openrsync and it dies with
+            // "setpgid: Operation not permitted" inside the VS Code task terminal. Timestamps are
+            // preserved, so gradle still sees the asset merge as up to date
+            "command": "cmake --build --preset mac -j 8 --target AssetsBuilder && rm -rf ${workspaceFolder}/BuiltAssets/Android && ditto ${workspaceFolder}/BuiltAssets/Mac ${workspaceFolder}/BuiltAssets/Android",
             "group": "build",
             "problemMatcher": [],
             "dependsOn": "cmake-configure"
@@ -424,20 +427,76 @@
             "command": "bash",
             "args": [
                 "-c",
-                "export JAVA_HOME=\"${JAVA_HOME:-/Applications/Android Studio.app/Contents/jbr/Contents/Home}\"; export ANDROID_NDK_HOME=\"${ANDROID_NDK_HOME:-$HOME/Library/Android/sdk/ndk/28.2.13676358}\"; cd ${workspaceFolder}/Platforms/Android && ./gradlew :app:assembleDebug"
+                ". ${workspaceFolder}/Platforms/Android/env.sh; cd ${workspaceFolder}/Platforms/Android && ./gradlew :app:assembleDebug"
             ],
             "group": "build",
             "problemMatcher": ["$gcc"],
             "dependsOn": "android-prebuild-native"
         },
         {
-            "label": "Android: Run",
+            "label": "android-assemble-release",
             "type": "shell",
             "command": "bash",
             "args": [
                 "-c",
-                "export PATH=$PATH:$HOME/Library/Android/sdk/platform-tools; APK=${workspaceFolder}/Platforms/Android/app/build/outputs/apk/debug/app-debug.apk; adb install -r \"$APK\" && adb shell am force-stop com.o2.template && adb logcat -c && adb shell am start -n com.o2.template/.MainActivity && for _ in $(seq 1 20); do PID=$(adb shell pidof -s com.o2.template | tr -d '\\r\\n'); [ -n \"$PID\" ] && break; sleep 0.2; done; echo \"=== launched; PID=$PID; streaming logcat ===\" && adb logcat --pid=\"$PID\""
+                ". ${workspaceFolder}/Platforms/Android/env.sh; cd ${workspaceFolder}/Platforms/Android && ./gradlew :app:assembleRelease"
             ],
+            "group": "build",
+            "problemMatcher": ["$gcc"],
+            "dependsOn": "android-prebuild-native"
+        },
+        {
+            "label": "Android: Run Debug",
+            "type": "shell",
+            "command": "bash ${workspaceFolder}/Platforms/Android/run.sh debug",
+            "isBackground": true,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated"
+            },
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^__NEVER_MATCH__$"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^=== launched;",
+                    "endsPattern": "^=== launched;"
+                }
+            },
+            "dependsOn": "android-assemble-debug"
+        },
+        {
+            "label": "Android: Run Release",
+            "type": "shell",
+            "command": "bash ${workspaceFolder}/Platforms/Android/run.sh release",
+            "isBackground": true,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated"
+            },
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^__NEVER_MATCH__$"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^=== launched;",
+                    "endsPattern": "^=== launched;"
+                }
+            },
+            "dependsOn": "android-assemble-release"
+        },
+        {
+            // Debug build only: release ships without the Tracy client. The profiler is pointed at the
+            // device's own address when the host can reach it, otherwise at an adb port forward over USB
+            "label": "Android: Run Debug + Tracy",
+            "type": "shell",
+            "command": "bash ${workspaceFolder}/Platforms/Android/run.sh debug --tracy",
             "isBackground": true,
             "presentation": {
                 "echo": true,

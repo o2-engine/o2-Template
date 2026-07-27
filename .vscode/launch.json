@@ -252,7 +252,7 @@
             "preLaunchTask": "cmake-build-wasm-debug"
         },
         {
-            "name": "Game Android",
+            "name": "Game Android (Debug)",
             "type": "cppdbg",
             "request": "launch",
             "program": "/usr/bin/true",
@@ -262,7 +262,33 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "lldb",
-            "preLaunchTask": "Android: Run"
+            "preLaunchTask": "Android: Run Debug"
+        },
+        {
+            "name": "Game Android (Release)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/usr/bin/true",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "preLaunchTask": "Android: Run Release"
+        },
+        {
+            "name": "Profile Game (Android + Tracy)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/usr/bin/true",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "preLaunchTask": "Android: Run Debug + Tracy"
         }
     ]
 }
