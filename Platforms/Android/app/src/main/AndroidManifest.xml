@@ -13,6 +13,9 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
+        <!-- lets simpleperf and the Studio profilers attach to the release build -->
+        <profileable android:shell="true" />
+
         <activity
             android:name="com.o2.template.MainActivity"
             android:exported="true"
