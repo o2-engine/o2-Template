@@ -44,11 +44,7 @@ namespace td
 		for (int i = 0; i < kChipsVoices; i++)
 			mChips.Add(MakePlayer("Sound/chips.mp3", kChipsVolume, Loop::None));
 
-		// the loop beds play permanently, muted; audibility comes from the volume ramps
-		mMusic->Play();
-		mTown->Play();
-		mEngine->Play();
-		mTyres->Play();
+		// the loop beds are started and stopped by the volume ramps, see RampVolume
 	}
 
 	void GameAudio::Update(float dt)
@@ -109,7 +105,19 @@ namespace td
 	{
 		float volume = player->GetVolume();
 		float step = dt/kVolumeRampTime;
-		player->SetVolume(volume + Math::Clamp(target - volume, -step, step));
+		volume += Math::Clamp(target - volume, -step, step);
+		player->SetVolume(volume);
+
+		// a silent loop still decodes its mp3 in every audio callback, and four beds at once ate
+		// a fifth of the frame budget: keep the backend running only while the bed is audible
+		bool audible = volume > 0.001f || target > 0.001f;
+		if (audible != player->IsPlaying())
+		{
+			if (audible)
+				player->Play();
+			else
+				player->Stop();
+		}
 	}
 
 	void GameAudio::PlayOneShot(const Ref<SoundPlayer>& player)

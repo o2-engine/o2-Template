@@ -24,8 +24,8 @@ namespace
 }
 
 // The bank loads over the built Sound/*.mp3 assets; headless runs on the null backend.
-// The loop beds play permanently and only their volumes are driven
-TEST(GameAudioBank, LoadsPlayersAndStartsLoopBeds)
+// A loop bed runs only while it is audible: a silent one keeps decoding its mp3 for nothing
+TEST(GameAudioBank, LoadsPlayersAndRunsOnlyAudibleLoopBeds)
 {
 	auto audio = MakeLoadedAudio();
 
@@ -40,15 +40,16 @@ TEST(GameAudioBank, LoadsPlayersAndStartsLoopBeds)
 	ASSERT_FALSE(audio->GetChipsPlayers().IsEmpty());
 	EXPECT_TRUE(audio->GetChipsPlayers()[0]->GetSound());
 
-	EXPECT_TRUE(audio->GetMusicPlayer()->IsPlaying());
-	EXPECT_TRUE(audio->GetTownPlayer()->IsPlaying());
-	EXPECT_TRUE(audio->GetEnginePlayer()->IsPlaying());
-	EXPECT_TRUE(audio->GetTyresPlayer()->IsPlaying());
-
-	// town ambience fades in on its own, the music waits for the active gate
+	// town ambience fades in on its own, the music waits for the active gate, the driving beds
+	// wait for the car
 	SettleVolumes(audio);
 	EXPECT_GT(audio->GetTownPlayer()->GetVolume(), 0.0f);
+	EXPECT_TRUE(audio->GetTownPlayer()->IsPlaying());
+
 	EXPECT_NEAR(audio->GetMusicPlayer()->GetVolume(), 0.0f, 0.001f);
+	EXPECT_FALSE(audio->GetMusicPlayer()->IsPlaying());
+	EXPECT_FALSE(audio->GetEnginePlayer()->IsPlaying());
+	EXPECT_FALSE(audio->GetTyresPlayer()->IsPlaying());
 }
 
 TEST(GameAudioBank, MusicFollowsTheActiveGate)
@@ -62,11 +63,12 @@ TEST(GameAudioBank, MusicFollowsTheActiveGate)
 	audio->SetMusicActive(false);
 	SettleVolumes(audio);
 	EXPECT_NEAR(audio->GetMusicPlayer()->GetVolume(), 0.0f, 0.001f);
-	EXPECT_TRUE(audio->GetMusicPlayer()->IsPlaying()); // the bed never stops, only mutes
+	EXPECT_FALSE(audio->GetMusicPlayer()->IsPlaying()); // muted bed stops decoding
 
 	audio->SetMusicActive(true);
 	SettleVolumes(audio);
 	EXPECT_GT(audio->GetMusicPlayer()->GetVolume(), 0.0f);
+	EXPECT_TRUE(audio->GetMusicPlayer()->IsPlaying());
 }
 
 TEST(GameAudioBank, MusicSwitchMutesTheActiveMusic)
@@ -80,7 +82,7 @@ TEST(GameAudioBank, MusicSwitchMutesTheActiveMusic)
 	SettleVolumes(audio);
 	EXPECT_FALSE(audio->IsMusicEnabled());
 	EXPECT_NEAR(audio->GetMusicPlayer()->GetVolume(), 0.0f, 0.001f);
-	EXPECT_TRUE(audio->GetMusicPlayer()->IsPlaying());
+	EXPECT_FALSE(audio->GetMusicPlayer()->IsPlaying());
 
 	audio->SetMusicEnabled(true);
 	SettleVolumes(audio);
@@ -127,7 +129,7 @@ TEST(GameAudioBank, EngineFollowsSpeed)
 	audio->SetDriving(0.0f);
 	SettleVolumes(audio);
 	EXPECT_NEAR(audio->GetEnginePlayer()->GetVolume(), 0.0f, 0.001f);
-	EXPECT_TRUE(audio->GetEnginePlayer()->IsPlaying());
+	EXPECT_FALSE(audio->GetEnginePlayer()->IsPlaying());
 }
 
 TEST(GameAudioBank, TyresFollowDriftIntensity)

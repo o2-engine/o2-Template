@@ -523,6 +523,46 @@ TEST_F(TokenDeliveryApp, SettingsWindowOpensTogglesAndCloses)
 	EXPECT_FALSE(settingsWindow->IsEnabled());
 }
 
+// The low-fuel blink is a looped state clip: after the run is lost the drained bar must
+// stop blinking and stay dark
+TEST_F(TokenDeliveryApp, FuelBarStopsBlinkingAfterLoss)
+{
+	auto controller = FindController();
+	ASSERT_TRUE(controller);
+	auto& session = controller->GetSessionMutable();
+
+	auto hud = o2Scene.FindActor("hud");
+	ASSERT_TRUE(hud);
+	auto segment = DynamicCast<Widget>(hud->FindChild("fuel segment 0"));
+	ASSERT_TRUE(segment);
+
+	// low fuel: only the last segment is left and it blinks
+	session.DebugSetFuel(3.0f);
+	float minT = 1.0f, maxT = 0.0f;
+	for (int i = 0; i < 90; i++)
+	{
+		AppTestDriver::PumpFrames(1);
+		minT = Math::Min(minT, segment->GetTransparency());
+		maxT = Math::Max(maxT, segment->GetTransparency());
+	}
+	EXPECT_GT(maxT - minT, 0.2f);
+
+	// drained out: the car coasts to a stop and the run is lost, the whole bar goes
+	// dark for good
+	session.DebugSetFuel(0.0f);
+	for (int i = 0; i < 900 && session.GetState() != SessionState::Lost; i++)
+		AppTestDriver::PumpFrames(1);
+	ASSERT_EQ(session.GetState(), SessionState::Lost);
+
+	maxT = 0.0f;
+	for (int i = 0; i < 90; i++)
+	{
+		AppTestDriver::PumpFrames(1);
+		maxT = Math::Max(maxT, segment->GetTransparency());
+	}
+	EXPECT_LT(maxT, 0.01f);
+}
+
 // The settings window pauses the round: the car stands still and the fuel timer holds
 // until the window is accepted away
 TEST_F(TokenDeliveryApp, SettingsWindowPausesTheGame)

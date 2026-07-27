@@ -164,6 +164,7 @@ namespace td
 								  : i == 5 ? "Game/UI/prog_part_right.png"
 								  : "Game/UI/prog_part_middle.png";
 			auto segment = o2UI.CreateImage(segSprite);
+			segment->SetName(String::Format("fuel segment %i", i));
 			fuelPanel->AddChild(segment);
 			float x = segLeft + i*(segWidth + segGap);
 			segment->layout->anchorMin = Vec2F(0.0f, 0.0f);
@@ -506,7 +507,12 @@ namespace td
 				continue;
 			mFuelSegments[i]->SetTransparency(i < segmentsLeft ? 1.0f : 0.0f);
 		}
-		mFuelSegments[0]->SetState("blink", lastBlinks);
+		// turning a looped state off through SetState never finishes (PlayBack loops
+		// forever), so the blink is force-stopped to release the transparency
+		if (lastBlinks)
+			mFuelSegments[0]->SetState("blink", true);
+		else
+			mFuelSegments[0]->SetStateForcible("blink", false);
 
 		for (int i = 0; i < mTooltips.Count(); i++)
 		{
