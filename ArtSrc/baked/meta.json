@@ -1,0 +1,128 @@
+{
+ "bench": {
+  "pivot": [
+   48,
+   84
+  ]
+ },
+ "bush": {
+  "pivot": [
+   48,
+   81
+  ]
+ },
+ "fountain": {
+  "pivot": [
+   120,
+   141
+  ]
+ },
+ "house_brick_a": {
+  "pivot": [
+   100,
+   198
+  ]
+ },
+ "house_brick_b": {
+  "pivot": [
+   100,
+   180
+  ]
+ },
+ "house_cafe": {
+  "pivot": [
+   100,
+   177
+  ]
+ },
+ "house_corner": {
+  "pivot": [
+   200,
+   325
+  ]
+ },
+ "house_cream": {
+  "pivot": [
+   100,
+   136
+  ]
+ },
+ "house_double": {
+  "pivot": [
+   150,
+   289
+  ]
+ },
+ "house_long": {
+  "pivot": [
+   160,
+   234
+  ]
+ },
+ "house_shop_awning": {
+  "pivot": [
+   100,
+   190
+  ]
+ },
+ "house_tall": {
+  "pivot": [
+   100,
+   299
+  ]
+ },
+ "house_terracotta": {
+  "pivot": [
+   139,
+   170
+  ]
+ },
+ "kiosk": {
+  "pivot": [
+   87,
+   150
+  ]
+ },
+ "kiosk_b": {
+  "pivot": [
+   75,
+   135
+  ]
+ },
+ "lamp": {
+  "pivot": [
+   26,
+   122
+  ]
+ },
+ "office_classic": {
+  "pivot": [
+   100,
+   166
+  ]
+ },
+ "office_glass": {
+  "pivot": [
+   205,
+   415
+  ]
+ },
+ "office_loft": {
+  "pivot": [
+   150,
+   221
+  ]
+ },
+ "tree_big": {
+  "pivot": [
+   82,
+   191
+  ]
+ },
+ "tree_small": {
+  "pivot": [
+   56,
+   170
+  ]
+ }
+}

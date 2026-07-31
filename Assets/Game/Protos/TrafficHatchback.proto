@@ -1,0 +1,166 @@
+{
+    "mActor": {
+        "Type": "o2::Actor",
+        "Value": {
+            "mInheritDrawingDepthFromParent": false,
+            "mName": "traffic car",
+            "mSceneLayer": {
+                "Type": "o2::SceneLayer",
+                "Value": {
+                    "mName": "World"
+                }
+            },
+            "Id": 11141202302586127934,
+            "Transform": {
+                "pivot": {
+                    "x": 0.5,
+                    "y": 0.5,
+                    "z": 0.0
+                }
+            },
+            "Children": [
+                {
+                    "Type": "o2::Actor",
+                    "Data": {
+                        "mInheritDrawingDepthFromParent": false,
+                        "mName": "smoke",
+                        "Id": 9236422507940136968,
+                        "Transform": {
+                            "pivot": {
+                                "x": 0.5,
+                                "y": 0.5,
+                                "z": 0.0
+                            }
+                        },
+                        "Components": [
+                            {
+                                "Type": "o2::ParticlesEmitterComponent",
+                                "Data": {
+                                    "mDuration": 0.7000000476837158,
+                                    "mEndTime": 0.7000000476837158,
+                                    "mParticlesSource": {
+                                        "Type": "o2::SingleSpriteParticleSource",
+                                        "Value": {
+                                            "image": {
+                                                "id": "324e3bb25edfe0371f23bad1ce386a29",
+                                                "path": "Game/Props/smoke.png"
+                                            }
+                                        }
+                                    },
+                                    "mShape": {
+                                        "Type": "o2::CircleParticlesEmitterShape",
+                                        "Value": {}
+                                    },
+                                    "mEffects": [
+                                        {
+                                            "Type": "o2::ParticlesSizeEffect",
+                                            "Value": {
+                                                "curve": {
+                                                    "Type": "o2::Curve",
+                                                    "Value": {
+                                                        "mKeys": [
+                                                            {
+                                                                "uid": 5841934658038769434,
+                                                                "value": 1.0,
+                                                                "rightSupportValue": 0.7000000476837158,
+                                                                "rightSupportPosition": 0.5
+                                                            },
+                                                            {
+                                                                "uid": 11756822749242704036,
+                                                                "value": 2.4000000953674318,
+                                                                "position": 1.0,
+                                                                "leftSupportValue": -0.7000000476837158,
+                                                                "leftSupportPosition": -0.5
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Type": "o2::ParticlesColorEffect",
+                                            "Value": {
+                                                "colorGradient": {
+                                                    "Type": "o2::ColorGradient",
+                                                    "Value": {
+                                                        "mKeys": [
+                                                            {
+                                                                "uid": 608634110873212129,
+                                                                "color": {
+                                                                    "r": 255,
+                                                                    "g": 255,
+                                                                    "b": 255,
+                                                                    "a": 140
+                                                                }
+                                                            },
+                                                            {
+                                                                "uid": 856846739381711452,
+                                                                "color": {
+                                                                    "r": 255,
+                                                                    "g": 255,
+                                                                    "b": 255,
+                                                                    "a": 0
+                                                                },
+                                                                "position": 1.0
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ],
+                                    "mParticlesNumLimit": 32,
+                                    "mIsParticlesRelative": false,
+                                    "mParticlesLifetime": 0.6000000238418579,
+                                    "mEmitParticlesPerSecond": 0.0,
+                                    "mInitialSize": 0.6000000238418579,
+                                    "mInitialSizeRange": 0.10000000149011612,
+                                    "mInitialSpeed": 45.0,
+                                    "mInitialSpeedRangle": 15.0,
+                                    "mInitialMoveDirection": 90.0,
+                                    "mInitialMoveDirectionRange": 25.0,
+                                    "mId": 12538158313523018152,
+                                    "mPivot": {
+                                        "x": 0.5,
+                                        "y": 0.5,
+                                        "z": 0.0
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            ],
+            "Components": [
+                {
+                    "Type": "td::CarDrawableComponent",
+                    "Data": {
+                        "mKind": "Hatchback",
+                        "mId": 717511249293111435
+                    }
+                },
+                {
+                    "Type": "o2::ScriptableComponent",
+                    "Data": {
+                        "mId": 9408260125643813770,
+                        "mScript": {
+                            "id": "3b77d95c29e22f638d0ccde9a70e4211",
+                            "path": "Scripts/TrafficAI.js"
+                        },
+                        "mInstance": {
+                            "decisionMin": 1.5,
+                            "decisionMax": 4.0,
+                            "turnChance": 0.4000000059604645
+                        }
+                    }
+                },
+                {
+                    "Type": "td::TrafficCarComponent",
+                    "Data": {
+                        "mId": 3776274285960550425
+                    }
+                }
+            ]
+        }
+    }
+}

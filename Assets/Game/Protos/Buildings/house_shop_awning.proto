@@ -1,0 +1,40 @@
+{
+    "mActor": {
+        "Type": "o2::Actor",
+        "Value": {
+            "mInheritDrawingDepthFromParent": false,
+            "mName": "Game/Buildings/house_shop_awning.png",
+            "mSceneLayer": {
+                "Type": "o2::SceneLayer",
+                "Value": {
+                    "mName": "World"
+                }
+            },
+            "Id": 16611740458071271022,
+            "Transform": {
+                "size": {
+                    "x": 343.0,
+                    "y": 251.0,
+                    "z": 0.0
+                },
+                "pivot": {
+                    "x": 0.29154518246650698,
+                    "y": 0.24302786588668824,
+                    "z": 0.0
+                }
+            },
+            "Components": [
+                {
+                    "Type": "o2::ImageComponent",
+                    "Data": {
+                        "mImageAsset": {
+                            "id": "71d364661afe09086b3d334e4ec284d3",
+                            "path": "Game/Buildings/house_shop_awning.png"
+                        },
+                        "mId": 2833257136907527738
+                    }
+                }
+            ]
+        }
+    }
+}

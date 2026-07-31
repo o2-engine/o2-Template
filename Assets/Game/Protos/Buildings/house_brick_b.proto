@@ -1,0 +1,40 @@
+{
+    "mActor": {
+        "Type": "o2::Actor",
+        "Value": {
+            "mInheritDrawingDepthFromParent": false,
+            "mName": "Game/Buildings/house_brick_b.png",
+            "mSceneLayer": {
+                "Type": "o2::SceneLayer",
+                "Value": {
+                    "mName": "World"
+                }
+            },
+            "Id": 6169034364578900364,
+            "Transform": {
+                "size": {
+                    "x": 311.0,
+                    "y": 230.0,
+                    "z": 0.0
+                },
+                "pivot": {
+                    "x": 0.3215433955192566,
+                    "y": 0.21739131212234498,
+                    "z": 0.0
+                }
+            },
+            "Components": [
+                {
+                    "Type": "o2::ImageComponent",
+                    "Data": {
+                        "mImageAsset": {
+                            "id": "bcd75d468ac8ce5e9b1f7b0d156c4da7",
+                            "path": "Game/Buildings/house_brick_b.png"
+                        },
+                        "mId": 2398387449107724683
+                    }
+                }
+            ]
+        }
+    }
+}

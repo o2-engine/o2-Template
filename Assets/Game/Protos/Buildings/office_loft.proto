@@ -1,0 +1,40 @@
+{
+    "mActor": {
+        "Type": "o2::Actor",
+        "Value": {
+            "mInheritDrawingDepthFromParent": false,
+            "mName": "Game/Buildings/office_loft.png",
+            "mSceneLayer": {
+                "Type": "o2::SceneLayer",
+                "Value": {
+                    "mName": "World"
+                }
+            },
+            "Id": 16020906174399979507,
+            "Transform": {
+                "size": {
+                    "x": 463.0,
+                    "y": 296.0,
+                    "z": 0.0
+                },
+                "pivot": {
+                    "x": 0.323974072933197,
+                    "y": 0.25337839126586916,
+                    "z": 0.0
+                }
+            },
+            "Components": [
+                {
+                    "Type": "o2::ImageComponent",
+                    "Data": {
+                        "mImageAsset": {
+                            "id": "35a914a896990063d2a82401d1a25025",
+                            "path": "Game/Buildings/office_loft.png"
+                        },
+                        "mId": 330989526439108646
+                    }
+                }
+            ]
+        }
+    }
+}

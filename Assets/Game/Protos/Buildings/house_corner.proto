@@ -1,0 +1,40 @@
+{
+    "mActor": {
+        "Type": "o2::Actor",
+        "Value": {
+            "mInheritDrawingDepthFromParent": false,
+            "mName": "Game/Buildings/house_corner.png",
+            "mSceneLayer": {
+                "Type": "o2::SceneLayer",
+                "Value": {
+                    "mName": "World"
+                }
+            },
+            "Id": 1681551514850379387,
+            "Transform": {
+                "size": {
+                    "x": 603.0,
+                    "y": 425.0,
+                    "z": 0.0
+                },
+                "pivot": {
+                    "x": 0.3316749632358551,
+                    "y": 0.23529410362243653,
+                    "z": 0.0
+                }
+            },
+            "Components": [
+                {
+                    "Type": "o2::ImageComponent",
+                    "Data": {
+                        "mImageAsset": {
+                            "id": "305ef2fe6aed77a2c02100f0d135c713",
+                            "path": "Game/Buildings/house_corner.png"
+                        },
+                        "mId": 7784087124800856637
+                    }
+                }
+            ]
+        }
+    }
+}

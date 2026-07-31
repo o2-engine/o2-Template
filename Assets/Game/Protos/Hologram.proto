@@ -1,0 +1,60 @@
+{
+    "mActor": {
+        "Type": "o2::Actor",
+        "Value": {
+            "mInheritDrawingDepthFromParent": false,
+            "mName": "Game/Props/chip.png",
+            "mSceneLayer": {
+                "Type": "o2::SceneLayer",
+                "Value": {
+                    "mName": "World"
+                }
+            },
+            "Id": 3799277845861779786,
+            "Transform": {
+                "size": {
+                    "x": 91.0,
+                    "y": 96.0,
+                    "z": 0.0
+                },
+                "scale": {
+                    "x": 0.8999999761581421,
+                    "y": 0.8999999761581421,
+                    "z": 1.0
+                },
+                "pivot": {
+                    "x": 0.49450549483299258,
+                    "y": 0.5,
+                    "z": 0.0
+                }
+            },
+            "Components": [
+                {
+                    "Type": "o2::ImageComponent",
+                    "Data": {
+                        "mImageAsset": {
+                            "id": "b03fca0fce86347059accf57e2a040b7",
+                            "path": "Game/Props/chip.png"
+                        },
+                        "mId": 1525019530067744321
+                    }
+                },
+                {
+                    "Type": "o2::ScriptableComponent",
+                    "Data": {
+                        "mId": 11767383554282783569,
+                        "mScript": {
+                            "id": "6d851aebd65a5c3de873dee6c39fdc89",
+                            "path": "Scripts/HologramPulse.js"
+                        },
+                        "mInstance": {
+                            "baseScale": 0.8999999761581421,
+                            "amplitude": 0.07999999821186066,
+                            "speed": 2.0
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,40 @@
+{
+    "mActor": {
+        "Type": "o2::Actor",
+        "Value": {
+            "mInheritDrawingDepthFromParent": false,
+            "mName": "Game/Buildings/office_glass.png",
+            "mSceneLayer": {
+                "Type": "o2::SceneLayer",
+                "Value": {
+                    "mName": "World"
+                }
+            },
+            "Id": 2657628993242513846,
+            "Transform": {
+                "size": {
+                    "x": 707.0,
+                    "y": 527.0,
+                    "z": 0.0
+                },
+                "pivot": {
+                    "x": 0.28995755314826968,
+                    "y": 0.2125236988067627,
+                    "z": 0.0
+                }
+            },
+            "Components": [
+                {
+                    "Type": "o2::ImageComponent",
+                    "Data": {
+                        "mImageAsset": {
+                            "id": "e70acd9804d77b1a799ad400a95e9e5f",
+                            "path": "Game/Buildings/office_glass.png"
+                        },
+                        "mId": 81192294728887067
+                    }
+                }
+            ]
+        }
+    }
+}

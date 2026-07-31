@@ -1,0 +1,162 @@
+{
+    "Layers": [
+        {
+            "mName": "Default"
+        },
+        {
+            "mName": "World"
+        },
+        {
+            "mName": "UI"
+        }
+    ],
+    "DefaultLayer": "Default",
+    "Tags": null,
+    "Actors": [
+        {
+            "Type": "o2::CameraActor",
+            "Value": {
+                "mName": "world camera",
+                "drawLayers": {
+                    "mAllLayers": false,
+                    "mLayers": [
+                        "World"
+                    ]
+                },
+                "fillColor": {
+                    "r": 166,
+                    "g": 190,
+                    "b": 205,
+                    "a": 255
+                },
+                "mType": "FittedSize",
+                "mFixedOrFittedSize": {
+                    "x": 1760.0,
+                    "y": 1100.0
+                },
+                "mUnits": "Pixels",
+                "mPipeline": {
+                    "Type": "o2::RenderPipeline",
+                    "Value": {
+                        "mPasses": [
+                            {
+                                "Type": "td::TiltShiftPass",
+                                "Value": {}
+                            }
+                        ]
+                    }
+                },
+                "Id": 887800168244611598,
+                "Transform": {
+                    "pivot": {
+                        "x": 0.5,
+                        "y": 0.5,
+                        "z": 0.0
+                    }
+                },
+                "Components": [
+                    {
+                        "Type": "o2::ScriptableComponent",
+                        "Data": {
+                            "mId": 9501471514497033190,
+                            "mScript": {
+                                "id": "13e206de3e107fcc2ccd8d14cfb555a5",
+                                "path": "Scripts/CameraFollow.js"
+                            },
+                            "mInstance": {
+                                "speed": 4.0
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "Type": "o2::CameraActor",
+            "Value": {
+                "mName": "ui camera",
+                "drawLayers": {
+                    "mAllLayers": false,
+                    "mLayers": [
+                        "UI"
+                    ]
+                },
+                "fillBackground": false,
+                "mType": "FittedSize",
+                "mFixedOrFittedSize": {
+                    "x": 1280.0,
+                    "y": 800.0
+                },
+                "mUnits": "Pixels",
+                "Id": 2256152703355532165,
+                "Transform": {
+                    "pivot": {
+                        "x": 0.5,
+                        "y": 0.5,
+                        "z": 0.0
+                    }
+                }
+            }
+        },
+        {
+            "Type": "o2::Actor",
+            "Value": {
+                "mName": "token delivery",
+                "Id": 14298713760119441852,
+                "Transform": {
+                    "pivot": {
+                        "x": 0.5,
+                        "y": 0.5,
+                        "z": 0.0
+                    }
+                },
+                "Components": [
+                    {
+                        "Type": "td::GameHUDComponent",
+                        "Data": {
+                            "mId": 9005901377760940181
+                        }
+                    },
+                    {
+                        "Type": "td::GameTutorialComponent",
+                        "Data": {
+                            "mId": 13608104757902375676
+                        }
+                    },
+                    {
+                        "Type": "td::GameControllerComponent",
+                        "Data": {
+                            "mWorldCamera": {
+                                "ID": 887800168244611598
+                            },
+                            "mUICamera": {
+                                "ID": 2256152703355532165
+                            },
+                            "mHUD": {
+                                "ActorID": 14298713760119441852,
+                                "ComponentId": 9005901377760940181
+                            },
+                            "mTutorial": {
+                                "ActorID": 14298713760119441852,
+                                "ComponentId": 13608104757902375676
+                            },
+                            "mPlayerCarProto": {
+                                "id": "ff43142203a4959f57e5110c26199628",
+                                "path": "Game/Protos/PlayerCar.proto"
+                            },
+                            "mTrafficVanProto": {
+                                "id": "3bc555a2d87714c212fb7f5a90b03628",
+                                "path": "Game/Protos/TrafficVan.proto"
+                            },
+                            "mTrafficHatchbackProto": {
+                                "id": "029cad2bc66f577580cdcd06780823b9",
+                                "path": "Game/Protos/TrafficHatchback.proto"
+                            },
+                            "mId": 7062200286989471972
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+}

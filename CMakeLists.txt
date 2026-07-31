@@ -263,6 +263,23 @@ if(MSVC)
   set_property(TARGET Game PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:Game>")
 endif()
 
+# Assets generator tool: writes the game prototypes and the bootstrap scene into Assets/
+# by code (see Sources/Game/TokenDelivery/GameAssetsGen.cpp). Desktop hosts only.
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS" AND NOT ANDROID AND NOT EMSCRIPTEN)
+    add_executable(GameAssetsGen "Sources/AssetsGen/AssetsGenMain.cpp")
+    if(APPLE)
+        target_metal_shader_libraries(GameAssetsGen PetStoryShaders)
+    endif()
+    target_link_libraries(GameAssetsGen PUBLIC GameLib)
+    add_dependencies(GameAssetsGen GameLib BuildAssets)
+    set_target_output_directories(GameAssetsGen)
+    set_target_properties(GameAssetsGen PROPERTIES FOLDER Game)
+    if(MSVC)
+        target_compile_options(GameAssetsGen PRIVATE ${O2_MSVC_MP_FLAG} "/Zc:__cplusplus")
+        set_property(TARGET GameAssetsGen PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:GameAssetsGen>")
+    endif()
+endif()
+
 # Editor App
 if(O2_EDITOR)
     # Editor library

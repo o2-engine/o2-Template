@@ -1,0 +1,40 @@
+{
+    "mActor": {
+        "Type": "o2::Actor",
+        "Value": {
+            "mInheritDrawingDepthFromParent": false,
+            "mName": "Game/Buildings/house_long.png",
+            "mSceneLayer": {
+                "Type": "o2::SceneLayer",
+                "Value": {
+                    "mName": "World"
+                }
+            },
+            "Id": 16892193964620818812,
+            "Transform": {
+                "size": {
+                    "x": 425.0,
+                    "y": 313.0,
+                    "z": 0.0
+                },
+                "pivot": {
+                    "x": 0.3764705955982208,
+                    "y": 0.2523961663246155,
+                    "z": 0.0
+                }
+            },
+            "Components": [
+                {
+                    "Type": "o2::ImageComponent",
+                    "Data": {
+                        "mImageAsset": {
+                            "id": "28d2ff1e4a420ded3f686b0d38e5ebd2",
+                            "path": "Game/Buildings/house_long.png"
+                        },
+                        "mId": 17933158707712925206
+                    }
+                }
+            ]
+        }
+    }
+}
