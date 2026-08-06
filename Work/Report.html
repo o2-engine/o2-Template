@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Dragon Defense: Merge &amp; Blast — отчёт о разработке прототипа</title>
+<style>
+  :root { --ink:#2a2532; --paper:#f5f1e8; --accent:#a33b2e; --gold:#b8860b; --card:#fffdf7; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font:16px/1.6 "Georgia", serif; color:var(--ink); background:var(--paper); }
+  .wrap { max-width:980px; margin:0 auto; padding:32px 24px 80px; }
+  h1 { font-size:34px; color:var(--accent); margin:8px 0 4px; }
+  .sub { color:#6b6357; font-style:italic; margin-bottom:28px; }
+  h2 { font-size:24px; margin:40px 0 12px; color:var(--accent); border-bottom:2px solid #d8cfc0; padding-bottom:6px; }
+  h3 { font-size:18px; margin:20px 0 8px; }
+  p, li { margin-bottom:8px; }
+  ul { padding-left:24px; }
+  .card { background:var(--card); border:1px solid #e0d8c8; border-radius:10px; padding:18px 22px; margin:14px 0; box-shadow:0 2px 6px rgba(0,0,0,.06); }
+  img { max-width:100%; border-radius:8px; border:1px solid #d8cfc0; display:block; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .grid6 { display:grid; grid-template-columns:repeat(6,1fr); gap:10px; }
+  figcaption { font-size:13px; color:#6b6357; margin-top:4px; text-align:center; }
+  code { font:14px "SF Mono", Menlo, monospace; background:#efe9dc; padding:1px 5px; border-radius:4px; }
+  .ok { color:#2e7d32; font-weight:bold; }
+  .issue { border-left:4px solid var(--accent); padding-left:14px; margin:10px 0; }
+  table { border-collapse:collapse; width:100%; margin:10px 0; font-size:15px; }
+  th, td { border:1px solid #d8cfc0; padding:6px 10px; text-align:left; }
+  th { background:#ece5d6; }
+  @media (max-width:700px) { .grid2,.grid3 { grid-template-columns:1fr; } .grid6 { grid-template-columns:repeat(3,1fr); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>🐉 Dragon Defense: Merge &amp; Blast</h1>
+<p class="sub">Отчёт о разработке прототипа на движке o2 — от концепта до играбельной сборки с тестами. 06.08.2026</p>
+
+<h2>1. Задача и материалы</h2>
+<div class="card">
+<p>По переданному концепт-арту и описанию механик собран прототип тактической merge-головоломки:
+защита замка от волн драконов. Поле 7×10 (3 верхних ряда — «Небо» драконов, 7 нижних — оборона),
+пошаговый цикл со слияниями юнитов, обратной гравитацией, камнями, огнём и бустерами, плюс
+мета-экран Замка (казармы, кузница, экономика).</p>
+<div class="grid2">
+  <figure><img src="Concepts/concept_original.png" alt="Концепт"><figcaption>Исходный концепт</figcaption></figure>
+  <figure><img src="ScreenShots/00_mock_battle.png" alt="Мок"><figcaption>Проверочная композиция из сгенерированных спрайтов (Python)</figcaption></figure>
+</div>
+</div>
+
+<h2>2. Арт (imagegen, Gemini Nano Banana 2)</h2>
+<div class="card">
+<p>Сгенерировано 24 изображения в стиле концепта (референс через <code>ref_paths</code>): фон боя получен
+<code>edit_image</code>-ом из самого концепта (удалены юниты и UI — идеальное совпадение композиции), фон замка,
+12 спрайтов юнитов (4 класса × 3 уровня с видимой прогрессией экипировки), 5 драконов, камень, огонь,
+иконки бустеров и валют, панель, кнопка, здания казарм и кузницы.</p>
+<div class="grid6">
+  <figure><img src="Art/prepared/unit_tank_3.png"><figcaption>Танк L3</figcaption></figure>
+  <figure><img src="Art/prepared/unit_archer_3.png"><figcaption>Лучник L3</figcaption></figure>
+  <figure><img src="Art/prepared/unit_mage_3.png"><figcaption>Маг L3</figcaption></figure>
+  <figure><img src="Art/prepared/unit_support_3.png"><figcaption>Лекарь L3</figcaption></figure>
+  <figure><img src="Art/prepared/dragon_boss.png"><figcaption>Босс 2×2</figcaption></figure>
+  <figure><img src="Art/prepared/dragon_fire.png"><figcaption>Поджигатель</figcaption></figure>
+</div>
+<p>Обработка: трим альфы и даунскейл под игровые размеры, процедурные элементы (рамка клетки, полосы,
+пунктир линии фронта) — PIL-скриптом. Дефект прозрачности у камня (непрозрачный белый фон после
+двойного рендера) вычищен флуд-филлом от краёв. Мок-композиция экрана из готовых спрайтов сверена
+с концептом до начала кода.</p>
+</div>
+
+<h2>3. Архитектура</h2>
+<div class="card">
+<p>Три слоя со строгим разделением (<code>Work/Architecture.md</code>):</p>
+<table>
+<tr><th>Слой</th><th>Файлы</th><th>Ответственность</th></tr>
+<tr><td>C++ сборка сцены</td><td><code>DragonDefenseBootstrap</code>, <code>DragonLayout.h</code></td>
+<td>Кодом строит оба экрана: слои сцены, FittedSize-камера 1280×800, фоны, 70 клеток, HUD на
+виджетах (Button/Image/Label), запускает JS. Сцена-бутстрап сохраняется в
+<code>DragonDefense.scn</code> тоже кодом.</td></tr>
+<tr><td>C++ мост ввода</td><td><code>DragonInputComponent</code></td>
+<td>@SCRIPTABLE-методы: клик, правый клик, курсор в мировых координатах.</td></tr>
+<tr><td>JS модель</td><td><code>DragonModel.js</code></td>
+<td>Чистая логика без единого вызова движка: merge с каскадом и капом казарм, гравитация+спавн,
+атаки классов, драконы, огонь, камни, бустеры, волны, экономика. Свой LCG — детерминизм в тестах.
+Тестируется headless.</td></tr>
+<tr><td>JS вью/контроллер</td><td><code>DragonGame.js</code></td>
+<td>onClick-обработчики кнопок, вью-акторы по id модели с твинами позиций, мини-HP-бары,
+эффекты, тексты HUD. Клетки поля — через мировые координаты клика.</td></tr>
+</table>
+</div>
+
+<h2>4. Результат</h2>
+<div class="card">
+<div class="grid2">
+  <figure><img src="ScreenShots/10_castle_screen.png"><figcaption>Экран Замка: валюты, апгрейды казарм/кузницы, «В БОЙ!»</figcaption></figure>
+  <figure><img src="ScreenShots/11_battle_start.png"><figcaption>Старт боя: волна 1, камни, рекруты 4 классов</figcaption></figure>
+  <figure><img src="ScreenShots/12_battle_merge.png"><figcaption>После слияний: юниты всплыли к линии фронта, драконы под обстрелом</figcaption></figure>
+  <figure><img src="ScreenShots/13_battle_progress.png"><figcaption>Волна 2: стена юнитов, прогресс-бары HUD</figcaption></figure>
+</div>
+</div>
+
+<h2>5. Сложности и решения</h2>
+<div class="card">
+<div class="issue"><b>Из JS нет доступа к вводу, сцене и ассетам.</b> Каталогизировал @SCRIPTABLE-поверхность
+движка (агентом по заголовкам), после чего: ввод — маленький C++ компонент-мост; поиск объектов —
+<code>GetChild("../...")</code> от общего корня; кнопки — поле <code>onClick</code> у <code>Button</code>.</div>
+<div class="issue"><b>Тела методов JS-классов исполняются в strict mode.</b> Присваивание
+необъявленного глобала (<code>DRAGON_GAME = this</code>) молча валило OnStart — исправлено на
+<code>globalThis.*</code>; найдено по логам ReferenceError.</div>
+<div class="issue"><b>Младшие биты LCG циклятся.</b> <code>seed % 4</code> выдавал одних танков —
+на скриншоте всё поле было синим. Взяты старшие биты сида.</div>
+<div class="issue"><b>Равные drawDepth внутри слоя сортируются непредсказуемо.</b> Часть лейблов и
+полос HUD рисовалась под панелями (диагностировано дамп-тестом состояния виджетов). Виджетам заданы
+явные глубины; мини-барам юнитов — отдельные слои сцены (у <code>ImageComponent</code> нет
+<code>SetDrawingDepth</code> в JS).</div>
+<div class="issue"><b>Замечание владельца в процессе:</b> «UI — виджетами, а не спрайтами с
+хит-ректами». HUD переделан на <code>Button</code> (слои back/icon/caption) + <code>Image</code> +
+<code>Label</code>; правило зафиксировано в CLAUDE.md.</div>
+</div>
+
+<h2>6. Визуальный проход</h2>
+<div class="card">
+<p>По фидбеку владельца интерфейс и поле доведены отдельным проходом:</p>
+<ul>
+<li><b>Шрифт</b> Philosopher-Bold (Google Fonts, OFL, кириллица) во всех текстах; крупные сообщения с тенью.</li>
+<li><b>9-slice</b> для панелей, кнопок и прогресс-баров (тонкие золотые рамки, прогресс — шириной fill-виджета, скругления сохраняются).</li>
+<li><b>Сетка поля</b>: подложки клеток убраны; пол перегенерирован гладким и игровая сетка 7×10
+запечена в фон теми же формулами, что использует код (юниты попадают в клетки по построению).</li>
+<li><b>Подсветки</b>: пульсирующие глоу возможных слияний; hover-прицел бустеров (красный 3×3 у бомбы, зелёный/жёлтый у рокировки).</li>
+<li><b>Эффекты</b>: снаряды-кометы с поворотом, искры, флеши урона, вспышки смертей/взрывов; мини-HP-бары только у раненых.</li>
+<li><b>Анимация мержа</b>: поглощаемый юнит летит в целевую клетку, вспышка, искры и scale-пульс результата.</li>
+</ul>
+<div class="grid2">
+  <figure><img src="ScreenShots/11_battle_start.png"><figcaption>Бой после визуального прохода: сетка в полу, тонкие рамки, подсветки ходов</figcaption></figure>
+  <figure><img src="ScreenShots/14_bomb_aim.png"><figcaption>Hover-прицел бомбы 3×3 и подсказка режима</figcaption></figure>
+</div>
+</div>
+
+<h2>7. Экран «Баланс игры»</h2>
+<div class="card">
+<p>Отдельный экран настройки баланса (кнопка «БАЛАНС» в замке): 13 параметров с кнопками −/+
+(HP замка, число волн, камни, стартовые ряды, покупка юнита, заряды и сила бустеров, урон огня)
+и тумблеры включения типов — 4 класса юнитов и 5 типов драконов. Настройки живут в модели
+(<code>tuning</code>, <code>enabledUnits</code>, <code>enabledDragons</code>) и применяются к следующему бою:
+выключенные классы не спавнятся и не покупаются, выключенные драконы подменяются в волнах первым включённым.</p>
+<figure><img src="ScreenShots/15_settings.png"><figcaption>Экран баланса: параметры, тумблеры юнитов и драконов</figcaption></figure>
+</div>
+
+<h2>8. Тесты</h2>
+<div class="card">
+<ul>
+<li><b>GameTests (headless), сьют DragonModel — 27 тестов:</b> слияния (пара/каскад/кап казарм/урон камням),
+гравитация и спавн, блокировка танком, лучник через колонку, броня, дальнобойный, поджигатель, огонь,
+босс 2×2, прорыв к замку, бомба/заморозка/рокировка, лекарь, сплэш мага, покупка юнита, победа/поражение,
+апгрейды, старт боя и <i>полная симуляция боя до финала</i>. Плюс DragonScene — генерация и перезагрузка
+bootstrap-сцены.</li>
+<li><b>GameUITests (реальный рендер) — 5 тестов:</b> построение экранов, старт боя кликом по кнопке,
+слияние кликом по клетке, бомба через кнопку бустера + прицел, серия ходов; скриншоты каждого этапа.</li>
+<li class="ok">Итог: 327/327 тестов зелёные (полный прогон всех сьютов движка и игры), приложение Game собирается и запускает прототип.</li>
+</ul>
+</div>
+
+<h2>9. Файлы</h2>
+<div class="card">
+<ul>
+<li><code>Work/GDD.md</code> — гейм-дизайн документ; <code>Work/Architecture.md</code> — архитектура; <code>Work/worklog.md</code> — подробный лог.</li>
+<li><code>Sources/Game/DragonDefense/</code> — C++ (бутстрап, ввод, лэйаут).</li>
+<li><code>Assets/Scripts/DragonDefense/</code> — DragonModel.js, DragonGame.js.</li>
+<li><code>Assets/DragonDefense/</code> — спрайты и сцена; <code>Work/Art/</code> — исходники арта.</li>
+<li><code>Sources/GameTests/DragonModelTests.cpp</code>, <code>DragonSceneTests.cpp</code>, <code>Sources/GameUITests/DragonDefenseUITests.cpp</code>.</li>
+</ul>
+</div>
+
+</div>
+</body>
+</html>

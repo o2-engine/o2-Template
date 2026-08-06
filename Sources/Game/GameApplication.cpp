@@ -1,7 +1,7 @@
 #include "o2/stdafx.h"
 #include "GameApplication.h"
 
-#include "Physics3DDemo.h"
+#include "DragonDefense/DragonDefenseBootstrap.h"
 #include "o2/Assets/Assets.h"
 #include "o2/Render/Render.h"
 #include "o2/Scene/Scene.h"
@@ -15,17 +15,13 @@ void GameApplication::OnStarted()
 {
 	o2Application.SetWindowSize(Vec2I(1280, 800));
 
-	// The main scene shows a deferred 3D layer with a 2D overlay on top;
-	// the same scene is opened by the editor
-	o2Scene.Load(o2Assets.GetBuiltAssetsPath() + String("Main.scn"));
-
-	// Example of the 3D physics API (Box3D): drops a few bodies onto the ground plane
-	demo::SpawnPhysics3DDemo();
+	// Dragon Defense builds its scene in code from the bootstrap component
+	DragonDefenseBootstrap::CreateBootstrapActor();
 }
 
 void GameApplication::OnUpdate(float dt)
 {
-	o2Application.windowCaption = String("o2 Template") +
+	o2Application.windowCaption = String("Dragon Defense: Merge & Blast") +
 		"; FPS: " + (String)((int)o2Time.GetFPS());
 }
 
