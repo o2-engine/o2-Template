@@ -62,6 +62,13 @@ Prompts should be in English. Outputs are PNG; results return a preview. CLI equ
 details: `o2/Tools/ImageGen/README.md`. API key: `o2/Tools/ImageGen/api_key.txt` (gitignored)
 or `GEMINI_API_KEY`.
 
+## Game UI
+
+Интерфейсы игр строить на виджетах движка (`Widget` и наследники: `Button` с onClick и слоями
+caption/icon, `Label`, `Image` и т.д.), а не на спрайтах с ручными хит-ректами и текстом. Спрайты —
+для игровых объектов и декора сцены. Внутри одного слоя сцены порядок отрисовки задавать явно
+(drawDepth у виджетов, отдельные слои для остального) — равные глубины сортируются непредсказуемо.
+
 ## Comments
 
 Default: no comment. No multi-line rationale/history/ABI essays above code — that goes in the PR. A
