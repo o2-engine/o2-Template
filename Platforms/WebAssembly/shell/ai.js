@@ -1,4 +1,10 @@
-// AI agent: Gemini chat driving the project files and the editor UI.
+// AI agent: Claude Code runs on the server, scoped to this session's project;
+// this file is its face in the page and its hands in the editor.
+//
+// The server streams the conversation over SSE (/api/agent/stream). File work
+// happens there with Claude's own tools; anything that needs the running
+// editor (screenshot, scene tree, run_script, play mode, asset rebuild...)
+// arrives as a tool_request event, is executed here and posted back.
 
 // ---- AI agent ------------------------------------------------------
 (function () {
@@ -16,6 +22,21 @@
     var reviewEl = document.getElementById('ai-review');
     var canvas = document.getElementById('canvas');
 
+    keyEl.placeholder = 'Anthropic API key (sk-ant-…)';
+    keyEl.title = 'Your own Anthropic API key. It is sent to this server with each request and handed to the Claude Code process; usage is billed to your account.';
+
+    // reasoning effort sits next to the model; built here so the markup
+    // (linked into the wasm shell) stays untouched
+    var effortEl = document.createElement('select');
+    effortEl.id = 'ai-effort';
+    effortEl.title = 'Reasoning effort';
+    ['low', 'medium', 'high', 'xhigh', 'max'].forEach(function (e) {
+        var o = document.createElement('option');
+        o.value = e; o.textContent = e;
+        effortEl.appendChild(o);
+    });
+    modelEl.parentNode.insertBefore(effortEl, modelEl.nextSibling.nextSibling);
+
     // "steps" expands/collapses every debug step, new ones follow it
     debugEl.onchange = function () {
         chatEl.querySelectorAll('.ai-step').forEach(function (s) {
@@ -29,17 +50,14 @@
         window.__o2RevealAsset(el.dataset.path);
     });
 
-    var DEFAULT_MODEL = 'gemini-3.7-flash';
-    // shown until the real list is fetched with the key
-    var FALLBACK_MODELS = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash',
-                           'gemini-3.1-pro-preview', 'gemini-3.5-flash-lite',
-                           'gemini-pro-latest', 'gemini-flash-latest', 'gemini-2.5-pro'];
+    var DEFAULT_MODEL = 'claude-opus-5';
+    var FALLBACK_MODELS = ['claude-opus-5', 'claude-sonnet-5', 'claude-opus-4-8', 'claude-opus-4-7', 'claude-haiku-4-5'];
 
     // settings live in cookies so they survive across tabs and sessions
     // (localStorage is kept as a fallback for values saved earlier)
     function setSetting(name, value) {
         document.cookie = name + '=' + encodeURIComponent(value) +
-            ';path=/;max-age=' + (365 * 24 * 3600) + ';SameSite=Lax';
+            ';path=' + (window.o2Base || '/') + ';max-age=' + (365 * 24 * 3600) + ';SameSite=Lax';
         try { localStorage.setItem(name, value); } catch (e) {}
     }
     function getSetting(name) {
@@ -48,64 +66,43 @@
         try { return localStorage.getItem(name) || ''; } catch (e) { return ''; }
     }
 
-    keyEl.value = getSetting('o2ai_key');
-    modelEl.value = getSetting('o2ai_model') || DEFAULT_MODEL;
+    // the Gemini-era key would be sent as an Anthropic key otherwise
+    var savedKey = getSetting('o2ai_claude_key');
+    keyEl.value = savedKey;
+    var savedModel = getSetting('o2ai_claude_model');
+    modelEl.value = savedModel || DEFAULT_MODEL;
+    effortEl.value = getSetting('o2ai_effort') || 'high';
     keyEl.onchange = function () {
-        setSetting('o2ai_key', keyEl.value.trim());
+        setSetting('o2ai_claude_key', keyEl.value.trim());
         loadModels();
     };
-    modelEl.onchange = function () { setSetting('o2ai_model', modelEl.value.trim()); };
+    modelEl.onchange = function () { setSetting('o2ai_claude_model', modelEl.value.trim()); };
+    effortEl.onchange = function () { setSetting('o2ai_effort', effortEl.value); };
 
     // ---------- model list ----------
-    // non-chat models the agent can't drive a conversation with
-    var MODEL_SKIP = /image|nano-banana|tts|lyria|embedding|aqa|gemma|robotics|deep-research|computer-use|antigravity|veo|imagen/i;
+    var modelsLoaded = false;
     function fillModels(names) {
-        var dl = document.getElementById('ai-models');
-        dl.innerHTML = '';
+        var list = document.getElementById('ai-models');
+        list.innerHTML = '';
         names.forEach(function (n) {
             var o = document.createElement('option');
             o.value = n;
-            dl.appendChild(o);
+            list.appendChild(o);
         });
     }
-    function modelRank(n) {
-        var v = parseFloat((n.match(/gemini-(\d+(\.\d+)?)/) || [0, 0])[1]) || 0;
-        if (/-latest$/.test(n)) v = 90;                      // aliases stay near the top
-        var tier = /pro/.test(n) ? 2 : /lite/.test(n) ? 0 : 1;
-        return v * 10 + tier - (/preview/.test(n) ? 0.5 : 0);
-    }
-    var modelsLoaded = false;
     function loadModels() {
         var key = keyEl.value.trim();
-        if (!key) { fillModels(FALLBACK_MODELS); return Promise.resolve(); }
-        return fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=' +
-                     encodeURIComponent(key))
+        return fetch(o2Base + '/api/agent/models', { headers: key ? { 'X-Anthropic-Key': key } : {} })
             .then(function (r) { return r.json(); })
-            .then(function (d) {
-                if (!d.models) throw new Error((d.error && d.error.message) || 'no models');
-                var names = d.models
-                    .filter(function (m) { return (m.supportedGenerationMethods || []).indexOf('generateContent') >= 0; })
-                    .map(function (m) { return m.name.replace('models/', ''); })
-                    .filter(function (n) { return !MODEL_SKIP.test(n); })
-                    .sort(function (a, b) { return modelRank(b) - modelRank(a) || a.localeCompare(b); });
-                if (!names.length) throw new Error('no chat models available');
-                fillModels(names);
-                modelsLoaded = true;
-                if (names.indexOf(modelEl.value.trim()) < 0) {
-                    modelEl.value = names[0];
-                    setSetting('o2ai_model', names[0]);
-                }
+            .then(function (j) {
+                fillModels(j.models || FALLBACK_MODELS);
+                modelsLoaded = j.source === 'api';
             })
-            .catch(function (e) {
-                fillModels(FALLBACK_MODELS);
-                console.warn('[ai] model list failed:', e.message);
-            });
+            .catch(function () { fillModels(FALLBACK_MODELS); });
     }
     fillModels(FALLBACK_MODELS);
 
-    var history = [];          // Gemini `contents`
-    var running = false, aborted = false, aborter = null;
-    var MAX_STEPS = 1200;
+    var running = false, aborted = false;
 
     function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
     function scrollDown() { chatEl.scrollTop = chatEl.scrollHeight; }
@@ -121,8 +118,15 @@
         s = s.trim();
         return !/\s{2,}|^https?:|^\//.test(s) && ASSET_EXT.test(s);
     }
+    // the server-side paths Claude prints are session-absolute; the browser
+    // knows them relative to Assets
+    function assetRel(p) {
+        var m = String(p).match(/(?:^|\/)Assets\/(.+)$/);
+        return m ? m[1] : p;
+    }
     function fileLink(path) {
-        return '<span class="ai-file" data-path="' + esc(path.trim()) + '">' + esc(path.trim()) + '</span>';
+        var rel = assetRel(path.trim());
+        return '<span class="ai-file" data-path="' + esc(rel) + '">' + esc(path.trim()) + '</span>';
     }
     // inline markdown: code spans, links, bold, italic; asset paths become
     // clickable links into the assets browser
@@ -139,7 +143,7 @@
                 var label = m[3], href = m[4];
                 out += /^https?:/.test(href)
                     ? '<a href="' + esc(href) + '" target="_blank" rel="noopener">' + esc(label) + '</a>'
-                    : '<span class="ai-file" data-path="' + esc(href) + '">' + esc(label) + '</span>';
+                    : '<span class="ai-file" data-path="' + esc(assetRel(href)) + '">' + esc(label) + '</span>';
             } else if (m[5]) out += '<b>' + esc(tok.slice(2, -2)) + '</b>';
             else if (m[6]) out += '<i>' + esc(tok.slice(1, -1)) + '</i>';
             else out += '<b>' + esc(tok.slice(2, -2)) + '</b>';
@@ -219,6 +223,10 @@
                 if (opts.markdown) body.innerHTML += renderMarkdown(t);
                 else body.textContent += (body.textContent ? '\n' : '') + t;
             },
+            set: function (t) {
+                if (opts.markdown) body.innerHTML = renderMarkdown(t);
+                else body.textContent = t;
+            },
             setLabel: function (t) { lab.textContent = t; },
             label: function () { return lab.textContent; },
             body: body,
@@ -234,351 +242,68 @@
     }
     function setStatus(t) { statusEl.textContent = t || ''; }
 
-    // ---------- environment description for the model ----------
+    // ---------- working rules for the model ----------
+    // The server prepends the environment facts (paths, tool names); this is
+    // the part about how to work in this project.
     var SYSTEM = [
-        'You are an autonomous AI agent embedded into the web (WebAssembly) build of the o2 game editor, working on a',
-        'game project built on the o2 engine. The editor UI is rendered into a canvas; the hosting page adds an assets',
-        'browser, a changes dialog and you. You act on the project through tools and you can also drive the editor UI.',
+        'You are the AI agent embedded into the web (WebAssembly) build of the o2 game editor, working on a game project',
+        'built on the o2 engine. The editor UI is rendered into a canvas; the hosting page adds an assets browser and you.',
         '',
-        'TWO WORLDS, do not confuse them:',
-        '- The project assets (Assets/) are a private server-side copy for this browser session. Read and write them',
-        '  freely with list_files / search_files / read_file / edit_file / write_file / file_op; paths are relative to',
-        "  Assets ('' is its root). Nobody else sees this copy.",
-        '- The o2 engine checkout is shared and READ-ONLY reference material: its documentation and C++ sources, reachable',
-        '  with search_engine / read_engine_file / list_engine_dir (roots: o2/Docs, o2/Framework/Sources, o2/Editor/Sources,',
-        '  o2/AssetsBuildTool, Sources). You cannot change it and cannot compile C++ - deliver through assets, scripts and',
-        '  the editor UI.',
-        '',
-        'KNOW BEFORE YOU ACT. read_guide holds briefings distilled from that documentation. Topics: project (what the project',
-        'is, how C++ and JS split the work), assets (the JSON shape of scenes, prototypes and .meta, and the concrete ways',
-        'to corrupt them), scripting (the JavaScript model, the real lifecycle hooks, the actor API), editor (windows, modes,',
-        'hotkeys), particles (the emitter, its effects and how to configure one), workflows (recipes for the usual jobs).',
-        'Rule: if you are about to write or change a .js script, a .scn or',
-        '.proto, or to drive the editor UI, and you have not read the matching guide in this conversation, read it first.',
-        'The guides are authoritative for what they state: field names, defaults, the JSON shape, which calls are',
+        'KNOW BEFORE YOU ACT. CLAUDE.md in the working directory holds briefings distilled from the engine documentation:',
+        'project (what the project is, how C++ and JS split the work), assets (the JSON shape of scenes, prototypes and',
+        '.meta, and the concrete ways to corrupt them), scripting (the JavaScript model, the real lifecycle hooks, the actor',
+        'API), editor (windows, modes, hotkeys), particles (the emitter and how to configure one), workflows (recipes).',
+        'The briefings are authoritative for what they state: field names, defaults, the JSON shape, which calls are',
         'scriptable. Do not re-verify them against the C++ headers - that is the single biggest source of wasted steps.',
-        'Go to search_engine / read_engine_file only for what a guide does not cover, and then read one targeted place',
-        'rather than browsing.',
+        'Go to the engine sources only for what a briefing does not cover, and then read one targeted place.',
         '',
-        'FACTS THAT BREAK THINGS SILENTLY IF YOU GET THEM WRONG (the guides explain them):',
+        'FACTS THAT BREAK THINGS SILENTLY IF YOU GET THEM WRONG:',
         '- A script file must define a class whose name equals the file name, assigned to the global without let/const:',
-        '  Name = class Name extends o2.Component { ... }. The only lifecycle hooks that exist are OnStart(), OnEnabled(),',
-        '  OnDisabled() and Update(dt) - a method called OnUpdate or OnDestroy is dead code. Log with print(), not',
-        '  console.log, and never Dump() or enumerate the JS global.',
-        '- A window script reports to C++ through the property C++ injects, which is named exactly `action`:',
-        "  this.action('close'). Inventing another callback name compiles fine and is simply never called.",
-        '- Never change an asset uid, an actor Id or a PrototypeLink number, and always move a .meta together with its file:',
-        '  every reference elsewhere is by uid and breaks quietly, leaving a prototype instance as a near-empty actor.',
+        '  Name = class Name extends o2.Component { ... }. The only lifecycle hooks are OnStart(), OnEnabled(),',
+        '  OnDisabled() and Update(dt). Log with print(), not console.log, and never Dump() or enumerate the JS global.',
+        '- A window script reports to C++ through the property C++ injects, named exactly `action`: this.action(\'close\').',
+        '- Never change an asset uid, an actor Id or a PrototypeLink number, and always move a .meta together with its',
+        '  file: every reference elsewhere is by uid and breaks quietly.',
         '',
         'HOW TO WORK - in three phases, not in a hundred small moves:',
-        '1. Gather. Collect what you need in a handful of calls: read the guide that matches the job (cheaper than',
-        '   guessing an API, and far cheaper than the errors that follow), search for the files involved, read the parts',
-        '   you will actually change. Do not start editing while you are still unsure what to write.',
-        '2. Plan. State the plan in one short paragraph: which files change, what each change is, how you will verify.',
-        '   If the job needs an experiment, design one experiment that answers several questions at once.',
-        '3. Act in batches. Apply the whole set of edits, then rebuild once, then verify once. Do not rebuild, screenshot',
-        '   or re-read between every small step - a rebuild costs 10-20 seconds and every call costs a round trip.',
-        'When something fails, go back to gathering: read the guide or the engine source, then fix it in one go. Trying',
-        'variant after variant of an API you have not looked up is the most expensive thing you can do.',
-        '',
-        'run_script talks to the running engine and nothing else. It is not a text processor: never use it to assemble',
-        'JSON or strings for a file - write the content directly with write_file or edit_file. It has no Node, no require',
-        'and no filesystem, and long results come back truncated.',
+        '1. Gather: read the matching briefing, find the files involved, read the parts you will change.',
+        '2. Plan: one short paragraph - which files change, what each change is, how you will verify.',
+        '3. Act in batches: apply the whole set of edits, then rebuild_assets once, then verify once with read_log',
+        '   (and scene_tree / a screenshot only if the change is visual). A rebuild freezes the editor 10-20 s.',
+        'When something fails, go back to gathering rather than trying variants of an API you have not looked up.',
         '',
         'WORKING RULES:',
-        '- Locate things with search_files (project) or search_engine (engine) rather than reading files to look for them.',
-        '- After creating or changing a scene, open exactly that scene before entering play mode. scene_tree and view_info',
-        '  report openScene, so check it instead of assuming: hunting your object in the wrong scene wastes a whole run.',
-        '- Change an existing file with edit_file, not by rewriting it with write_file.',
-        '- Asset content is loaded from the built copy, so file changes need rebuild_assets to take effect. It freezes the',
-        '  editor for 10-20 seconds: make all your edits first, then rebuild once.',
-        '- Verify with read_log, which carries the engine\'s own output including build errors and script exceptions.',
-        '  Take a screenshot only when the thing you changed is visual.',
-        '- NEVER try to operate the editor with the cursor. Menus, the Assets window, the Tree and Properties ignore',
-        '  synthetic clicks entirely, and aiming clicks from a screenshot wastes steps and gets you nowhere.',
-        '  click/type_text/press_key exist for one purpose only: playing the running game, inside the Game window,',
-        '  while play mode is on. Everything else you do through the file tools, run_script and the editor tools',
-        '  (open_scene, save_scene, rebuild_assets, play_mode).',
-        '- To see the scene, read it: scene_tree gives names, paths, transforms, widget layouts and components, and',
-        '  view_info gives the canvas size, the Game window rectangle, the camera and the formula to convert a world',
-        '  position into a canvas pixel. Aim clicks from those numbers, never from a picture.',
-        '- run_script executes JavaScript inside the engine right away, with sceneRoots and findActor(path) available and',
-        '  the whole o2 namespace bound. Use it to inspect or change the scene, and to do editor work no tool covers -',
-        '  it needs neither a script asset on the scene nor play mode.',
-        '- To watch runtime behaviour (animation, particles, gameplay), call play_mode({on:true}), wait a moment, take a',
-        '  screenshot, then play_mode({on:false}). screenshot() returns a half-size image; click coordinates are full-size',
-        '  canvas pixels, so double what you measure on the picture.',
-        '- Context discipline: everything a tool returns is re-sent to you on every later step, so keep results small.',
-        '  Read the window of lines you need (read_file takes offset/limit), and pull a parked result back with read_output',
-        '  only as far as you need it.',
+        '- Asset content is loaded from the built copy: file changes need rebuild_assets to take effect.',
+        '- After creating or changing a scene, open exactly that scene (open_scene) before play mode; scene_tree and',
+        '  view_info report openScene - check it instead of assuming.',
+        '- NEVER try to operate the editor with the cursor: menus, Assets, Tree and Properties ignore synthetic input.',
+        '  click/type_text/press_key exist only to play the running game in the Game window during play mode.',
+        '- To see the scene, read it with scene_tree and view_info; aim clicks from those numbers, never from a picture.',
+        '- run_script executes JavaScript inside the engine right away; use it to inspect or change the scene and for',
+        '  editor work no tool covers. It is not a text processor for files.',
+        '- To watch runtime behaviour, play_mode({on:true}), wait, screenshot, play_mode({on:false}). Screenshots are',
+        '  half size; click coordinates are full-size canvas pixels.',
         '',
-        'Work autonomously: plan, use the tools, verify the result. Say plainly when something did not work or when you are',
-        'unsure rather than reporting success. When done, reply with a short summary of what you changed and what you checked.',
+        'Work autonomously: plan, use the tools, verify the result. Say plainly when something did not work or when you',
+        'are unsure rather than reporting success. When done, reply with a short summary of what you changed and checked.',
+        'Answer in the language of the user\'s message.',
     ].join('\n');
 
-    // ---------- tool declarations ----------
-    var TOOLS = [{
-        functionDeclarations: [
-            { name: 'list_files', description: 'List one directory under Assets. Returns subfolder names and file names with sizes.',
-              parameters: { type: 'OBJECT', properties: { dir: { type: 'STRING', description: "Directory relative to Assets, '' for the root" } }, required: [] } },
-            { name: 'search_files', description: 'Search the text of all assets (grep). Returns path, line number and the matching line. Use this to locate a symbol or a string instead of paging through files.',
-              parameters: { type: 'OBJECT', properties: { query: { type: 'STRING' }, glob: { type: 'STRING', description: "limit to matching file names, e.g. '*.js'" }, regex: { type: 'BOOLEAN', description: 'treat query as a POSIX regular expression' } }, required: ['query'] } },
-            { name: 'read_file', description: 'Read a text file under Assets. Returns a window of lines (400 by default, 20 kB max) plus the total line count - request the next window with offset instead of pulling whole files.',
-              parameters: { type: 'OBJECT', properties: { path: { type: 'STRING' }, offset: { type: 'NUMBER', description: 'first line to return, 1-based' }, limit: { type: 'NUMBER', description: 'how many lines' } }, required: ['path'] } },
-            { name: 'edit_file', description: 'Replace an exact fragment of a text file under Assets. Preferred over write_file for changing an existing file: only the fragment travels. old_text must match the file exactly (whitespace included) and be unique, unless replaceAll is set.',
-              parameters: { type: 'OBJECT', properties: { path: { type: 'STRING' }, old: { type: 'STRING', description: 'exact text to replace' }, new: { type: 'STRING', description: 'replacement text' }, replaceAll: { type: 'BOOLEAN' } }, required: ['path', 'old', 'new'] } },
-            { name: 'write_file', description: 'Create a file or replace one wholesale under Assets. Use edit_file to change part of an existing file. Also updates the running editor\'s in-memory copy (call rebuild_assets when the batch of edits is done).',
-              parameters: { type: 'OBJECT', properties: { path: { type: 'STRING' }, content: { type: 'STRING' } }, required: ['path', 'content'] } },
-            { name: 'read_output', description: 'Read a result that was too large to inline, in windows. Takes the outputId from that result.',
-              parameters: { type: 'OBJECT', properties: { outputId: { type: 'STRING' }, offset: { type: 'NUMBER', description: 'byte offset, 0-based' } }, required: ['outputId'] } },
-            { name: 'read_guide', description: 'Read the built-in briefing on this project and engine. Call it before engine-specific work rather than rediscovering things: topics are listed by calling it with no arguments.',
-              parameters: { type: 'OBJECT', properties: { topic: { type: 'STRING' } }, required: [] } },
-            { name: 'search_engine', description: 'Search the o2 engine checkout on the server (its documentation, framework, editor and game C++ sources). Read-only reference material - use it to look up how the engine or the editor works.',
-              parameters: { type: 'OBJECT', properties: { query: { type: 'STRING' }, glob: { type: 'STRING', description: "limit to matching file names, e.g. '*.md' for documentation or '*.h' for headers" }, regex: { type: 'BOOLEAN' } }, required: ['query'] } },
-            { name: 'read_engine_file', description: 'Read a file from the engine checkout, in windows like read_file. Paths are repo-relative, e.g. o2/Docs/en/main.md or o2/Framework/Sources/o2/Scene/Actor.h. Readable subtrees: o2/Docs, o2/Framework/Sources, o2/Editor/Sources, o2/AssetsBuildTool, Sources.',
-              parameters: { type: 'OBJECT', properties: { path: { type: 'STRING' }, offset: { type: 'NUMBER' }, limit: { type: 'NUMBER' } }, required: ['path'] } },
-            { name: 'list_engine_dir', description: 'List a directory of the engine checkout (documentation and sources).',
-              parameters: { type: 'OBJECT', properties: { dir: { type: 'STRING', description: "repo-relative, '' lists the readable roots" } }, required: [] } },
-            { name: 'file_op', description: 'File management under Assets: mkdir, delete, move or copy.',
-              parameters: { type: 'OBJECT', properties: { op: { type: 'STRING', description: 'mkdir | delete | move | copy' }, path: { type: 'STRING' }, path2: { type: 'STRING', description: 'destination for move/copy' } }, required: ['op', 'path'] } },
-            { name: 'rebuild_assets', description: 'Rebuild the project assets inside the running editor so that file changes take effect. Takes 10-20 seconds and freezes the editor while running; call once per batch of edits. Pass force to rebuild everything from scratch - do that if an asset or a scene fails to load, since the incremental build trusts its own index and cannot heal a missing built file.',
-              parameters: { type: 'OBJECT', properties: { force: { type: 'BOOLEAN' } } } },
-            { name: 'screenshot', description: 'Take a screenshot of the editor canvas. The image is attached to the tool reply; the result carries its width and height.',
-              parameters: { type: 'OBJECT', properties: {} } },
-            { name: 'scene_tree', description: 'Read the hierarchy of the open scene: names, paths, types, enabled state, transforms (position, size, scale, angle, world rectangle), widget layout (anchors and offsets), component types and children. This is how you see the scene - never guess object positions from a screenshot.',
-              parameters: { type: 'OBJECT', properties: { path: { type: 'STRING', description: 'start at this actor path instead of the scene roots' }, depth: { type: 'NUMBER', description: 'how many levels of children, default 3' } }, required: [] } },
-            { name: 'view_info', description: 'Canvas size, play state, the Game window rectangle and the game camera, plus the formula for turning a world position into a canvas pixel. Use it together with scene_tree to aim a click.',
-              parameters: { type: 'OBJECT', properties: {} } },
-            { name: 'run_script', description: 'Run JavaScript inside the running engine and return its result as text. The scene is reachable through the globals sceneRoots (array of root actors) and findActor(path); the o2 namespace holds the bound engine types. This is the way to do anything the other tools do not cover - inspect or change actors, components and assets - without adding a script to the scene or entering play mode.',
-              parameters: { type: 'OBJECT', properties: { code: { type: 'STRING', description: 'JavaScript; the value of the last expression is returned as a string' } }, required: ['code'] } },
-            { name: 'open_scene', description: 'Open a scene in the editor by its path under Assets, e.g. Main.scn. This is the only way to open a scene - the editor windows do not take synthetic clicks.',
-              parameters: { type: 'OBJECT', properties: { path: { type: 'STRING' } }, required: ['path'] } },
-            { name: 'save_scene', description: 'Save the scene currently open in the editor back to its file.',
-              parameters: { type: 'OBJECT', properties: {} } },
-            { name: 'play_mode', description: 'Start or stop the editor play mode. While playing, the scene runs in the Game window and the input tools work; stopping restores the scene. Use this to actually see runtime behaviour such as animations or particles.',
-              parameters: { type: 'OBJECT', properties: { on: { type: 'BOOLEAN', description: 'true starts play, false stops it' } }, required: [] } },
-            { name: 'click', description: 'Mouse click inside the Game window, in full-size canvas pixels. Only works in play mode: the editor chrome (Assets, Tree, Properties, menus) cannot be driven - change the project with the file tools instead.',
-              parameters: { type: 'OBJECT', properties: { x: { type: 'NUMBER' }, y: { type: 'NUMBER' }, button: { type: 'STRING', description: 'left (default) | right' }, double: { type: 'BOOLEAN', description: 'true for a double-click' } }, required: ['x', 'y'] } },
-            { name: 'type_text', description: 'Type text into the running game (play mode only). \\n presses Enter.',
-              parameters: { type: 'OBJECT', properties: { text: { type: 'STRING' } }, required: ['text'] } },
-            { name: 'press_key', description: 'Press a key in the running game (play mode only): Enter, Escape, Backspace, Delete, Tab, ArrowLeft/Right/Up/Down, Home, End, or combos like Ctrl+Z.',
-              parameters: { type: 'OBJECT', properties: { key: { type: 'STRING' } }, required: ['key'] } },
-            { name: 'read_log', description: 'Read what the engine itself printed (the editor Log window contents, including asset build errors and script exceptions). Check this after rebuild_assets or after changing a script instead of reading the Log window off a screenshot.',
-              parameters: { type: 'OBJECT', properties: { lines: { type: 'NUMBER', description: 'how many last lines, default 60' }, filter: { type: 'STRING', description: 'only lines containing this text' } }, required: [] } },
-            { name: 'wait', description: 'Wait for the editor to settle (e.g. before a screenshot). Max 5000 ms.',
-              parameters: { type: 'OBJECT', properties: { ms: { type: 'NUMBER' } }, required: ['ms'] } },
-        ],
-    }];
-
-    // ---------- tool implementations ----------
-    function fileUrl(path) { return o2Base + '/api/assets/file?path=' + encodeURIComponent(path); }
-
-    function toolListFiles(a) {
-        return fetch(o2Base + '/api/fs/list?dir=' + encodeURIComponent(a.dir || '')).then(function (r) {
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            return r.json();
-        }).then(function (d) {
-            return {
-                dirs: (d.dirs || []).map(function (f) { return f.name; }),
-                files: (d.files || []).map(function (f) { return { name: f.name, size: f.size, kind: f.kind }; }),
-            };
+    // the briefings, shipped to the server as the working directory's CLAUDE.md
+    function guidesMarkdown() {
+        var g = window.AI_GUIDES || {};
+        var out = ['# Project briefing for the agent', '',
+                   'Read the section matching the job before engine-specific work. These notes are distilled from',
+                   'o2/Docs and the engine sources and are authoritative for what they state.', ''];
+        Object.keys(g).forEach(function (topic) {
+            out.push('## ' + topic, '', g[topic], '');
         });
-    }
-    // Everything a tool returns stays in the conversation forever and is re-sent
-    // on every later step, so reads are bounded by default and anything bulky is
-    // parked in `outputs` and fetched back in pieces with read_output
-    // The default read window is deliberately smaller than INLINE_LIMIT: a normal
-    // read then comes back inline, and only unusually bulky results get parked
-    var READ_LINES = 300;         // lines returned when the model asks for no range
-    var READ_MAX_BYTES = 6000;    // hard cap on one file read
-    var INLINE_LIMIT = 8000;      // above this a result is parked instead of inlined
-    var CHUNK_BYTES = 6000;       // read_output window
-
-    var outputs = new Map();      // id -> full text of a parked result
-    var outputSeq = 0;
-
-    function park(text, note) {
-        var id = 'out' + (++outputSeq);
-        outputs.set(id, text);
-        return {
-            outputId: id,
-            totalBytes: text.length,
-            preview: text.slice(0, 2000),
-            note: (note ? note + ' ' : '') +
-                  'Result too large to inline; read the rest with read_output(outputId, offset).',
-        };
+        return out.join('\n');
     }
 
-    function fetchText(path) {
-        return fetch(fileUrl(path)).then(function (r) {
-            if (!r.ok) throw new Error('HTTP ' + r.status + ' (file not found?)');
-            return r.text();
-        }).then(function (text) {
-            if (text.indexOf('\u0000') >= 0) throw new Error('binary file, ' + text.length + ' bytes');
-            return text;
-        });
-    }
-
-    function toolSearchFiles(a) {
-        var q = o2Base + '/api/assets/search?q=' + encodeURIComponent(a.query || '');
-        if (a.glob) q += '&glob=' + encodeURIComponent(a.glob);
-        if (a.regex) q += '&regex=1';
-        return fetch(q).then(function (r) {
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            return r.json();
-        });
-    }
-
-    // shared by the session and the engine reader: a bounded window plus the
-    // pointers the model needs to continue
-    function windowText(text, a, extra) {
-        var lines = text.split('\n');
-        var from = Math.max(1, Number(a.offset) || 1);
-        var count = Math.max(1, Number(a.limit) || READ_LINES);
-        var slice = lines.slice(from - 1, from - 1 + count);
-        var content = slice.join('\n');
-        var cut = false;
-        if (content.length > READ_MAX_BYTES) {
-            content = content.slice(0, READ_MAX_BYTES);
-            slice = content.split('\n');
-            cut = true;
-        }
-        if (!slice.length)
-            return Object.assign({ path: a.path, totalLines: lines.length, from: from, to: from - 1, content: '',
-                                   more: 'offset is past the end of the file (' + lines.length + ' lines)' }, extra);
-
-        var to = from + slice.length - 1;
-        var res = Object.assign({ path: a.path, totalLines: lines.length, from: from, to: to, content: content }, extra);
-        if (to < lines.length || cut)
-            res.more = 'showing lines ' + from + '-' + to + ' of ' + lines.length +
-                       '; continue with offset ' + (to + 1);
-        return res;
-    }
-
-    function toolReadFile(a) {
-        return fetchText(a.path).then(function (text) { return windowText(text, a); });
-    }
-
-    function toolReadGuide(a) {
-        var topics = Object.keys(AI_GUIDES);
-        if (!a.topic)
-            return Promise.resolve({ topics: topics, note: 'call read_guide with one of these topics' });
-        var text = AI_GUIDES[a.topic];
-        if (!text)
-            return Promise.reject(new Error('no such topic; available: ' + topics.join(', ')));
-        return Promise.resolve({ topic: a.topic, text: text });
-    }
-
-    // ---- the engine checkout: read-only, shared, never the user's session ----
-    function toolSearchEngine(a) {
-        var q = o2Base + '/api/engine/search?q=' + encodeURIComponent(a.query || '');
-        if (a.glob) q += '&glob=' + encodeURIComponent(a.glob);
-        if (a.regex) q += '&regex=1';
-        return fetch(q).then(function (r) { return r.json(); }).then(function (d) {
-            if (d.error) throw new Error(d.error);
-            return d;
-        });
-    }
-
-    function toolReadEngineFile(a) {
-        return fetch(o2Base + '/api/engine/file?path=' + encodeURIComponent(a.path)).then(function (r) {
-            return r.json();
-        }).then(function (d) {
-            if (d.error) throw new Error(d.error);
-            return windowText(d.text, a, { source: 'engine (read-only)' });
-        });
-    }
-
-    function toolListEngineDir(a) {
-        return fetch(o2Base + '/api/engine/list?dir=' + encodeURIComponent(a.dir || '')).then(function (r) {
-            return r.json();
-        }).then(function (d) {
-            if (d.error) throw new Error(d.error);
-            return d;
-        });
-    }
-
-    function saveFile(path, content) {
-        return fetch(fileUrl(path), { method: 'PUT', body: content }).then(function (r) {
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            // the running editor works off its own MEMFS copy, keep it in step
-            try {
-                if (Module.FS) {
-                    var full = '/project/Assets/' + path;
-                    Module.FS.mkdirTree(full.substring(0, full.lastIndexOf('/')));
-                    Module.FS.writeFile(full, content);
-                }
-            } catch (e) { console.warn('[ai] engine FS sync failed', e); }
-        });
-    }
-
-    function toolWriteFile(a) {
-        return saveFile(a.path, a.content).then(function () {
-            return { ok: true, bytes: a.content.length };
-        });
-    }
-
-    function toolEditFile(a) {
-        return fetchText(a.path).then(function (text) {
-            var hits = text.split(a.old).length - 1;
-            if (!hits)
-                throw new Error('old_text not found in ' + a.path +
-                                ' - read the file again and copy the exact text, whitespace included');
-            if (hits > 1 && !a.replaceAll)
-                throw new Error('old_text matches ' + hits + ' times in ' + a.path +
-                                ' - include more surrounding text, or pass replaceAll');
-            var updated = a.replaceAll ? text.split(a.old).join(a.new) : text.replace(a.old, a.new);
-            return saveFile(a.path, updated).then(function () {
-                return { ok: true, replaced: a.replaceAll ? hits : 1, bytes: updated.length };
-            });
-        });
-    }
-
-    function toolReadOutput(a) {
-        var text = outputs.get(a.outputId);
-        if (text === undefined)
-            return Promise.reject(new Error('no such outputId (parked results are dropped when the chat is cleared)'));
-        var from = Math.max(0, Number(a.offset) || 0);
-        var chunk = text.slice(from, from + CHUNK_BYTES);
-        var res = { outputId: a.outputId, from: from, to: from + chunk.length,
-                    totalBytes: text.length, content: chunk };
-        if (from + chunk.length < text.length)
-            res.more = 'continue with offset ' + (from + chunk.length);
-        return Promise.resolve(res);
-    }
-
-    function toolFileOp(a) {
-        return fetch(o2Base + '/api/assets/op', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ op: a.op, path: a.path, path2: a.path2 }),
-        }).then(function (r) {
-            if (!r.ok) return r.json().then(function (j) { throw new Error(j.error || ('HTTP ' + r.status)); });
-            // The server copy and the editor's in-memory copy must not drift apart:
-            // a file deleted only on the server comes back on the next rebuild
-            try {
-                var FS = Module.FS;
-                if (FS) {
-                    var full = '/project/Assets/' + a.path;
-                    var dest = a.path2 ? '/project/Assets/' + a.path2 : null;
-                    if (a.op === 'mkdir') FS.mkdirTree(full);
-                    else if (a.op === 'delete') {
-                        var st = FS.analyzePath(full);
-                        if (st.exists) {
-                            if (FS.isDir(st.object.mode)) rmTree(FS, full);
-                            else FS.unlink(full);
-                        }
-                    } else if (a.op === 'move' && dest) {
-                        FS.mkdirTree(dest.substring(0, dest.lastIndexOf('/')));
-                        FS.rename(full, dest);
-                    } else if (a.op === 'copy' && dest) {
-                        FS.mkdirTree(dest.substring(0, dest.lastIndexOf('/')));
-                        FS.writeFile(dest, FS.readFile(full));
-                    }
-                }
-            } catch (e) { console.warn('[ai] engine FS sync failed for ' + a.op, e); }
-            return { ok: true };
-        });
-    }
+    // ---------- editor-side tool implementations ----------
+    // Claude's own tools do the file work on the server; these are the calls
+    // that only make sense inside the running editor.
 
     function rmTree(FS, dir) {
         FS.readdir(dir).forEach(function (name) {
@@ -733,7 +458,7 @@
     function toolOpenScene(a) {
         if (typeof Module.ccall !== 'function')
             return Promise.reject(new Error('the editor is not running yet'));
-        if (!a.path) return Promise.reject(new Error('path is required, e.g. Main.scn'));
+        if (!a.path) return Promise.reject(new Error('path is required, e.g. Boot.scn'));
         // The engine silently does nothing for a missing scene, which reads as success
         var slash = a.path.lastIndexOf('/');
         var dir = slash < 0 ? '' : a.path.slice(0, slash);
@@ -930,264 +655,243 @@
         return sleep(ms).then(function () { return { ok: true, waited: ms }; });
     }
 
+
     var EXEC = {
-        list_files: toolListFiles, search_files: toolSearchFiles,
-        read_file: toolReadFile, edit_file: toolEditFile,
-        write_file: toolWriteFile, read_output: toolReadOutput,
-        read_guide: toolReadGuide,
-        search_engine: toolSearchEngine, read_engine_file: toolReadEngineFile,
-        list_engine_dir: toolListEngineDir,
-        file_op: toolFileOp, rebuild_assets: toolRebuild, screenshot: toolScreenshot,
+        rebuild_assets: toolRebuild, screenshot: toolScreenshot,
         click: toolClick, type_text: toolTypeText, press_key: toolPressKey,
         read_log: toolReadLog, wait: toolWait, play_mode: toolPlayMode,
         open_scene: toolOpenScene, save_scene: toolSaveScene,
         scene_tree: toolSceneTree, view_info: toolViewInfo, run_script: toolRunScript,
     };
     window.__o2aiExec = EXEC;       // debug/testing handles
-    window.__o2aiPark = park;
-    window.__o2aiOutputs = outputs;
+    window.__o2aiEvents = function () { return events; };
 
-    function partKind(p) {
-        return p.thought ? 'thought' : p.text ? 'text'
-             : p.functionCall ? 'functionCall:' + p.functionCall.name
-             : p.functionResponse ? 'functionResponse' : p.inlineData ? 'inlineData' : 'other';
+    // Claude writes files on the server; the running editor works off its
+    // own MEMFS copy, so pull what changed under Assets into it
+    function syncChangedFile(rel) {
+        var m = rel.match(/^Assets\/(.+)$/);
+        if (!m || !Module || !Module.FS) return;
+        var inner = m[1];
+        fetch(o2Base + '/api/assets/file?path=' + encodeURIComponent(inner)).then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.arrayBuffer();
+        }).then(function (buf) {
+            var full = '/project/Assets/' + inner;
+            Module.FS.mkdirTree(full.substring(0, full.lastIndexOf('/')));
+            Module.FS.writeFile(full, new Uint8Array(buf));
+        }).catch(function (e) { console.warn('[ai] MEMFS sync failed for ' + rel, e); });
     }
 
+    var sessionCwd = '';
+    function shortPath(v) {
+        return sessionCwd && v.indexOf(sessionCwd + '/') === 0 ? v.slice(sessionCwd.length + 1) : v;
+    }
     function toolLabel(name, args) {
         var brief = Object.keys(args || {}).map(function (k) {
-            var v = String(args[k]);
+            var v = shortPath(String(args[k]));
             return k + ': ' + (v.length > 60 ? v.slice(0, 60) + '…' : v);
         }).join(', ');
-        return '▸ ' + name + '(' + brief + ')';
+        return '▸ ' + name.replace(/^mcp__o2__/, '') + '(' + brief + ')';
     }
 
-    // ---------- Gemini call + agent loop ----------
-    var rawLog = [];
+    // ---------- the stream from the server ----------
+    var events = [];          // everything received, for the Log button
+    var source = null;
+    var steps = {};           // tool_use id -> ui step
+    var bubble = null, bubbleText = '';
+    var reviewStep = null, reviewText = '';
+    var thinkStep = null, thinkText = '';
+    var runStarted = 0;
 
-    // Mirror of what the agent does, shipped to the server so its behaviour can be
-    // debugged from outside the browser (o2editor/workdir/agent-log.jsonl)
-    var runSeq = 0;
-    var lastReview = null;
-    function trace(kind, data) {
-        try {
-            fetch(o2Base + '/api/agent/log', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(Object.assign({ t: new Date().toISOString(), run: runSeq, kind: kind }, data)),
-            }).catch(function () {});
-        } catch (e) {}
-    }
-   // full request/response pairs, for the Copy log button
-
-    function callModelOnce(key, model) {
-        aborter = new AbortController();
-        var body = {
-            systemInstruction: { parts: [{ text: SYSTEM }] },
-            contents: history,
-            tools: TOOLS,
-            // without this the model never sends its reasoning back
-            generationConfig: { thinkingConfig: { includeThoughts: true } },
+    function ensureStream() {
+        if (source && source.readyState !== 2) return;
+        source = new EventSource(o2Base + '/api/agent/stream');
+        source.onmessage = function (e) {
+            var ev;
+            try { ev = JSON.parse(e.data); } catch (err) { return; }
+            events.push(ev);
+            if (rawEl.checked && ev.type !== 'delta' && ev.type !== 'thinking')
+                addStep('◇ ' + ev.type, JSON.stringify(ev, null, 2));
+            try { onEvent(ev); } catch (err) { console.error('[ai] event failed', ev, err); }
         };
-        var started = Date.now();
-        return fetch('https://generativelanguage.googleapis.com/v1beta/models/' +
-                     encodeURIComponent(model) + ':generateContent?key=' + encodeURIComponent(key), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal: aborter.signal,
-            body: JSON.stringify(body),
+        source.onerror = function () { setStatus(running ? 'stream lost, reconnecting…' : ''); };
+    }
+
+    function currentBubble() {
+        if (!bubble) { bubble = addMsg('model', ''); bubbleText = ''; }
+        return bubble;
+    }
+
+    function onEvent(ev) {
+        switch (ev.type) {
+            case 'hello':
+                if (ev.running && !running) { running = true; busy(true); setStatus('the agent is still working…'); }
+                break;
+            case 'init':
+                if (ev.cwd) sessionCwd = ev.cwd;
+                addStep('· session · ' + ev.model + ' · Claude Code ' + ev.version + ' · ' + (ev.tools || []).length + ' tools',
+                        JSON.stringify({ tools: ev.tools, mcp: ev.mcp }, null, 2));
+                break;
+            case 'thinking':
+                if (!thinkStep) { thinkStep = addStep('🧠 thinking…', '', { markdown: true }); thinkText = ''; }
+                thinkText += ev.text;
+                thinkStep.set(thinkText);
+                break;
+            case 'delta':
+                if (ev.review) { reviewText += ev.text; if (reviewStep) reviewStep.set(reviewText); break; }
+                bubbleText += ev.text;
+                currentBubble().textContent = bubbleText;
+                scrollDown();
+                break;
+            case 'text':
+                if (thinkStep) {
+                    thinkStep.setLabel('🧠 ' + (thinkText.replace(/[#*`]/g, '').split('\n')
+                        .filter(function (l) { return l.trim(); })[0] || 'reasoning').slice(0, 90));
+                    thinkStep = null;
+                }
+                if (ev.review) {
+                    reviewText = ev.text;
+                    if (!reviewStep) reviewStep = addStep('🔍 self-review', '', { markdown: true, kind: 'review', open: true });
+                    reviewStep.set(reviewText);
+                    break;
+                }
+                currentBubble().innerHTML = renderMarkdown(ev.text);
+                bubble = null; bubbleText = '';
+                scrollDown();
+                break;
+            case 'tool_use':
+                if (bubble) { bubble = null; bubbleText = ''; }
+                thinkStep = null;
+                steps[ev.id] = { ui: addStep(toolLabel(ev.name, ev.input), 'args ' + shortPath(JSON.stringify(ev.input || {}, null, 2))),
+                                 started: Date.now(), name: ev.name };
+                setStatus(ev.name.replace(/^mcp__o2__/, '') + '…');
+                break;
+            case 'tool_result': {
+                var st = steps[ev.id];
+                if (!st) break;
+                var took = Date.now() - st.started;
+                st.ui.append('result (' + took + 'ms) ' + ev.text);
+                if (ev.is_error) st.ui.setLabel('✗ ' + st.ui.label().replace(/^▸ /, '') + '  ' + took + 'ms');
+                else st.ui.setLabel(st.ui.label() + '  ' + took + 'ms');
+                setStatus('working…');
+                break;
+            }
+            case 'tool_request':
+                runBrowserTool(ev);
+                break;
+            case 'fs':
+                syncChangedFile(ev.path);
+                break;
+            case 'result': {
+                var cost = ev.cost != null ? '$' + ev.cost.toFixed(3) : '';
+                var u = ev.usage || {};
+                addStep('· ' + ev.subtype + ' · ' + ev.turns + ' turns · ' + Math.round((ev.ms || 0) / 1000) + ' s · ' + cost +
+                        ' · in ' + (u.input_tokens || 0) + ' (+' + (u.cache_read_input_tokens || 0) + ' cached) / out ' +
+                        (u.output_tokens || 0) + ' tok', JSON.stringify(ev, null, 2));
+                if (ev.subtype !== 'success' && !ev.review)
+                    addMsg('error', 'Run ended: ' + ev.subtype + (ev.errors && ev.errors.length ? '\n' + ev.errors.join('\n') : ''));
+                if (ev.denials && ev.denials.length)
+                    addStep('⊘ denied tools: ' + ev.denials.join(', '), 'The permission guard refused these calls.');
+                break;
+            }
+            case 'error':
+                addMsg('error', ev.message);
+                break;
+            case 'done':
+                finishRun(ev);
+                break;
+        }
+    }
+
+    function runBrowserTool(ev) {
+        var name = ev.name;
+        var impl = EXEC[name];
+        Promise.resolve().then(function () {
+            if (!impl) throw new Error('unknown editor tool ' + name);
+            return impl(ev.args || {});
+        }).then(function (out) {
+            if (out && out.image) addShot(out.image.b64, out.image.mime);
+            return post('tool_result', { id: ev.id, result: out });
+        }, function (e) {
+            return post('tool_result', { id: ev.id, result: { error: String(e && e.message || e) } });
+        }).catch(function (e) { console.error('[ai] tool_result post failed', e); });
+    }
+
+    function post(what, body) {
+        return fetch(o2Base + '/api/agent/' + what, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}),
         }).then(function (r) {
             return r.json().then(function (j) {
-                var entry = { model: model, ms: Date.now() - started, request: body, response: j, status: r.status };
-                rawLog.push(entry);
-                console.log('[ai] ' + model + ' ' + r.status + ' in ' + entry.ms + 'ms', entry);
-                if (rawEl.checked) {
-                    addStep('◇ request → ' + model + '  (' + history.length + ' turns)',
-                            JSON.stringify(body, null, 2));
-                    addStep('◇ response ← ' + r.status + '  ' + entry.ms + 'ms',
-                            JSON.stringify(j, null, 2));
-                }
-                if (!r.ok) {
-                    var err = new Error((j.error && j.error.message) || ('HTTP ' + r.status));
-                    err.status = r.status;
-                    throw err;
-                }
+                if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
                 return j;
             });
         });
     }
-    // overloaded/rate-limited models answer 429/503 for a while; back off instead of giving up
-    async function callModel(key, model) {
-        var delays = [4000, 10000, 20000, 40000];
-        for (var attempt = 0; ; attempt++) {
-            try { return await callModelOnce(key, model); }
-            catch (e) {
-                var retryable = e.status === 429 || e.status === 503 || e.status === 500;
-                if (aborted || !retryable || attempt >= delays.length) throw e;
-                setStatus('model busy (' + e.status + '), retry in ' + (delays[attempt] / 1000) + ' s…');
-                await sleep(delays[attempt]);
-                if (aborted) throw e;
-            }
+
+    function busy(on) {
+        running = on;
+        document.getElementById('btn-ai').classList.toggle('busy', on);
+        sendBtn.style.display = on ? 'none' : '';
+        stopBtn.style.display = on ? '' : 'none';
+        inputEl.disabled = on;
+        if (!on) setStatus('');
+    }
+
+    var pendingReview = false;
+    function finishRun(ev) {
+        bubble = null; bubbleText = ''; thinkStep = null;
+        if (!ev.review && !ev.aborted && pendingReview) {
+            pendingReview = false;
+            startRun(REVIEW_PROMPT, true);
+            return;
+        }
+        if (ev.review) reviewStep = null;
+        if (ev.aborted) addMsg('error', 'Stopped.');
+        busy(false);
+    }
+
+    async function startRun(text, review) {
+        var key = keyEl.value.trim();
+        var model = modelEl.value.trim() || DEFAULT_MODEL;
+        setSetting('o2ai_claude_key', key);
+        setSetting('o2ai_claude_model', model);
+        ensureStream();
+        busy(true);
+        setStatus(review ? 'reviewing the run…' : 'starting ' + model + '…');
+        runStarted = Date.now();
+        try {
+            await post('start', { text: text, apiKey: key, model: model, effort: effortEl.value,
+                                  system: SYSTEM, guides: guidesMarkdown(), review: !!review });
+        } catch (e) {
+            addMsg('error', e.message);
+            busy(false);
         }
     }
 
     async function runAgent(userText) {
-        var key = keyEl.value.trim();
-        var model = modelEl.value.trim() || DEFAULT_MODEL;
-        if (!key) { addMsg('error', 'Set the Gemini API key in the settings field above.'); return; }
-        setSetting('o2ai_key', key);
-        setSetting('o2ai_model', model);
-
-        runSeq++;
-        var triedModels = [model];
-        trace('user', { text: userText, model: model });
-        history.push({ role: 'user', parts: [{ text: userText }] });
-        addMsg('user', userText);
-
-        running = true; aborted = false;
-        document.getElementById('btn-ai').classList.add('busy');
-        sendBtn.style.display = 'none';
-        stopBtn.style.display = '';
-        inputEl.disabled = true;
-
-        try {
-            for (var step = 1; step <= MAX_STEPS && !aborted; step++) {
-                setStatus('step ' + step + ' · ' + model + '…');
-                var resp;
-                try { resp = await callModel(key, model); }
-                catch (e) {
-                    if (aborted) break;
-                    // An overloaded model must not kill a long autonomous run:
-                    // switch to the next one and retry this step
-                    var overloaded = e.status === 503 || e.status === 429;
-                    var next = overloaded && FALLBACK_MODELS.filter(function (m) {
-                        return triedModels.indexOf(m) < 0;
-                    })[0];
-                    if (next) {
-                        triedModels.push(next);
-                        addStep('⇄ ' + model + ' overloaded, switching to ' + next, String(e.message));
-                        trace('model-switch', { step: step, from: model, to: next, reason: e.message });
-                        model = next;
-                        modelEl.value = next;
-                        step--;
-                        continue;
-                    }
-                    addMsg('error', 'API error: ' + e.message +
-                        (overloaded ? '\nEvery model tried is overloaded; try again later.' : ''));
-                    break;
-                }
-                var cand = resp.candidates && resp.candidates[0];
-                if (!cand || !cand.content) {
-                    addMsg('error', 'Empty model response' +
-                        (resp.promptFeedback ? ' (' + JSON.stringify(resp.promptFeedback) + ')' : ''));
-                    break;
-                }
-                var parts = cand.content.parts || [];
-                history.push({ role: 'model', parts: parts });
-
-                var u = resp.usageMetadata || {};
-                addStep('· step ' + step + ' · ' + (cand.finishReason || 'OK') +
-                        ' · in ' + (u.promptTokenCount || 0) +
-                        ' / think ' + (u.thoughtsTokenCount || 0) +
-                        ' / out ' + (u.candidatesTokenCount || 0) + ' tok',
-                        JSON.stringify({ finishReason: cand.finishReason, usage: u,
-                                         safetyRatings: cand.safetyRatings,
-                                         partKinds: parts.map(partKind) }, null, 2));
-
-                // render every part the model sent, whatever its kind
-                trace('step', { step: step, finish: cand.finishReason, usage: u, parts: parts.map(partKind) });
-                parts.forEach(function (p) {
-                    if (p.text) trace(p.thought ? 'thought' : 'answer', { step: step, text: p.text.slice(0, 4000) });
-                    if (p.text && p.thought)
-                        addStep('🧠 thinking · ' + ((p.text.replace(/[#*`]/g, '').split('\n')
-                                    .filter(function (l) { return l.trim(); })[0] || 'reasoning').slice(0, 90)),
-                                p.text, { markdown: true });
-                    else if (p.text) addMsg('model', p.text);
-                    else if (p.functionCall) { /* rendered below, with its result */ }
-                    else if (p.inlineData) addShot(p.inlineData.data, p.inlineData.mimeType);
-                    else addStep('? unknown part', JSON.stringify(p, null, 2));
-                });
-
-                var calls = parts.filter(function (p) { return p.functionCall; });
-                if (!calls.length) break;
-
-                var respParts = [], imageParts = [];
-                for (var i = 0; i < calls.length && !aborted; i++) {
-                    var fc = calls[i].functionCall;
-                    var uiStep = addStep(toolLabel(fc.name, fc.args),
-                                         'args ' + JSON.stringify(fc.args || {}, null, 2));
-                    setStatus('step ' + step + ' · ' + fc.name + '…');
-                    var toolStarted = Date.now();
-                    var response;
-                    try {
-                        var impl = EXEC[fc.name];
-                        if (!impl) throw new Error('unknown tool');
-                        var out = await impl(fc.args || {});
-                        if (out && out.image) {
-                            imageParts.push({ inlineData: { mimeType: out.image.mime, data: out.image.b64 } });
-                            addShot(out.image.b64, out.image.mime);
-                            response = out.result;
-                        } else
-                            response = out;
-                    } catch (e) {
-                        response = { error: String(e && e.message || e) };
-                        uiStep.setLabel('✗ ' + fc.name + ': ' + response.error);
-                    }
-                    var took = Date.now() - toolStarted;
-
-                    // park anything bulky: whatever lands in `response` here is
-                    // re-sent with every later step for the rest of the chat
-                    var flat = JSON.stringify(response);
-                    if (flat && flat.length > INLINE_LIMIT && !response.error) {
-                        var full = typeof response.content === 'string'
-                            ? response.content : JSON.stringify(response, null, 2);
-                        response = park(full, fc.name === 'read_file'
-                            ? 'From read_file; for source files prefer paging with read_file(offset, limit).'
-                            : 'From ' + fc.name + '.');
-                        uiStep.append('parked as ' + response.outputId + ' (' +
-                                      response.totalBytes + ' bytes; ' + flat.length + ' would have been inlined)');
-                    }
-
-                    trace('tool', { step: step, tool: fc.name, args: fc.args, ms: took,
-                                   ok: !(response && response.error), error: response && response.error,
-                                   result: JSON.stringify(response).slice(0, 1200) });
-                    var dump = JSON.stringify(response, null, 2);
-                    uiStep.append('result (' + took + 'ms) ' +
-                                  (dump.length > 8000 ? dump.slice(0, 8000) + '\n… truncated' : dump));
-                    uiStep.setLabel(uiStep.label() + '  ' + took + 'ms');
-                    console.log('[ai] tool ' + fc.name, { args: fc.args, response: response, ms: took });
-                    respParts.push({ functionResponse: { name: fc.name, response: response } });
-                }
-                history.push({ role: 'user', parts: respParts.concat(imageParts) });
-            }
-            trace('end', { steps: step, aborted: aborted });
-            if (!aborted && step > 3 && reviewEl.checked)
-                await selfReview(key, model, step);
-            if (aborted) addMsg('error', 'Stopped.');
-            else if (step > MAX_STEPS) addMsg('error', 'Step limit reached (' + MAX_STEPS + ').');
-        } finally {
-            running = false;
-            document.getElementById('btn-ai').classList.remove('busy');
-            setStatus('');
-            sendBtn.style.display = '';
-            stopBtn.style.display = 'none';
-            inputEl.disabled = false;
+        if (!keyEl.value.trim() && !/localhost|127\.0\.0\.1/.test(location.hostname)) {
+            addMsg('error', 'Set your Anthropic API key in the settings field above.');
+            return;
         }
+        addMsg('user', userText);
+        pendingReview = reviewEl.checked;
+        await startRun(userText, false);
     }
 
     // ---------- self-review ----------
-    // One extra call at the end of a run: the model critiques its own work, which is
-    // where the useful signal for improving the agent lives (wrong turns, wasted steps,
-    // missing knowledge). Kept as a separate debug block, never as the answer.
+    // One extra turn at the end of a run: the model critiques its own work,
+    // which is where the useful signal for improving the agent lives.
     var REVIEW_PROMPT = [
         'The task is over. Step out of it and review your own run as an engineer would review a colleague.',
         'Answer in markdown, in the language of my first message, under these headings and nothing else:',
         '',
         '## Mistakes',
         'What you actually got wrong: wrong assumptions, calls that failed, things you had to redo.',
-        'Name the step numbers. Write "none" if there were none.',
+        'Write "none" if there were none.',
         '',
         '## Waste',
         'Where the run was inefficient: repeated lookups, reading what you already knew, exploring instead of acting,',
-        'tools you should have used earlier or not at all. Be specific about how many steps went nowhere.',
+        'tools you should have used earlier or not at all.',
         '',
         '## What would have helped',
         'Knowledge or a tool that was missing and would have shortened the run - phrased so it can be added to the',
@@ -1197,29 +901,8 @@
         'Two or three concrete rules you would follow on a similar task.',
         '',
         'Be blunt and concrete. Do not praise yourself, do not restate what the task was, do not repeat the summary.',
+        'Do not use any tools for this.',
     ].join('\n');
-
-    async function selfReview(key, model, steps) {
-        setStatus('reviewing the run…');
-        history.push({ role: 'user', parts: [{ text: REVIEW_PROMPT }] });
-        try {
-            var resp = await callModel(key, model);
-            var cand = resp.candidates && resp.candidates[0];
-            var text = ((cand && cand.content && cand.content.parts) || [])
-                .filter(function (p) { return p.text && !p.thought; })
-                .map(function (p) { return p.text; }).join('\n').trim();
-            if (!text) throw new Error('empty review');
-
-            history.push({ role: 'model', parts: [{ text: text }] });
-            addStep('🔍 self-review · what went wrong and what to improve (' + steps + ' steps)',
-                    text, { markdown: true, kind: 'review', open: true });
-            trace('review', { steps: steps, text: text.slice(0, 6000) });
-            lastReview = text;
-        } catch (e) {
-            addStep('🔍 self-review failed', String(e.message), { kind: 'review' });
-        }
-        setStatus('');
-    }
 
     // ---------- UI wiring ----------
     function openDlg() {
@@ -1227,6 +910,7 @@
         dlg.classList.add('open');
         back.classList.add('open');
         inputEl.focus();
+        ensureStream();
         if (!modelsLoaded) loadModels();
     }
     function closeDlg() { dlg.classList.remove('open'); back.classList.remove('open'); }
@@ -1238,15 +922,14 @@
 
     document.getElementById('ai-clear').onclick = function () {
         if (running) return;
-        history = [];
-        rawLog = [];
+        events = [];
         chatEl.innerHTML = '';
+        post('reset').catch(function () {});   // next message starts a fresh Claude session
     };
-    // whole session as JSON: conversation plus every raw API exchange
+    // whole session as JSON: every event the server streamed
     document.getElementById('ai-copy').onclick = function () {
-        var dump = JSON.stringify({ model: modelEl.value.trim(), review: lastReview,
-                                    history: history, exchanges: rawLog }, null, 2);
-        console.log('[ai] session log', { history: history, exchanges: rawLog });
+        var dump = JSON.stringify({ model: modelEl.value.trim(), events: events }, null, 2);
+        console.log('[ai] session log', events);
         var btn = document.getElementById('ai-copy');
         navigator.clipboard.writeText(dump).then(function () {
             btn.textContent = 'Copied';
@@ -1261,8 +944,9 @@
         });
     };
     stopBtn.onclick = function () {
-        aborted = true;
-        if (aborter) aborter.abort();
+        pendingReview = false;
+        setStatus('stopping…');
+        post('stop').catch(function () {});
     };
     function send() {
         if (running) return;
