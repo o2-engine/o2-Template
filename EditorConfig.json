@@ -1,13 +1,8 @@
 {
     "mWindowSize": {
         "x": 2056,
-        "y": 1226
+        "y": 1099
     },
-    "mWindowPosition": {
-        "x": 0,
-        "y": 31
-    },
-    "mMaximized": false,
     "mLayout": {
         "mainDock": {
             "anchors": {
@@ -86,7 +81,7 @@
                         "properties window",
                         "game window"
                     ],
-                    "active": "properties window"
+                    "active": "game window"
                 }
             ]
         }
