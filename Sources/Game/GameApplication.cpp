@@ -17,10 +17,21 @@ void GameApplication::OnStarted()
 
 	// The main scene shows a deferred 3D layer with a 2D overlay on top;
 	// the same scene is opened by the editor
-	o2Scene.Load(o2Assets.GetBuiltAssetsPath() + String("Main.scn"));
+	o2Scene.Load(o2Assets.GetBuiltAssetsPath() + mScenePath);
 
 	// Example of the 3D physics API (Box3D): drops a few bodies onto the ground plane
 	demo::SpawnPhysics3DDemo();
+}
+
+const String& GameApplication::GetScenePath() const
+{
+	return mScenePath;
+}
+
+void GameApplication::Restart()
+{
+	o2Scene.Clear();
+	OnStarted();
 }
 
 void GameApplication::OnUpdate(float dt)

@@ -99,6 +99,22 @@ private copy of this repository. Both see the editor through the MCP server `o2`
 `save_scene`, `play_mode`, `rebuild_assets`, `read_log`, `click` / `type_text` / `press_key` (play mode
 only), `wait`.
 
+The page has two faces over one session, switched in the bottom bar and shared by
+the agent:
+
+- **Editor** — the scene editor, as before: `open_scene` / `save_scene` / `play_mode`
+  and the Game window.
+- **Game preview** — the game client itself (`GamePreview.html`, built by the
+  `GamePreview` target), running on the same session working copy instead of a
+  packed `.data`, so `rebuild_assets` works there too. There is no play mode: the
+  game is always running, and `restart` starts it over on the assets as they are
+  built now (the Restart button does the same). Both faces stay loaded and keep
+  running, so switching between them is instant and neither restarts — a client
+  that was already up needs `rebuild_assets` + `restart` to see new assets. The
+  pane emulates a window size or a device — drawn in its body, either orientation —
+  and `view_info` reports which mode is on. The agent panel is resizable in both modes (a splitter when docked)
+  and can be closed to give the game the whole pane.
+
 Rules that hold there:
 
 - Only `Assets/` is writable on the server; the rest of the repository is read-only reference and
@@ -108,7 +124,8 @@ Rules that hold there:
   script exceptions before looking at a screenshot.
 - Read the scene with `scene_tree` / `view_info`, never by guessing from a picture; open the scene
   you changed with `open_scene` before `play_mode`. The editor chrome ignores synthetic input —
-  `click` / `type_text` / `press_key` exist only to play the game in the Game window.
+  `click` / `type_text` / `press_key` exist only to play the game (in the Game window, or in the
+  preview, where the canvas is the game and its pixels are the device's).
 - `run_script` executes JavaScript inside the engine (globals `sceneRoots`, `findActor(path)`,
   `eachActor(fn)`, the `o2` namespace) without a script asset or play mode; it is not a text
   processor and has no Node/require/filesystem.
