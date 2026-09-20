@@ -130,6 +130,20 @@ var crashHandled = false;
 function handleCrash(message, stack) {
     if (crashHandled) return;
     crashHandled = true;
+    // the client's wasm did not arrive: the network's doing, not the game's - try again a few times
+    // before telling anybody (boot.js does the same for the editor)
+    if (/fetching of the wasm failed/.test(String(message))) {
+        var tries = 0;
+        try { tries = +sessionStorage.getItem('o2_pv_dl_retries') || 0; } catch (e) {}
+        if (tries < 4) {
+            try { sessionStorage.setItem('o2_pv_dl_retries', String(tries + 1)); } catch (e) {}
+            setStatus('The connection dropped while downloading the game — retrying…');
+            setTimeout(function () { location.reload(); }, [1500, 3000, 6000, 10000][tries]);
+            return;
+        }
+        try { sessionStorage.removeItem('o2_pv_dl_retries'); } catch (e) {}
+        message = 'The game client could not be downloaded - a network problem, not a crash of the game. Restart it when the connection is back.';
+    }
     console.error('[preview.crash]', message, stack);
     setStatus('The game crashed');
     try {
@@ -184,6 +198,7 @@ var Module = {
     }],
     onRuntimeInitialized: function () {
         console.log('[preview.onRuntimeInitialized]');
+        try { sessionStorage.removeItem('o2_pv_dl_retries'); } catch (e) {}
         setStatus(null);
         try { parent.postMessage({ o2preview: 'ready' }, location.origin); } catch (e) {}
     },

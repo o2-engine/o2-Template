@@ -49,7 +49,15 @@ if(EMSCRIPTEN)
     if(NOT O2_WASM_EDITOR)
         set(O2_EDITOR OFF CACHE BOOL "" FORCE)
     endif()
-    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    # OFF builds the libraries as plain wasm objects: a link against them takes seconds
+    # and little memory instead of re-optimizing the whole engine. That is what the
+    # portal's build kit is made of (o2portal/tools/make-kit.ts) - its server compiles
+    # only a project's own sources and links.
+    option(O2_WASM_LTO "Link-time optimization of WebAssembly release builds" ON)
+    if(CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT O2_WASM_LTO)
+        add_compile_options(-Os -msimd128 -DNDEBUG)
+        add_link_options(-O1 -msimd128)
+    elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
         # Size-optimized (-Oz: like -Os with extra size passes) + LTO + WebAssembly SIMD
         add_compile_options(-Oz -flto -msimd128 -DNDEBUG)
         add_link_options(-Oz -flto -msimd128)

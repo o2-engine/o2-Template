@@ -174,10 +174,42 @@ function showCrashBanner(record, blocked) {
     document.body.appendChild(d);
 }
 
+// What emscripten said on stderr last: a failed start names its real reason there
+// ("wasm streaming compile failed: TypeError: Failed to fetch"), the abort itself does not.
+var lastErrLines = [];
+
+// The editor never started because its wasm did not arrive: a network matter (a dropped
+// connection, a server restart under a deploy), not a crash of the editor. It is retried with a
+// growing pause and never counted as a crash strike; after a few tries the page says what is wrong.
+function handleDownloadFailure(message) {
+    var tries = 0;
+    try { tries = +sessionStorage.getItem('o2_dl_retries') || 0; } catch (e) {}
+    var why = lastErrLines.filter(function (l) { return /streaming compile failed/.test(l); }).pop() || '';
+    console.error('[shell] editor download failed (try ' + (tries + 1) + ')', message, why);
+    try {
+        fetch(o2Base + '/api/agent/log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ t: new Date().toISOString(), kind: 'download-failed', message: message, reason: why, tries: tries + 1, online: navigator.onLine }) }).catch(function () {});
+    } catch (e) {}
+    if (tries >= 4) {
+        try { sessionStorage.removeItem('o2_dl_retries'); } catch (e) {}
+        setStatus('Could not download the editor — check the connection and reload');
+        showCrashBanner({ t: new Date().toISOString(), message: 'The editor could not be downloaded (' + (why || message) + '). This is a network problem, not a crash: reload the page when the connection is back.', stack: '' }, true);
+        return;
+    }
+    try { sessionStorage.setItem('o2_dl_retries', String(tries + 1)); } catch (e) {}
+    var wait = [1500, 3000, 6000, 10000][tries];
+    setStatus('The connection dropped while downloading the editor — retrying…');
+    var go = function () { location.reload(); };
+    // offline: wait for the network to come back rather than burn the tries
+    if (navigator.onLine === false) window.addEventListener('online', function () { setTimeout(go, 800); }, { once: true });
+    else setTimeout(go, wait);
+}
+
 function handleCrash(message, stack) {
     if (crashHandled) return;
     crashHandled = true;
     message = String(message || 'wasm crash');
+    if (/fetching of the wasm failed/.test(message)) { handleDownloadFailure(message); return; }
     console.error('[shell.crash]', message, stack);
     setStatus('The editor crashed — restarting…');
     symbolizeStack(String(stack || '')).then(function (sym) {
@@ -243,7 +275,7 @@ var Module = {
         return c;
     })(),
     print: function (text) { console.log('[wasm.out]', text); engineLog('out', text); },
-    printErr: function (text) { console.error('[wasm.err]', text); engineLog('err', text); },
+    printErr: function (text) { console.error('[wasm.err]', text); lastErrLines.push(String(text)); if (lastErrLines.length > 8) lastErrLines.shift(); engineLog('err', text); },
     setStatus: function (text) {
         if (text) console.log('[shell.setStatus]', text);
         var m = text && text.match(/([^\(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
@@ -259,14 +291,29 @@ var Module = {
     }],
     onRuntimeInitialized: function () {
         console.log('[shell.onRuntimeInitialized]');
+        try { sessionStorage.removeItem('o2_dl_retries'); } catch (e) {}
         // Assets restored from a zip are only sources: build them before the user
         // wonders why the editor still shows the old project
-        if (sessionStorage.getItem('o2_rebuild_after_load')) {
+        // A working copy that has never been built (a project just imported from
+        // its repository) has no game data at all: build it, then start over once,
+        // because the editor has already tried to open its scene on nothing.
+        var neverBuilt = false;
+        try { neverBuilt = !Module.FS.analyzePath('/project/BuiltAssets/WebAssembly/Data.json').exists; } catch (e) {}
+        if (sessionStorage.getItem('o2_rebuild_after_load') || neverBuilt) {
             sessionStorage.removeItem('o2_rebuild_after_load');
-            setStatus('Building the restored assets…');
+            setStatus(neverBuilt ? 'Building the project\'s assets for the first time…' : 'Building the restored assets…');
             setTimeout(function () {
+                var ok = true;
                 try { Module._o2_web_rebuild_assets(); }
-                catch (e) { console.error('[shell] rebuild after upload failed', e); }
+                catch (e) { ok = false; console.error('[shell] rebuild after load failed', e); }
+                if (neverBuilt && ok && !sessionStorage.getItem('o2_first_build:' + o2Base)) {
+                    sessionStorage.setItem('o2_first_build:' + o2Base, '1');   // once: a build that leaves no Data.json must not loop
+                    setStatus('Opening the project…');
+                    (window.__o2DrainMirror ? window.__o2DrainMirror() : Promise.resolve())
+                        .then(function () { return fetch(o2Base + '/api/session/built', { method: 'POST' }).catch(function () {}); })
+                        .then(function () { location.reload(); });
+                    return;
+                }
                 setStatus(null);
             }, 1500);
         }

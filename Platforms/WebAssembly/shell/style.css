@@ -182,6 +182,11 @@ body.mode-preview #topbar .tb-sep { display: inline-block; }
     z-index: 50;
 }
 #status.hidden { display: none; }
+/* It is the EDITOR's start-up that this reports, so it belongs to the editor's face: centred over the
+   scene area, not over the agent panel docked beside it - and not over the game face at all, which
+   has a progress of its own inside the client (preview-boot.js). */
+body:not(.ai-hidden):not(.handheld) #status { left: calc((100% - var(--ai-dock, 420px)) / 2); }
+body.mode-preview #status { display: none; }
 #progress {
     display: block;
     margin-top: 8px;
@@ -405,6 +410,106 @@ body.mode-preview #topbar .tb-sep { display: inline-block; }
     min-height: 26px;
 }
 #cv-name { color: var(--teal-darker); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* ---------- committing the session's changes (shell/git.js) ---------- */
+#changes-foot {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 10px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+}
+#changes-foot .grow { flex: 1; }
+.cf-where { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cf-note { color: var(--muted); font-style: italic; }
+.cf-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 11px;
+    border: 1px solid var(--teal-dark);
+    border-radius: 3px;
+    background: var(--teal);
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+}
+.cf-btn:hover { background: var(--teal-dark); }
+.cf-btn:disabled { opacity: .5; cursor: default; }
+.cf-btn.ghost { background: var(--panel2); color: var(--text); border-color: var(--border); }
+.cf-btn.ghost:hover { background: var(--panel3); }
+
+#ch-commit {
+    position: absolute;
+    inset: 0;
+    background: var(--white);
+    display: none;
+    flex-direction: column;
+    z-index: 2;
+}
+#ch-commit.open { display: flex; }
+.cc-head {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--teal-dark);
+    color: #fff;
+    padding: 5px 10px;
+    font-weight: 600;
+}
+.cc-head .grow { flex: 1; }
+.cc-x { background: none; border: none; color: #fff; cursor: pointer; font-size: 13px; padding: 2px 4px; }
+.cc-body { flex: 1; min-height: 0; overflow: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.cc-hint { margin: 0; color: var(--muted); max-width: 70ch; line-height: 1.5; }
+.cc-label { color: var(--teal-darker); font-weight: 600; }
+.cc-label .muted { color: var(--muted); font-weight: 400; }
+#ch-commit input[type=text], #ch-commit input:not([type]), #ch-commit textarea {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 5px 7px;
+    font: 12px/1.5 inherit;
+    background: #fff;
+    color: var(--text);
+}
+#ch-commit textarea { resize: vertical; font-family: ui-monospace, Menlo, monospace; }
+#cc-branch { font-family: ui-monospace, Menlo, monospace; }
+.cc-grid { display: grid; grid-template-columns: max-content 1fr; gap: 6px 10px; align-items: center; }
+.cc-row { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+.cc-status { color: var(--muted); }
+.cc-status.work { color: var(--teal-darker); }
+.cc-status.err { color: #B5514A; }
+.cc-filehead { display: flex; align-items: center; gap: 8px; color: var(--teal-darker); font-weight: 600; margin-top: 4px; }
+.cc-filehead .grow { flex: 1; }
+.cc-link { background: none; border: none; color: var(--teal-dark); cursor: pointer; font: inherit; font-weight: 400; text-decoration: underline; padding: 0 2px; }
+.cc-files {
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--white);
+    max-height: 40vh;
+    overflow: auto;
+}
+.cc-file {
+    display: flex; align-items: center; gap: 7px;
+    padding: 3px 8px;
+    border-bottom: 1px solid var(--panel2);
+    cursor: pointer;
+}
+.cc-file:last-child { border-bottom: none; }
+.cc-file:hover { background: var(--panel); }
+.cc-file.off .cc-path, .cc-file.off .cc-size { color: var(--muted); text-decoration: line-through; }
+.cc-file .badge {
+    flex: none; width: 15px; height: 15px; border-radius: 3px; color: #fff;
+    font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+}
+.cc-file .badge.A { background: #3B8E6B; }
+.cc-file .badge.M { background: #C88A2B; }
+.cc-file .badge.D { background: #B5514A; }
+.cc-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-size { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cc-why { flex: none; max-width: 30%; color: var(--muted); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-warn { color: #9A5B22; background: #FBF2E4; border: 1px solid #E3C9A0; border-radius: 3px; padding: 5px 8px; }
+.cc-done { color: #2F7A45; font-weight: 600; font-size: 13px; }
+.cc-open { color: var(--teal-dark); }
+
 #cv-view { flex: 1; min-height: 0; position: relative; overflow: hidden; }
 #cv-view .placeholder { color: var(--muted); padding: 24px; }
 #cv-diff { position: absolute; inset: 0; }
@@ -575,10 +680,26 @@ body.mode-preview #topbar .tb-sep { display: inline-block; }
 }
 #ai-settings .row .lbl { width: 120px; color: #5F706E; font-size: 12.5px; flex: none; }
 #ai-settings .row .grow { flex: 1; }
-/* the panel is narrow now: a label beside its control leaves neither any room */
-@media (max-width: 560px) {
-    #ai-settings .row { flex-direction: column; align-items: stretch; gap: 6px; padding: 10px 14px; }
-    #ai-settings .row .lbl { width: auto; }
+#ai-settings #ai-review-slot { flex: 1; min-width: 0; }
+#ai-settings .ai-check { display: flex; line-height: 1.35; }
+#ai-settings .ai-check .box { flex: none; }
+#ai-settings .row .note { color: #778785; font-size: 11.5px; min-width: 0; }
+#ai-settings .ai-seg button { white-space: nowrap; }
+/* The sheet is as wide as the agent panel, not as the window: a 400px panel in a 1440px window is
+   the usual case, so its narrow layout hangs on the panel (a container query). There the label goes
+   above its control, the two ways to sign in share the full width, and the state chip sits beside
+   the label - nothing is left to be pushed out over the sheet's edge. */
+#ai-modal { container: aimodal / inline-size; overflow-y: auto; }
+@container aimodal (max-width: 600px) {
+    #ai-settings { width: 100%; }
+    #ai-settings .row { flex-wrap: wrap; gap: 6px 10px; padding: 10px 14px; }
+    #ai-settings .row .lbl { width: auto; flex: 1 1 100%; }
+    #ai-settings .row.auth .lbl { flex: 1 1 auto; order: 1; }
+    #ai-settings .row.auth .keystate { order: 2; }
+    #ai-settings .row.auth .grow { display: none; }
+    #ai-settings .row.auth .ai-seg { order: 3; flex: 1 1 100%; display: flex; }
+    #ai-settings .row.auth .ai-seg button { flex: 1; padding: 7px 8px; }
+    #ai-settings .ai-input { flex: 1 1 100%; }
     #ai-settings .sheet-head { padding: 12px 14px; }
     #ai-settings .hint { padding: 10px 14px 4px; }
 }
@@ -1007,11 +1128,25 @@ body.mode-preview #canvas-wrap { visibility: hidden; pointer-events: none; }
     box-shadow: 0 12px 28px rgba(10, 30, 28, .28); padding: 4px; min-width: 190px;
 }
 .pv-menu.open { display: block; }
+.pv-menu { max-height: min(70vh, 560px); overflow-y: auto; min-width: 248px; }
 .pv-menu button {
-    display: block; width: 100%; text-align: left; border: none; background: none;
+    display: flex; align-items: center; gap: 9px; width: 100%; box-sizing: border-box;
+    text-align: left; border: none; background: none; line-height: 1.2;
     font: inherit; font-size: 12.5px; padding: 6px 9px; border-radius: 6px; cursor: pointer; color: inherit;
 }
 .pv-menu button:hover { background: #EAF3F1; }
+.pv-menu button.on { background: #DDF0ED; color: var(--teal-darker); font-weight: 600; }
+.pv-menu button.on .pv-shape svg { stroke: var(--teal-darker); }
+.pv-menu .pv-shape { flex: none; align-items: center; justify-content: center; width: 16px; height: 16px; }
+.pv-menu .pv-shape svg { width: 16px; height: 16px; display: block; }
+.pv-menu .pv-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pv-menu .pv-dim { flex: none; font-size: 11px; color: #7A8A88; font-variant-numeric: tabular-nums; font-weight: 400; }
+.pv-menu .pv-group {
+    padding: 8px 9px 3px; font-size: 10.5px; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; color: #7A8A88;
+}
+.pv-dd > button .icon, .pv-dd > button .chev { flex: none; display: block; }
+.pv-dd > button, .pv-seg button, #pv-restart { line-height: 1.2; white-space: nowrap; }
 .pv-seg { display: inline-flex; gap: 3px; }
 .pv-seg button.on { background: #FAFCFC; border-color: #FAFCFC; color: var(--teal-darker); font-weight: 600; }
 
@@ -1094,3 +1229,218 @@ body.ai-hidden #ai-toggle .icon { transform: rotate(180deg); }
 /* the scratch space wears a different accent than the project's own assets */
 #browser.work #browser-title { background: linear-gradient(180deg, #7A6A9E 0%, #63548A 100%); }
 #topbar button.tbtn.danger:hover { background: rgba(200, 106, 106, .35); border-color: rgba(230, 150, 150, .5); }
+
+/* ---------- embedded in the o2 portal ----------
+   The portal's header carries the project, its tabs and the agent button, so
+   this page keeps only what belongs to a face: nothing over the editor (the
+   agent's header sits over its own panel), the device controls over the game. */
+body.embed #topbar .tb-brand, body.embed #modeswitch, body.embed #assets-state,
+body.embed #btn-changes, body.embed #btn-browser, body.embed #btn-work,
+body.embed #btn-download, body.embed #btn-upload, body.embed #btn-reset { display: none; }
+body.embed:not(.mode-preview) #topbar { left: auto; width: var(--ai-dock, 420px); padding: 0; }
+body.embed:not(.mode-preview) #topbar > :not(.tb-agent) { display: none; }
+body.embed:not(.mode-preview) #canvas-wrap { top: 0; }
+body.embed.ai-hidden:not(.mode-preview) #topbar { display: none; }
+body.embed #preview { background: #DCE4E3; }
+body.embed #preview-stage {
+    background:
+        linear-gradient(45deg, rgba(46,56,54,.035) 25%, transparent 25%, transparent 75%, rgba(46,56,54,.035) 75%) 0 0/24px 24px,
+        linear-gradient(45deg, rgba(46,56,54,.035) 25%, transparent 25%, transparent 75%, rgba(46,56,54,.035) 75%) 12px 12px/24px 24px,
+        #DCE4E3;
+}
+/* (the hint is not in this list: it sits on the screen's own dark ground, not on the stage) */
+body.embed #pv-size { color: inherit; }
+
+/* ---------- full screen ----------
+   The game and nothing else (preview-host.js: setImmersive). The bar and the
+   agent go; an emulated device stays what it is, on a dark ground, and "Fit"
+   gets the whole window. The way back is a button in the corner that fades. */
+#pv-full {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,.08); color: #DCEAE8;
+    border: 1px solid rgba(255,255,255,.14); border-radius: 7px;
+    padding: 4px 9px; font: inherit; font-size: 12px; cursor: pointer; line-height: 1.2; white-space: nowrap;
+}
+#pv-full:hover { background: rgba(255,255,255,.15); }
+body.immersive #topbar, body.immersive #ai, body.immersive #ai-sheet-back { display: none !important; }
+body.immersive #preview { top: 0 !important; right: 0 !important; bottom: 0 !important; transition: none; }
+body.immersive #preview, body.immersive #preview-stage { background: #07090A; }
+#pv-exit {
+    display: none; position: absolute; z-index: 6;
+    top: calc(10px + max(env(safe-area-inset-top, 0px), var(--o2-safe-top, 0px)));
+    right: calc(10px + max(env(safe-area-inset-right, 0px), var(--o2-safe-right, 0px)));
+    width: 40px; height: 40px; padding: 0; border-radius: 50%; cursor: pointer;
+    align-items: center; justify-content: center;
+    background: rgba(12, 18, 18, .58); color: #fff; border: 1px solid rgba(255, 255, 255, .28);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    transition: opacity .5s ease;
+}
+#pv-exit .icon { width: 17px; height: 17px; }
+#pv-exit.dim { opacity: .14; }
+body.immersive #pv-exit { display: inline-flex; }
+
+/* ---------- on a phone ----------
+   body.handheld: the game face on a small screen — a narrow page, or a touch
+   screen on its side; the rule itself is MOBILE_QUERY in preview-host.js. The
+   game is this device, edge to edge, and the agent is a row under it: the
+   conversation comes up as a sheet (body.ai-sheet) only when asked for. */
+#ai-grab, #ai-peek, #ai-game-btns, #ai-sheet-back { display: none; }
+
+body.handheld.embed #topbar { display: none; }
+body.handheld #pv-device-slot, body.handheld #pv-orient, body.handheld #pv-size, body.handheld #pv-full { display: none; }
+body.handheld #preview { top: 0; right: 0; bottom: var(--ai-rest, 70px); transition: none; }
+body.handheld:not(.embed) #preview { top: 44px; }
+body.handheld #preview, body.handheld #preview-stage { background: #0B0F10; }
+body.handheld #preview-device {
+    width: 100%; height: 100%; padding: 0; border-radius: 0; background: none; box-shadow: none;
+}
+body.handheld #preview-screen { border-radius: 0; }
+
+body.handheld #ai.open {
+    display: flex; top: auto; left: 0; right: 0; width: auto;
+    bottom: var(--o2-kb, 0px);
+    /* the game may run under the notch and the home bar; the controls keep clear of them */
+    padding: 0 max(env(safe-area-inset-right, 0px), var(--o2-safe-right, 0px))
+             max(env(safe-area-inset-bottom, 0px), var(--o2-safe-bottom, 0px))
+             max(env(safe-area-inset-left, 0px), var(--o2-safe-left, 0px));
+    border-left: none; border-top: 1px solid #C6D3D1;
+    background: #EEF4F3; box-shadow: 0 -6px 22px rgba(10, 30, 28, .24);
+    overflow: visible;
+}
+/* the keyboard covers the home bar: no need to keep clear of it */
+html.kb-open body.handheld #ai.open { padding-bottom: 0; }
+body.handheld .ai-edge { display: none; }
+body.handheld #ai-grab {
+    display: flex; align-items: center; justify-content: center; flex: none;
+    height: 20px; cursor: pointer; touch-action: none;
+}
+body.handheld #ai-grab span { width: 38px; height: 4px; border-radius: 2px; background: #B4C4C1; }
+
+/* folded: one line */
+body.handheld:not(.ai-sheet) .tb-agent,
+body.handheld:not(.ai-sheet) #ai-chat,
+body.handheld:not(.ai-sheet) #ai-files,
+body.handheld:not(.ai-sheet) #ai-bar,
+body.handheld:not(.ai-sheet) #ai-modal,
+body.handheld:not(.ai-sheet) #ai-model-slot,
+body.handheld:not(.ai-sheet) #ai-effort-slot,
+body.handheld:not(.ai-sheet) #ai-mode-slot,
+body.handheld:not(.ai-sheet) #ai-controls .grow { display: none; }
+body.handheld #ai-inputrow {
+    display: flex; align-items: flex-end; gap: 6px;
+    padding: 0 8px 8px; border-top: none; background: none;
+}
+/* the composer's controls join its own flex row, so the field and Send share a line */
+body.handheld #ai-composer {
+    flex: 1; min-width: 0; border-radius: 22px;
+    display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px; padding: 4px;
+}
+body.handheld #ai-controls { display: contents; }
+body.handheld #ai-attach-list { flex: 0 0 100%; order: 0; box-sizing: border-box; padding: 4px 6px 2px; }
+body.handheld #ai-attach.ai-pill { order: 1; width: 36px; height: 36px; border: none; border-radius: 50%; background: none; }
+body.handheld #ai-input { order: 2; flex: 1; width: auto; min-width: 0; max-height: 84px; padding: 6px 2px; }
+body.handheld #ai-send { order: 3; width: 36px; height: 36px; }
+/* 16px and up, or an iPhone zooms the page into the field */
+body.handheld #ai-input, body.handheld .ai-input { font-size: 16px; line-height: 24px; }
+body.handheld:not(.ai-sheet) #ai-game-btns { display: flex; gap: 6px; flex: none; padding-bottom: 1px; }
+#ai-game-btns button {
+    width: 44px; height: 44px; padding: 0; border-radius: 50%; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: #fff; border: 1px solid #C9D6D4; color: #3C4C4A;
+}
+#ai-game-btns button:active { background: #E4EBEA; }
+#ai-game-btns svg {
+    width: 18px; height: 18px; fill: none; stroke: currentColor;
+    stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* what the agent is doing, or said last: one line over the game's bottom edge */
+body.handheld #ai-peek.show {
+    display: flex; align-items: center; gap: 8px;
+    position: absolute; bottom: calc(100% + 8px);
+    left: calc(8px + max(env(safe-area-inset-left, 0px), var(--o2-safe-left, 0px)));
+    right: calc(8px + max(env(safe-area-inset-right, 0px), var(--o2-safe-right, 0px)));
+    box-sizing: border-box; min-height: 38px; padding: 6px 6px 6px 12px; border-radius: 19px; cursor: pointer;
+    background: rgba(16, 26, 25, .82); color: #EAF5F3; font-size: 13px; line-height: 1.35;
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .3);
+}
+#ai-peek .txt {
+    flex: 1; min-width: 0; overflow: hidden;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+}
+#ai-peek .spin, #ai-peek .dot, #ai-peek .stop { display: none; flex: none; }
+#ai-peek .spin {
+    width: 13px; height: 13px; border: 2px solid rgba(255, 255, 255, .25); border-top-color: #5FD3C6;
+    border-radius: 50%; animation: aispin .8s linear infinite;
+}
+#ai-peek .dot { width: 8px; height: 8px; border-radius: 50%; background: #5FD3C6; }
+#ai-peek.busy .spin, #ai-peek.busy .stop { display: inline-flex; }
+#ai-peek.reply .dot, #ai-peek.error .dot, #ai-peek.ask .dot { display: block; }
+#ai-peek.error .dot { background: #E58A86; }
+#ai-peek.ask { background: rgba(92, 66, 8, .9); }
+#ai-peek.ask .dot { background: #F2C14E; }
+#ai-peek button {
+    flex: none; width: 28px; height: 28px; padding: 0; border: none; border-radius: 50%; cursor: pointer;
+    align-items: center; justify-content: center; background: rgba(255, 255, 255, .12); color: inherit;
+}
+#ai-peek .x { display: inline-flex; }
+#ai-peek.busy .x { display: none; }
+#ai-peek button svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+#ai-peek .stop svg { fill: currentColor; stroke: none; }
+
+/* pulled up: the conversation, its header and the whole composer */
+body.handheld.ai-sheet #ai.open {
+    height: max(70%, min(100% - 12px, 460px));
+    max-height: calc(100% - var(--o2-kb, 0px) - 6px);
+    border-radius: 16px 16px 0 0; overflow: hidden;
+    background: #F6F9F8; box-shadow: 0 -12px 40px rgba(10, 30, 28, .4);
+    animation: aisheet .22s cubic-bezier(.2, .8, .2, 1);
+}
+body.handheld #ai.dragging { animation: none; transition: none; }
+@keyframes aisheet { from { transform: translateY(35%); opacity: .6; } to { transform: none; opacity: 1; } }
+body.handheld.ai-sheet #ai-sheet-back {
+    display: block; position: fixed; inset: 0; z-index: 43; background: rgba(8, 16, 15, .38);
+}
+body.handheld.ai-sheet #ai-grab { background: #268578; height: 18px; }
+body.handheld.ai-sheet #ai-grab span { background: rgba(255, 255, 255, .55); }
+body.handheld .tb-agent {
+    flex: none; width: auto; height: 44px; border-left: none; padding: 0 8px; gap: 6px; color: #EAF5F3;
+    background: linear-gradient(180deg, #268578 0%, #227A6E 100%);
+}
+body.handheld #ai-toggle .icon { transform: rotate(90deg); }
+body.handheld .tb-agent #ai-chip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+body.handheld .tb-agent #ai-new { font-size: 0; gap: 0; padding: 6px; }
+body.handheld .tb-agent .ai-dd .cur { max-width: 90px; }
+body.handheld.ai-sheet #ai-chat { padding: 14px 12px 10px; }
+body.handheld.ai-sheet #ai-inputrow { padding: 8px 10px 10px; border-top: 1px solid #DCE5E3; background: #EEF4F3; }
+/* two lines there: the message and Send, then what the turn runs on */
+body.handheld.ai-sheet #ai-composer { border-radius: 16px; padding: 6px; gap: 6px; }
+body.handheld.ai-sheet #ai-input { max-height: 132px; padding-left: 8px; }
+body.handheld.ai-sheet #ai-controls .grow { order: 4; flex: 0 0 100%; height: 0; }
+body.handheld.ai-sheet #ai-attach.ai-pill { order: 5; width: 32px; height: 32px; border: 1px solid #C9D8D5; border-radius: 8px; background: #fff; }
+body.handheld.ai-sheet #ai-model-slot { order: 6; }
+body.handheld.ai-sheet #ai-effort-slot { order: 7; }
+body.handheld.ai-sheet #ai-mode-slot { order: 8; }
+body.handheld.ai-sheet .ai-dd.pill > .val { padding: 7px 9px; }
+body.handheld #ai-empty { margin: 4px auto; }
+body.handheld #ai-empty .badge { display: none; }
+body.handheld .ai-m { max-width: 88%; }
+body.handheld #ai-modal { padding: 8px; overflow-y: auto; }
+body.handheld #ai-settings { width: 100%; }
+
+/* a phone on its side has no height to spare: a slimmer row */
+@media (max-height: 430px) {
+    body.handheld:not(.ai-sheet) #ai-grab { height: 14px; }
+    body.handheld:not(.ai-sheet) #ai-inputrow { padding-bottom: 6px; }
+    body.handheld:not(.ai-sheet) #ai-game-btns button { width: 40px; height: 40px; }
+    body.handheld:not(.ai-sheet) #ai-composer { padding: 2px 4px; }
+}
+/* and width to spare: the sheet's composer stays one line, so the conversation keeps what is left */
+@media (max-height: 430px) and (min-width: 600px) {
+    body.handheld.ai-sheet #ai-controls .grow { display: none; }
+    body.handheld.ai-sheet #ai-attach.ai-pill, body.handheld.ai-sheet #ai-model-slot,
+    body.handheld.ai-sheet #ai-effort-slot, body.handheld.ai-sheet #ai-mode-slot { order: 1; }
+    body.handheld.ai-sheet #ai-inputrow { padding: 6px 10px 8px; }
+    body.handheld.ai-sheet .tb-agent { height: 40px; }
+}

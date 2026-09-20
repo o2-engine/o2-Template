@@ -48,7 +48,7 @@
         '<div id="ai-inputrow">' +
           '<div id="ai-composer">' +
             '<div id="ai-attach-list"></div>' +
-            '<textarea id="ai-input" rows="1" placeholder="What should the agent do? For example: add a title label to the scene…"></textarea>' +
+            '<textarea id="ai-input" rows="1" enterkeyhint="send" placeholder="What should the agent do? For example: add a title label to the scene…"></textarea>' +
             '<div id="ai-controls">' +
               '<button class="ai-pill" id="ai-attach" title="Attach files from your computer">' +
                 '<svg viewBox="0 0 16 16"><path d="M11.5 6.5 7 11a2.5 2.5 0 0 1-3.5-3.5l5-5a3.5 3.5 0 0 1 5 5l-5.2 5.2"/></svg>' +
@@ -68,7 +68,7 @@
           '<div id="ai-settings">' +
             '<div class="sheet-head"><span>Agent settings</span><span class="grow"></span>' +
               '<button class="ai-btn" id="ai-settings-close">Done</button></div>' +
-            '<div class="row"><span class="lbl">Sign in with</span>' +
+            '<div class="row auth"><span class="lbl">Sign in with</span>' +
               '<span class="ai-seg" id="ai-auth"><button data-auth="key">API key</button>' +
               '<button data-auth="sub">Claude subscription</button></span>' +
               '<span class="grow"></span><span class="keystate" id="ai-keystate"></span></div>' +
@@ -81,8 +81,11 @@
             '<div class="row" id="row-gemini"><span class="lbl">Gemini key</span>' +
               '<input id="ai-gemini" class="ai-input" type="password" placeholder="AIza… — for the image tools" spellcheck="false" autocomplete="off"></div>' +
             '<div class="row"><span class="lbl">Self-review</span>' +
-              '<span id="ai-review-slot"></span><span class="grow"></span>' +
-              '<button class="ai-btn" id="ai-log" title="The whole conversation and its events as JSON">Copy log</button></div>' +
+              '<span id="ai-review-slot"></span></div>' +
+            // its own row: next to the toggle and its sentence it never fitted a narrow panel
+            '<div class="row"><span class="lbl">Conversation</span>' +
+              '<button class="ai-btn" id="ai-log" title="The whole conversation and its events as JSON">Copy log</button>' +
+              '<span class="note">everything said and done, as JSON</span></div>' +
             '<p class="hint" id="hint-key">The key is sent to this server and handed to the Claude Code process; usage is billed to it. ' +
                'Create one at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.</p>' +
             '<p class="hint" id="hint-sub">Run <code>claude setup-token</code> in a terminal where you are logged in to Claude Code, ' +
@@ -120,6 +123,154 @@
     function iconHtml(name) {
         return '<svg viewBox="0 0 16 16">' + (ICON[name] || '') + '</svg>';
     }
+
+    // ---------- on a phone: a row under the game ----------
+    // There (body.handheld, decided in preview-host.js) the panel folds down to its
+    // composer, docked under the game. The conversation is a sheet pulled up over
+    // the game when asked for, with the header that otherwise sits in the top bar,
+    // and what the agent is doing meanwhile is one line above the row.
+    var headerHome = headerSlot.parentNode;
+    var grabEl = document.createElement('div');
+    grabEl.id = 'ai-grab';
+    grabEl.title = 'The conversation';
+    grabEl.innerHTML = '<span></span>';
+    dlg.insertBefore(grabEl, dlg.firstChild);
+
+    var peekEl = document.createElement('div');
+    peekEl.id = 'ai-peek';
+    peekEl.innerHTML = '<span class="spin"></span><span class="dot"></span><span class="txt"></span>' +
+        '<button type="button" class="stop" title="Stop">' + ICONS_STOP + '</button>' +
+        '<button type="button" class="x" title="Dismiss">' + ICONS_CLOSE + '</button>';
+    dlg.appendChild(peekEl);
+    var peekText = peekEl.querySelector('.txt');
+
+    // the game's own two buttons ride in the same row: there is no bar for them here
+    var gameBtns = document.createElement('div');
+    gameBtns.id = 'ai-game-btns';
+    gameBtns.innerHTML =
+        '<button type="button" id="ai-restart" title="Restart the game with the current assets">' +
+          '<svg viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.5M13 2v3h-3"/></svg></button>' +
+        '<button type="button" id="ai-full" title="Full screen: the game and nothing else">' +
+          '<svg viewBox="0 0 16 16"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/></svg></button>';
+    var inputRowEl = document.getElementById('ai-inputrow');
+    inputRowEl.insertBefore(gameBtns, inputRowEl.firstChild);
+    document.getElementById('ai-restart').onclick = function () { o2Preview.restart(); };
+    document.getElementById('ai-full').onclick = function () { o2Preview.setImmersive(true); };
+
+    var sheetBack = document.createElement('div');
+    sheetBack.id = 'ai-sheet-back';
+    dlg.parentNode.insertBefore(sheetBack, dlg);
+
+    var PLACEHOLDER = 'What should the agent do? For example: add a title label to the scene…';
+    var PLACEHOLDER_BUSY = 'Next message — sent when this turn ends…';
+    var phoneOn = false, sheetOpen = false, restHeight = 0;
+    var peekState = null;      // { kind: 'busy' | 'ask' | 'reply' | 'error', text }
+    var lastReply = '';
+
+    function isMobile() { return typeof o2Preview !== 'undefined' && o2Preview.isMobile(); }
+
+    function paintPlaceholder() {
+        // one line is all a phone has for it
+        inputEl.placeholder = !phoneOn ? (running ? PLACEHOLDER_BUSY : PLACEHOLDER)
+            : running ? 'Next message…' : sheetOpen ? 'What should the agent do?' : 'Ask the agent…';
+    }
+    function setPeek(kind, text) {
+        // said into an open sheet, it has been read already
+        if (sheetOpen && kind !== 'busy' && kind !== 'ask') kind = null;
+        peekState = kind ? { kind: kind, text: text || '' } : null;
+        paintPeek();
+    }
+    function paintPeek() {
+        var show = phoneOn && !sheetOpen && !!peekState;
+        peekEl.className = show ? 'show ' + peekState.kind : '';
+        if (show) peekText.textContent = peekState.text;
+    }
+    // the first sentence of an answer is what it says; the rest is in the sheet
+    function firstSentence(md) {
+        var t = String(md || '').replace(/```[\s\S]*?```/g, ' ').replace(/[#*`_>|]/g, '').replace(/\s+/g, ' ').trim();
+        var m = t.match(/^(.{12,160}?[.!?…])(\s|$)/);
+        return m ? m[1] : t.slice(0, 160);
+    }
+    function setSheet(on) {
+        on = !!on && phoneOn;
+        if (on === sheetOpen) return;
+        sheetOpen = on;
+        document.body.classList.toggle('ai-sheet', on);
+        dlg.style.transform = '';
+        if (on) {
+            // read is read: only a turn still running comes back as a line
+            if (peekState && peekState.kind !== 'busy' && peekState.kind !== 'ask') peekState = null;
+            if (chatEl.querySelector('#ai-empty')) chatEl.scrollTop = 0; else scrollDown();
+            if (!modelsLoaded) loadModels();
+        } else {
+            if (openDd) openDd.close();
+            closeSettings();
+            inputEl.blur();
+        }
+        paintPlaceholder();
+        paintPeek();
+        if (window.__o2LayoutChanged) window.__o2LayoutChanged();
+    }
+    function applyPhone() {
+        var on = isMobile() && o2Preview.isActive();
+        if (on === phoneOn) return;
+        phoneOn = on;
+        if (on) {
+            // the row is always there: a panel folded away on a wide page is unfolded
+            document.body.classList.remove('ai-hidden');
+            dlg.insertBefore(headerSlot, grabEl.nextSibling);
+        } else { setSheet(false); headerHome.appendChild(headerSlot); }
+        paintPlaceholder();
+        paintPeek();
+        measureRest();
+    }
+    // The game ends where the resting row begins. A row grown by a long message or
+    // by attachments lies over the game instead of resizing it under the player.
+    function measureRest() {
+        if (!phoneOn || sheetOpen || inputEl.value || attachments.length) return;
+        if (document.activeElement === inputEl || document.documentElement.classList.contains('kb-open')) return;
+        var h = Math.round(dlg.getBoundingClientRect().height);
+        if (h > 0 && h !== restHeight) document.body.style.setProperty('--ai-rest', (restHeight = h) + 'px');
+    }
+    // (a frame later: the panes this resizes are observed too)
+    if (window.ResizeObserver)
+        new ResizeObserver(function () { requestAnimationFrame(measureRest); }).observe(dlg);
+
+    peekEl.onclick = function () { setSheet(true); };
+    peekEl.querySelector('.x').onclick = function (e) { e.stopPropagation(); setPeek(null); };
+    peekEl.querySelector('.stop').onclick = function (e) { e.stopPropagation(); stopBtn.onclick(); };
+    sheetBack.onclick = function () { setSheet(false); };
+
+    // the handle: a tap toggles, a pull opens, a push down closes
+    (function setupGrab() {
+        var drag = null, pulled = false;
+        grabEl.addEventListener('pointerdown', function (e) {
+            drag = { y: e.clientY, dy: 0 };
+            pulled = false;
+            try { grabEl.setPointerCapture(e.pointerId); } catch (err) {}
+            dlg.classList.add('dragging');
+        });
+        grabEl.addEventListener('pointermove', function (e) {
+            if (!drag) return;
+            drag.dy = e.clientY - drag.y;
+            if (Math.abs(drag.dy) >= 8) pulled = true;
+            if (sheetOpen) dlg.style.transform = 'translateY(' + Math.max(0, drag.dy) + 'px)';
+        });
+        function release(cancelled) {
+            if (!drag) return;
+            var dy = drag.dy;
+            drag = null;
+            dlg.classList.remove('dragging');
+            dlg.style.transform = '';
+            if (cancelled || !pulled) return;
+            if (sheetOpen && dy > 70) setSheet(false);
+            else if (!sheetOpen && dy < -24) setSheet(true);
+        }
+        grabEl.addEventListener('pointerup', function () { release(false); });
+        grabEl.addEventListener('pointercancel', function () { release(true); });
+        // a click of its own, so a finger that lands a little off still finds it
+        grabEl.onclick = function () { if (!pulled) setSheet(!sheetOpen); };
+    })();
 
     // ---------- resizing ----------
     // The panel is docked in both modes, so there is one handle: the splitter on
@@ -212,6 +363,8 @@
     });
     document.addEventListener('keydown', function (e) {
         if (e.key !== 'Escape' || !dlg.classList.contains('open')) return;
+        // in full screen the panel is not there to be closed: Esc is the way out of that
+        if (typeof o2Preview !== 'undefined' && o2Preview.isImmersive()) return;
         // innermost thing first: a menu, then the settings sheet, then the window
         if (openDd) { openDd.close(); e.stopPropagation(); return; }
         if (modalEl.classList.contains('open')) { closeSettings(); e.stopPropagation(); return; }
@@ -434,6 +587,7 @@
     geminiEl.onchange = function () { setSetting('o2ai_gemini', tidy(geminiEl)); };
 
     function openSettings() {
+        if (phoneOn) setSheet(true);
         modalEl.classList.add('open');
         gearBtn.classList.add('on');
         if (!modelsLoaded) loadModels();
@@ -447,8 +601,12 @@
     };
     document.getElementById('ai-settings-close').onclick = closeSettings;
     modalEl.onclick = function (e) { if (e.target === modalEl) closeSettings(); };
-    // a missing key is the one thing worth opening the sheet for on its own
-    if (!credential() && !/localhost|127\.0\.0\.1/.test(location.hostname)) openSettings();
+    // a missing key is the one thing worth opening the sheet for on its own — but
+    // not over a game on a phone: there it waits for the first message (runAgent)
+    // Not in the portal's anonymous demo: a visitor came to see the editor, and a dialog asking for an API key
+    // over it is the wrong first thing to show - it opens when they first try to send, like on a phone.
+    var anonymousDemo = /^\/demo\/editor\//.test(location.pathname);
+    if (!credential() && !/localhost|127\.0\.0\.1/.test(location.hostname) && !isMobile() && !anonymousDemo) openSettings();
 
     function applyDev() {
         devBtn.classList.toggle('on', devMode);
@@ -605,7 +763,12 @@
             '<div class="badge">' + iconHtml('spark') + '</div>' +
             '<h2>The agent works on a copy of this project</h2>' +
             '<p>Claude Code on the server: it reads and edits files under <b>Assets/</b> in your session, ' +
-            'sees the scene and drives the editor. The rest of the repository is read-only.</p>' +
+            'sees the scene and drives the editor. ' +
+            // a portal project (/p/<id>/editor/) also owns its C++, compiled from the project's Builds tab
+            (/^\/p\/[a-f0-9]+\/editor\//.test(location.pathname)
+                ? 'It can write the game\u2019s C++ under <b>Sources/</b> too \u2014 you compile it in the Builds tab. '
+                : '') +
+            'The rest of the repository is read-only.</p>' +
             '<div class="examples"></div>';
         var ex = d.querySelector('.examples');
         EXAMPLES.forEach(function (t) {
@@ -666,6 +829,7 @@
         }
         chatEl.appendChild(d);
         scrollDown();
+        setPeek('error', (opts.head ? opts.head + ': ' : '') + message);
         return d;
     }
 
@@ -740,7 +904,10 @@
         chipEl.className = kind ? kind : '';
         chipEl.id = 'ai-chip';
     }
-    function setAction(text) { actEl.textContent = text || 'working…'; }
+    function setAction(text) {
+        actEl.textContent = text || 'working…';
+        if (running) setPeek('busy', actEl.textContent);
+    }
     function setMeta(text) { metaEl.textContent = text || ''; }
 
     var changed = {};   // path -> 'edit' | 'delete'
@@ -1245,6 +1412,7 @@
     };
     window.__o2aiExec = EXEC;       // debug/testing handles
     window.__o2aiEvents = function () { return events; };
+    window.__o2aiFeed = function (ev) { onEvent(ev); };   // a stream event by hand, to see the panel without a turn
 
     // Claude writes files on the server; the running editor works off its
     // own MEMFS copy, so pull what changed under Assets into it
@@ -1274,6 +1442,15 @@
             });
         }).catch(function (e) { console.warn('[ai] MEMFS sync failed for ' + rel, e); });
     }
+
+    // the portal's file browser edits the same working copy from outside the frame
+    window.__o2SyncFiles = function (changed, deleted) {
+        changed.forEach(function (p) { syncChangedFile(p); });
+        deleted.forEach(function (p) { removeDeletedFile(p); });
+        setTimeout(function () {
+            try { Module._o2_web_rebuild_assets(); } catch (e) { console.warn('[ai] rebuild after sync failed', e); }
+        }, 800);
+    };
 
     var sessionCwd = '';
     function shortPath(v) {
@@ -1312,6 +1489,7 @@
         scrollDown();
         setChip('waiting for you', 'busy');
         setAction('needs permission: ' + ev.tool.replace(/^mcp__o2__/, ''));
+        setPeek('ask', 'Needs your permission: ' + ev.tool.replace(/^mcp__o2__/, '') + ' — tap to answer');
     }
     function resolvePermissionUi(id, behavior) {
         var d = permissionBlocks[id];
@@ -1512,6 +1690,7 @@
                     break;
                 }
                 if (ev.sub) { addStep('  ↳ subtask replied', ev.text, { dev: true }); break; }
+                lastReply = ev.text;
                 currentBubble().innerHTML = renderMarkdown(ev.text);
                 bubble = null; bubbleText = '';
                 scrollDown();
@@ -1607,11 +1786,13 @@
         barEl.classList.toggle('show', on);
         sendBtn.classList.toggle('queue', on);
         sendBtn.title = on ? 'Queued until the current turn ends' : 'Send (Enter)';
-        inputEl.placeholder = on
-            ? 'Next message — sent when this turn ends…'
-            : 'What should the agent do? For example: add a title label to the scene…';
-        if (on) { setChip('working', 'busy'); runStarted = Date.now(); runTools = 0; tickMeta(); showTyping(); }
-        else { hideTyping(); setChip('ready'); setMeta(''); loadHistory(); }
+        paintPlaceholder();
+        if (on) { setChip('working', 'busy'); runStarted = Date.now(); runTools = 0; tickMeta(); showTyping(); lastReply = ''; setPeek('busy', 'working…'); }
+        else {
+            hideTyping(); setChip('ready'); setMeta(''); loadHistory();
+            // what is left above the row: the failure, or what the agent said last
+            if (!peekState || peekState.kind !== 'error') setPeek(lastReply ? 'reply' : null, firstSentence(lastReply));
+        }
     }
 
     // ---------- a run from start to finish ----------
@@ -1664,6 +1845,13 @@
         if (gemini) c.geminiKey = gemini;
         return c;
     }
+
+    // the Changes window commits on the same credential and model (shell/git.js)
+    window.o2AiCredentials = function () {
+        var c = credentials();
+        return { apiKey: c.apiKey || '', oauthToken: c.oauthToken || '', workspaceId: c.workspaceId || '' };
+    };
+    window.o2AiModel = function () { return modelDd.get() || DEFAULT_MODEL; };
 
     async function startRun(text, review) {
         var model = modelDd.get() || DEFAULT_MODEL;
@@ -1835,13 +2023,15 @@
         dlg.classList.add('open');
         document.body.classList.remove('ai-hidden');
         settle();
-        inputEl.focus();
+        // a focused field on a phone is a keyboard over the game
+        if (!isMobile()) inputEl.focus();
         ensureStream();
         showEmptyState();
         loadHistory();
         if (!modelsLoaded) loadModels();
     }
     function closeDlg() {
+        if (phoneOn) { setSheet(false); return; }
         document.body.classList.add('ai-hidden');
         settle();
     }
@@ -1858,9 +2048,14 @@
         });
     });
     function toggleDlg() {
+        if (phoneOn) { setSheet(!sheetOpen); return; }
         if (document.body.classList.contains('ai-hidden')) openDlg(); else closeDlg();
     }
     window.__o2ToggleAgent = toggleDlg;
+    // on a phone the row is always there; what opens and closes is the sheet
+    window.__o2AgentShown = function () {
+        return phoneOn ? sheetOpen : !document.body.classList.contains('ai-hidden');
+    };
 
     document.getElementById('ai-toggle').onclick = toggleDlg;
 
@@ -1898,6 +2093,8 @@
         inputEl.value = '';
         inputEl.style.height = '';
         clearAttachments();
+        // sent from the row: the keyboard goes, the game and the status line stay
+        if (phoneOn && !sheetOpen) inputEl.blur();
         runAgent((t || 'Take a look at the attached files.') + note);
     }
     sendBtn.onclick = send;
@@ -1918,4 +2115,9 @@
 
     // The agent is part of the page: it starts open on the right, in either mode.
     openDlg();
+
+    if (typeof o2Preview !== 'undefined') o2Preview.onChange(function (kind) {
+        if (kind === 'mode' || kind === 'mobile') applyPhone();
+    });
+    applyPhone();
 })();
