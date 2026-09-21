@@ -26,59 +26,204 @@ function setStatus(text, frac) {
 }
 
 
-// ---- snapshot streaming ------------------------------------------
-function loadSnapshot(done, fail) {
-    fetch(o2Base + '/api/fs/snapshot').then(function (resp) {
-        if (!resp.ok) throw new Error('snapshot HTTP ' + resp.status);
-        var total = +resp.headers.get('X-Uncompressed-Length') || 0;
-        var reader = resp.body.getReader();
-        var chunks = [], loaded = 0;
-        function pump() {
-            return reader.read().then(function (r) {
-                if (r.done) return;
-                chunks.push(r.value);
-                loaded += r.value.length;
-                setStatus('Downloading project… ' + (loaded / 1048576).toFixed(1) + ' MB', total ? loaded / total : 0);
-                return pump();
+// ---- the project's files --------------------------------------------
+// shell/snapshot.js brings them: from what this browser kept of earlier starts, and from the server what is
+// not there. It is pulled in from here and not by editor.html, which a project's own runtime and the demo
+// bring in a version of their own. The download starts as soon as that file is here - long before preRun,
+// which emscripten only reaches once the wasm is compiled.
+var projectFiles = (function () {
+    var job = null, failed = null, waiting = [];
+    function settle() { waiting.splice(0).forEach(function (fn) { fn(); }); }
+    (function pull(tries) {
+        var s = document.createElement('script');
+        s.src = 'shell/snapshot.js';
+        s.onload = function () {
+            job = window.o2Snapshot.start({
+                base: o2Base, status: setStatus,
+                // the server's own page lives in a throwaway profile: nothing to find there, nothing worth keeping
+                noCache: /[?&](headless|nocache)=1/.test(location.search),
+                words: { full: 'Downloading project… ', waiting: 'Downloading editor…' },
             });
-        }
-        return pump().then(function () {
-            var buf = new Uint8Array(loaded), off = 0;
-            for (var i = 0; i < chunks.length; i++) { buf.set(chunks[i], off); off += chunks[i].length; }
-            return buf;
-        });
-    }).then(function (buf) {
-        var magic = String.fromCharCode.apply(null, buf.subarray(0, 8));
-        if (magic !== 'O2SNAP01') throw new Error('bad snapshot magic');
-        var indexLen = new DataView(buf.buffer, buf.byteOffset + 8, 4).getUint32(0, true);
-        var index = JSON.parse(new TextDecoder().decode(buf.subarray(12, 12 + indexLen)));
-        var off = 12 + indexLen;
+            settle();
+        };
+        s.onerror = function () {
+            s.remove();
+            if (tries < 3) { setTimeout(function () { pull(tries + 1); }, 800 * (tries + 1)); return; }
+            failed = new Error('shell/snapshot.js did not load');
+            settle();
+        };
+        document.head.appendChild(s);
+    })(0);
+    return {
+        /** into MEMFS, once the files and the runtime are both there */
+        into: function (FS) {
+            return new Promise(function (resolve, reject) {
+                function go() { if (failed) reject(failed); else job.into(FS).then(resolve, reject); }
+                if (job || failed) go(); else waiting.push(go);
+            });
+        },
+    };
+})();
 
-        setStatus('Unpacking project…', 1);
-        var FS = Module.FS;
-        var madeDirs = {};
-        function mkdirs(dir) {
-            if (madeDirs[dir]) return;
-            FS.mkdirTree(dir);
-            madeDirs[dir] = true;
-        }
-        for (var i = 0; i < index.files.length; i++) {
-            var f = index.files[i];
-            var full = '/project/' + f.p;
-            mkdirs(full.substring(0, full.lastIndexOf('/')));
-            FS.writeFile(full, buf.subarray(off, off + f.s));
-            if (f.m) try { FS.utime(full, f.m, f.m); } catch (e) {}
-            off += f.s;
-        }
-        mkdirs('/project/Bin/WebAssembly');
-        console.log('[shell] snapshot unpacked:', index.files.length, 'files');
+function loadSnapshot(done, fail) {
+    projectFiles.into(Module.FS).then(function (stats) {
+        console.log('[shell] snapshot unpacked:', stats.files, 'files');
         done();
-    }).catch(function (e) {
+    }, function (e) {
         console.error('[shell] snapshot failed', e);
         setStatus('Failed to load project: ' + e.message);
         fail(e);
     });
 }
+
+// ---- the agent's own page (o2 portal, ?headless=1) -----------------
+// Nobody looks at this page: the portal opens it in a hidden browser - ON THE SERVER, or on a developer's machine -
+// as the AI agent's own instance of the editor and the game: its tools run here while the people of the project
+// keep theirs to themselves (o2portal backend/src/portal/headless.ts). It draws and ticks like any other, at the
+// rates whoever hosts it can afford. On the server there is
+// no GPU: one frame of the editor drawn in software costs a third of a core-second, so an uncapped
+// loop eats both cores of a small box for nothing. The loop is capped instead — a frame every two seconds
+// while nothing is asked of the page, ten a second at most while a tool that needs frames is at work, a few
+// a second between the tools while a game runs (ai.js: LOOP_TOOLS, restRate). Done
+// here, before the wasm starts — emscripten looks requestAnimationFrame up on every call. Callbacks asked
+// for within one period run in one real frame, so the screenshot tool's "read it right after the engine
+// drew" still holds.
+window.o2Headless = /[?&]headless=1/.test(location.search);
+if (window.o2Headless) {
+    // The host's rates, frames a second: &fps= nothing to do, &busy= a tool needs frames, &play= a game runs between
+    // the tools, for &hold= seconds after the last one (AGENT_HEADLESS_FPS, _BUSY_FPS, _PLAY_FPS, _PLAY_HOLD_SEC for the
+    // server's browser). 0 - no cap: a machine with a GPU needs none.
+    window.__o2FrameCap = (function () {
+        function arg(name, def) { var m = new RegExp('[?&]' + name + '=([\\d.]+)').exec(location.search); return m ? +m[1] || 1000 : def; }
+        var idle = arg('fps', 0.5), busy = Math.max(idle, arg('busy', 10)), play = Math.max(idle, Math.min(busy, arg('play', 4)));
+        // (it starts at the busy rate: the editor comes up over its first frames; ai.js calms it down once it has joined)
+        return { fps: busy, idle: idle, busy: busy, play: play, hold: arg('hold', 120), frames: 0, waiting: [], behind: null };
+    })();
+    // also called by the game client's frame (preview-boot.js) for its own window
+    window.__o2CapFrames = function (w) {
+        var cap = window.__o2FrameCap;
+        var raf = w.requestAnimationFrame.bind(w);
+        var queue = [], timer = 0, inFrame = false, lastFrame = 0, seq = 0;
+        function flush(t) {
+            inFrame = false;
+            lastFrame = w.performance.now();
+            if (w === window) cap.frames++;
+            var q = queue;
+            queue = [];
+            q.forEach(function (it) {
+                if (!it.cb) return;
+                // one callback's exception must not cost the others their frame; rethrown as it is, because
+                // the crash watch below tells a wasm trap by the error object
+                try { it.cb(t); } catch (e) { w.setTimeout(function () { throw e; }, 0); }
+            });
+        }
+        function arm() {
+            if (inFrame || !queue.length) return;
+            w.clearTimeout(timer);
+            // (the face behind the other one - the editor under the game client, or the other way round - is drawn for nobody)
+            var fps = cap.behind && cap.behind(w) ? Math.min(cap.fps, cap.idle) : cap.fps;
+            var wait = 1000 / fps - (w.performance.now() - lastFrame);
+            if (wait > 6) timer = w.setTimeout(function () { timer = 0; inFrame = true; raf(flush); }, wait - 4);
+            else { timer = 0; inFrame = true; raf(flush); }
+        }
+        // the rate has changed: a frame that was seconds away is due now
+        cap.waiting.push(arm);
+        w.requestAnimationFrame = function (cb) {
+            var id = ++seq;
+            queue.push({ id: id, cb: cb });
+            if (!timer) arm();
+            return id;
+        };
+        w.cancelAnimationFrame = function (id) {
+            queue.forEach(function (it) { if (it.id === id) it.cb = null; });
+        };
+    };
+    window.__o2FrameCap.rate = function (fps) {
+        this.fps = fps;
+        this.waiting.forEach(function (arm) { try { arm(); } catch (e) {} });
+    };
+    window.__o2CapFrames(window);
+}
+
+// ---- frames only for what is on the screen -----------------------
+// Both faces stay loaded, and the portal keeps this page while other tabs of the project are open - but an
+// engine nobody looks at has no business drawing sixty frames a second: a phone gets hot from it. Each face's
+// window asks for its frames through a gate (emscripten looks requestAnimationFrame up on every call). A closed
+// gate keeps the callbacks and hands them over when it opens: the engine sees one long frame, and clamps its dt.
+// Its sound stops with it. Who is on the screen is decided in preview-host.js (o2Power.show); a tool of the
+// agent opens both gates for as long as it runs (o2Power.hold: ai.js), and a face that has just been loaded is
+// let through its first frames, over which it comes up. The server's own page is capped above instead.
+window.o2Power = (function () {
+    var BOOT_FRAMES = 180;
+    var faces = {}, shown = { editor: true, preview: true }, holds = 0;
+
+    function sound(w, on) {
+        try {
+            ((w.miniaudio && w.miniaudio.devices) || []).forEach(function (d) {
+                var ctx = d && d.webaudio;
+                if (!ctx) return;
+                if (!on && ctx.state === 'running') { d.__o2Paused = true; ctx.suspend(); }
+                else if (on && d.__o2Paused) { d.__o2Paused = false; ctx.resume(); }
+            });
+        } catch (e) {}
+    }
+    function setOpen(g, on) {
+        if (g.open === on) return;
+        g.open = on;
+        sound(g.win, on);
+        if (!on) return;
+        var q = g.held;
+        g.held = [];
+        q.forEach(function (it) {
+            try { g.moved[it.id] = g.raf(function (t) { delete g.moved[it.id]; g.frames++; it.cb(t); }); } catch (e) {}
+        });
+    }
+    function apply() {
+        Object.keys(faces).forEach(function (face) {
+            var g = faces[face];
+            setOpen(g, holds > 0 || !!shown[face] || g.frames < BOOT_FRAMES);
+        });
+    }
+    function gate(face, w) {
+        var g = { win: w, open: true, held: [], moved: {}, seq: 0, frames: 0,
+                  raf: w.requestAnimationFrame.bind(w), caf: w.cancelAnimationFrame.bind(w) };
+        w.__o2NativeRaf = g.raf;        // the page's own layout code is not the engine: it is never held
+        w.requestAnimationFrame = function (cb) {
+            if (g.open) return g.raf(function (t) { if (++g.frames === BOOT_FRAMES) apply(); cb(t); });
+            g.held.push({ id: -(++g.seq), cb: cb });
+            return -g.seq;
+        };
+        w.cancelAnimationFrame = function (id) {
+            if (!(id < 0)) return g.caf(id);
+            g.held = g.held.filter(function (it) { return it.id !== id; });
+            if (g.moved[id] !== undefined) { g.caf(g.moved[id]); delete g.moved[id]; }
+        };
+        faces[face] = g;
+        apply();
+    }
+    return {
+        gate: function (face, w) { if (!window.o2Headless) gate(face, w); },
+        /** { editor, preview }: which face somebody is looking at */
+        show: function (next) { shown = next; apply(); },
+        /** the engine is needed whether it is looked at or not; returns what lets it go, a moment later */
+        hold: function (graceMs) {
+            var done = false;
+            holds++;
+            apply();
+            return function () {
+                if (done) return;
+                done = true;
+                setTimeout(function () { holds--; apply(); }, graceMs == null ? 2500 : graceMs);
+            };
+        },
+        state: function () {
+            var out = { holds: holds };
+            Object.keys(faces).forEach(function (f) { out[f] = { open: faces[f].open, frames: faces[f].frames, held: faces[f].held.length }; });
+            return out;
+        },
+    };
+})();
+window.o2Power.gate('editor', window);
 
 // ---- patches for the AI agent's screenshot/input tools ------------
 // keep the WebGL back buffer readable so canvas screenshots work

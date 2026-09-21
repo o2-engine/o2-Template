@@ -74,6 +74,7 @@ var o2Preview = (function () {
     var mobileMq = window.matchMedia ? window.matchMedia(MOBILE_QUERY) : null;
     var mobile = !!(mobileMq && mobileMq.matches);
     var immersive = false;     // full screen: the game and nothing else
+    var solo = false;          // the portal shows this page for its agent alone (a tab that is neither face)
 
     function emit(kind) { listeners.forEach(function (fn) { try { fn(kind); } catch (e) {} }); }
 
@@ -148,8 +149,31 @@ var o2Preview = (function () {
     if (window.ResizeObserver)
         new ResizeObserver(function () { if (mode === 'preview') layout(); }).observe(stage);
 
+    // (the agent alone, on a phone, is the same sheet over nothing: body.agent-solo)
     function applyHandheld() {
-        document.body.classList.toggle('handheld', mobile && mode === 'preview');
+        document.body.classList.toggle('handheld', mobile && (mode === 'preview' || solo));
+        document.body.classList.toggle('agent-solo', mobile && solo);
+    }
+    // Frames go to the face somebody looks at (boot.js: o2Power). `onScreen` is the portal's word: it keeps
+    // this page while other tabs of the project are open, and shows it for its agent alone.
+    var onScreen = true;
+    function applyPower() {
+        if (window.o2Power) o2Power.show({ editor: onScreen && mode === 'editor', preview: onScreen && mode === 'preview' });
+    }
+    function setOnScreen(on) {
+        on = !!on;
+        if (on === onScreen) return;
+        onScreen = on;
+        applyPower();
+        emit('screen');
+    }
+    applyPower();
+    function setSolo(on) {
+        on = !!on;
+        if (on === solo) return;
+        solo = on;
+        applyHandheld();
+        emit('solo');
     }
     function onMobileChange() {
         if (mobile === mobileMq.matches) return;
@@ -402,6 +426,7 @@ var o2Preview = (function () {
         mode = next;
         document.body.classList.toggle('mode-preview', mode === 'preview');
         applyHandheld();
+        applyPower();
         if (mode === 'preview') {
             if (frame && !crashed) {
                 // it kept running while the editor was in front: just show it
@@ -420,8 +445,8 @@ var o2Preview = (function () {
                 layout();
             }
         }
-        // leaving does not unload the client: it goes on running behind the
-        // editor, the way the editor goes on running behind it
+        // leaving does not unload the client: it stays as it is behind the editor,
+        // the way the editor stays behind it — loaded, and without frames (o2Power)
         var sw = document.getElementById('modeswitch');
         sw.classList.toggle('at-preview', mode === 'preview');
         sw.querySelectorAll('button').forEach(function (b) {
@@ -453,6 +478,10 @@ var o2Preview = (function () {
         isMobile: function () { return mobile; },
         isImmersive: function () { return immersive; },
         setImmersive: setImmersive,
+        isSolo: function () { return solo; },
+        setSolo: setSolo,
+        isOnScreen: function () { return onScreen; },
+        setOnScreen: setOnScreen,
         onChange: function (fn) { listeners.push(fn); },
     };
 })();
@@ -472,6 +501,8 @@ var o2Preview = (function () {
 // Full screen goes the other way: asked for here ({o2shell:'immersive'}), and the
 // page takes its header off; it can end it too ({o2portal:'immersive', on:false}).
 // {o2portal:'viewport'} brings what a frame cannot see — safe areas, the keyboard.
+// {o2portal:'solo'}: the frame is up for the agent alone, on a tab that is neither face.
+// {o2portal:'shown'}: whether a face of this page is on the screen at all (it is kept while other tabs are open).
 (function () {
     if (window.parent === window || !/[?&]embed=1/.test(location.search)) return;
     document.body.classList.add('embed');
@@ -488,9 +519,15 @@ var o2Preview = (function () {
     function agentShown() {
         return window.__o2AgentShown ? window.__o2AgentShown() : !document.body.classList.contains('ai-hidden');
     }
+    // dock: how wide the agent's panel is - outside the editor tabs the portal shows this frame as a drawer of
+    // exactly that width (the agent on every tab of a project), so dragging the panel's edge resizes the drawer
+    function dockWidth() {
+        var v = parseInt(getComputedStyle(document.body).getPropertyValue('--ai-dock'), 10);
+        return v > 0 ? v : 420;
+    }
     function report() {
-        parent.postMessage({ o2shell: 'state', mode: o2Preview.mode(), agent: agentShown(),
-                             immersive: o2Preview.isImmersive() }, location.origin);
+        parent.postMessage({ o2shell: 'state', mode: o2Preview.mode(), agent: agentShown(), dock: dockWidth(),
+                             immersive: o2Preview.isImmersive(), solo: o2Preview.isSolo(), shown: o2Preview.isOnScreen() }, location.origin);
     }
     function px(v) { return (Math.max(0, Math.round(+v || 0))) + 'px'; }
 
@@ -505,6 +542,10 @@ var o2Preview = (function () {
         } else if (d.o2portal === 'sync') {
             // files the portal's own browser saved or removed under Assets/
             if (window.__o2SyncFiles) window.__o2SyncFiles(d.changed || [], d.deleted || []);
+        } else if (d.o2portal === 'solo') {
+            o2Preview.setSolo(!!d.on);
+        } else if (d.o2portal === 'shown') {
+            o2Preview.setOnScreen(!!d.on);
         } else if (d.o2portal === 'immersive') {
             // the page left the Play tab under a game in full screen
             o2Preview.setImmersive(!!d.on);
@@ -533,6 +574,7 @@ var o2Preview = (function () {
         if (kind === 'immersive') parent.postMessage({ o2shell: 'immersive', on: o2Preview.isImmersive() }, location.origin);
         report();
     });
-    new MutationObserver(report).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    // class: the panel shown or hidden, the face; style: --ai-dock while its edge is dragged
+    new MutationObserver(report).observe(document.body, { attributes: true, attributeFilter: ['class', 'style'] });
     report();
 })();

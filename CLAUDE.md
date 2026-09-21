@@ -108,8 +108,9 @@ the agent:
   `GamePreview` target), running on the same session working copy instead of a
   packed `.data`, so `rebuild_assets` works there too. There is no play mode: the
   game is always running, and `restart` starts it over on the assets as they are
-  built now (the Restart button does the same). Both faces stay loaded and keep
-  running, so switching between them is instant and neither restarts — a client
+  built now (the Restart button does the same). Both faces stay loaded, so
+  switching between them is instant and neither restarts; the one nobody looks at
+  is paused (no frames, no sound) and wakes for as long as a tool runs — a client
   that was already up needs `rebuild_assets` + `restart` to see new assets. The
   pane emulates a window size or a device — drawn in its body, either orientation —
   and `view_info` reports which mode is on. The agent panel is resizable in both modes (a splitter when docked)
