@@ -480,18 +480,34 @@
             });
             paint();
         }
+        // The menu takes the room there is between its button and the edge of the panel (which clips it), not a
+        // fixed height: a long list - the models - shows whole where it fits and says so where it does not
+        function fit() {
+            var box = dlg.getBoundingClientRect(), at = val.getBoundingClientRect();
+            var room = opts.up ? at.top - Math.max(box.top, 0) : Math.min(box.bottom, window.innerHeight) - at.bottom;
+            menu.style.maxHeight = Math.max(120, Math.floor(room - 30)) + 'px';
+            var sel = menu.querySelector('.opt.sel');
+            if (sel) menu.scrollTop = Math.max(0, sel.offsetTop - menu.clientHeight / 2);
+            more();
+        }
+        function more() {
+            root.classList.toggle('more-up', menu.scrollTop > 2);
+            root.classList.toggle('more-down', menu.scrollTop + menu.clientHeight < menu.scrollHeight - 2);
+        }
+        menu.addEventListener('scroll', more, { passive: true });
         val.onclick = function () {
             if (root.classList.contains('open')) { api.close(); return; }
             if (openDd) openDd.close();
             root.classList.add('open');
             openDd = api;
+            fit();
         };
         api = {
             root: root,
             close: function () { root.classList.remove('open'); if (openDd === api) openDd = null; },
             set: function (v) { value = v; paint(); },
             get: function () { return value; },
-            options: function (list) { items = list; build(); },
+            options: function (list) { items = list; build(); if (root.classList.contains('open')) fit(); },
             add: function (it) { items.push(it); build(); },
             has: function (v) { return items.some(function (i) { return i.value === v; }); },
             el: root,

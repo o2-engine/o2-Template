@@ -811,6 +811,12 @@ body.mode-preview #status { display: none; }
     box-shadow: 0 10px 28px rgba(16, 40, 38, .18); padding: 5px; max-height: 260px; overflow: auto;
 }
 .ai-dd.open .menu { display: block; }
+/* a list longer than its room scrolls inside it - under a finger too - and an edge that hides more says so */
+.ai-dd .menu { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+.ai-dd .menu::before, .ai-dd .menu::after { content: ''; display: block; position: sticky; z-index: 1; height: 22px; pointer-events: none; opacity: 0; transition: opacity .12s; }
+.ai-dd .menu::before { top: -5px; margin-bottom: -22px; background: linear-gradient(to bottom, #fff 25%, rgba(255,255,255,0)); }
+.ai-dd .menu::after { bottom: -5px; margin-top: -22px; background: linear-gradient(to top, #fff 25%, rgba(255,255,255,0)); }
+.ai-dd.more-up .menu::before, .ai-dd.more-down .menu::after { opacity: 1; }
 .ai-dd.up .menu { bottom: calc(100% + 6px); }
 .ai-dd.down .menu { top: calc(100% + 6px); }
 .ai-dd.right .menu { right: 0; }
