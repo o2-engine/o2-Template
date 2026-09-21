@@ -7,7 +7,7 @@
 float RotatorComponent::GetEffectiveSpeed()
 {
 #if defined(O2LIBS_REMOTE_CONFIG)
-	if (!balanceConfig.IsEmpty())
+	if (!balanceConfig.IsEmpty() && o2libs::RemoteConfig::IsSingletonInitialzed())
 	{
 		// Configs change rarely (a fetch, a scheduled launch): re-read only when they did
 		int revision = o2RemoteConfig.GetRevision();
