@@ -158,6 +158,10 @@ endif()
 # o2 libraries
 add_subdirectory(o2)
 
+# o2libs: optional modules on top of o2. A module is in the build when its option is ON
+set(O2LIBS_REMOTE_CONFIG ON CACHE BOOL "o2libs: remote configs and A/B tests client")
+add_subdirectory(o2libs)
+
 # Vendored CDT throws and has no switch for it, so its two includers keep
 # exceptions (and can't share the PCH, which is built without them).
 if((ANDROID AND O2_ANDROID_NO_EXCEPTIONS AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -228,17 +232,19 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS" AND NOT EMSCRIPTEN AND NOT ANDROID)
                       COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/o2/CodeTool/Bin/o2CodeTool
                               -project GameLib
                               -sources "${CMAKE_CURRENT_SOURCE_DIR}/Sources/Game"
-                              -parent_projects "${CMAKE_CURRENT_SOURCE_DIR}/o2/Framework/Sources/o2/CodeToolCache.xml"
+                              -parent_projects "${CMAKE_CURRENT_SOURCE_DIR}/o2/Framework/Sources/o2/CodeToolCache.xml ${O2LIBS_CODEGEN_CACHES}"
                       COMMENT "Run CodeTool: ${CMAKE_CURRENT_SOURCE_DIR}/o2/CodeTool/Bin/o2CodeTool "
                               "-project GameLib "
                               "-sources \"${CMAKE_CURRENT_SOURCE_DIR}/Sources/Game\" "
-                              "-parent_projects \"${CMAKE_CURRENT_SOURCE_DIR}/o2/Framework/Sources/o2/CodeToolCache.xml\""
+                              "-parent_projects \"${CMAKE_CURRENT_SOURCE_DIR}/o2/Framework/Sources/o2/CodeToolCache.xml ${O2LIBS_CODEGEN_CACHES}\""
     )
     add_dependencies(GameLibCodegen o2CodeTool o2FrameworkCodegen)
     add_dependencies(GameLib o2Framework GameLibCodegen)
 else()
     add_dependencies(GameLib o2Framework)
 endif()
+
+o2libs_link(GameLib GameLibCodegen)
 
 # Assets builder (not built for iOS / WebAssembly / Android - use pre-built host tools)
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS" AND NOT EMSCRIPTEN AND NOT ANDROID)
@@ -626,6 +632,13 @@ if(O2_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID)
     o2_gtest_discover_tests(GameUITests
         WORKING_DIRECTORY $<TARGET_FILE_DIR:GameUITests>
     )
+
+    o2libs_add_tests()
+    if(TARGET o2libsTests)
+        o2_gtest_discover_tests(o2libsTests
+            WORKING_DIRECTORY $<TARGET_FILE_DIR:o2libsTests>
+        )
+    endif()
 endif()
 
 # Groups in IDE
