@@ -2806,6 +2806,30 @@
             if (e.status === 404) newChat(); else addError(e.message, { head: 'The chat could not be loaded', retry: function () { openChat(id); } });
         });
     }
+    // The panel says a turn runs, the server says none does: the end was missed. The chat's record has the outcome
+    function settleRun() {
+        if (!running) return;
+        if (!curChat) { busy(false); setChip('ready'); return; }
+        var chat = curChat;
+        getJson('chats/' + chat).then(function (j) {
+            if (chat !== curChat || !running || !j || !j.chat || j.chat.status === 'running') return;
+            finishRun({ type: 'done', review: false, aborted: j.chat.status === 'stopped' });
+            if (j.chat.status === 'error') setChip('error', 'err');
+        }).catch(function () { busy(false); setChip('ready'); });
+    }
+    // The chat list is read every so often while a turn runs here: when it says this chat is over, so is the panel
+    var settleTimer = null;
+    function watchSettle() {
+        if (settleTimer) return;
+        settleTimer = setInterval(function () {
+            if (!running || document.hidden) return;
+            if (!curChat) return;
+            getJson('chats/' + curChat).then(function (j) {
+                if (running && j && j.chat && curChat === j.chat.id && j.chat.status !== 'running' && !j.chat.queued) settleRun();
+            }).catch(function () {});
+        }, 15000);
+    }
+
     function newChat() {
         openTicket++;
         replaying = false;
@@ -3331,8 +3355,10 @@
                 document.getElementById('row-own').classList.toggle('hidden', !ev.ownPages);
                 document.getElementById('hint-own').classList.toggle('hidden', !ev.ownPages);
                 setHands(ev.hands || null);
-                // back after a drop: the chip said so; a question still open is what the turn waits for
-                if (running && !Object.keys(permissionBlocks).length) { setChip('working', 'busy'); setAction('working…'); }
+                // back after a drop: the chip said so; a question still open is what the turn waits for. And the server
+                // says whether a turn runs at all: a `done` lost with the stream would leave this panel "working" for good
+                if (running && !(ev.running && (!ev.runChat || ev.runChat === curChat))) settleRun();
+                else if (running && !Object.keys(permissionBlocks).length && !Object.keys(questionBlocks).length) { setChip('working', 'busy'); setAction('working…'); }
                 else if (running) setChip('waiting for you', 'busy');
                 if (streamChat !== curChat) follow();
                 bootChats();
@@ -3522,6 +3548,7 @@
 
     function busy(on) {
         running = on;
+        if (on) watchSettle();
         document.getElementById('ai-toggle').classList.toggle('busy', on);
         barEl.classList.toggle('show', on);
         sendBtn.classList.toggle('queue', on);
