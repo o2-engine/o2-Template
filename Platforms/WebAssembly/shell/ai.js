@@ -93,6 +93,8 @@
               '<input id="ai-gemini" class="ai-input" type="password" placeholder="AIza… — for the image tools" spellcheck="false" autocomplete="off"></div>' +
             '<div class="row"><span class="lbl">Self-review</span>' +
               '<span id="ai-review-slot"></span></div>' +
+            '<div class="row"><span class="lbl">Clarify first</span>' +
+              '<span id="ai-clarify-slot"></span></div>' +
             // (only where the server can give the agent an editor of its own: hello.ownPages)
             '<div class="row hidden" id="row-own"><span class="lbl">Its own editor</span>' +
               '<span id="ai-own-slot"></span></div>' +
@@ -598,6 +600,11 @@
     var reviewToggle = toggle('the agent reviews its own run afterwards', getSetting('o2ai_review') === '1',
                               function (v) { setSetting('o2ai_review', v ? '1' : '0'); });
     document.getElementById('ai-review-slot').appendChild(reviewToggle.el);
+
+    // On by default: a general request gets a few questions with ready answers before the work starts
+    var clarifyToggle = toggle('the agent asks about a general request before starting on it', getSetting('o2ai_clarify') !== '0',
+                               function (v) { setSetting('o2ai_clarify', v ? '1' : '0'); });
+    document.getElementById('ai-clarify-slot').appendChild(clarifyToggle.el);
 
     // Whose hands: the agent's own hidden editor (the default), or this page as it used to be. The person's choice, kept
     // with their other settings and sent with every message (start: ownEditor) - the server routes that turn's editor tools.
@@ -2455,6 +2462,93 @@
         return sessionCwd && v.indexOf(sessionCwd + '/') === 0 ? v.slice(sessionCwd.length + 1) : v;
     }
 
+    // ---------- clarifying questions ----------
+    // One card per question: the ready answers as buttons, a field for an own one, Skip. Answered, it folds into a line
+    var questionBlocks = {};
+    function showQuestion(ev) {
+        if (questionBlocks[ev.id]) return;
+        clearEmptyState();
+        hideTyping();
+        var d = document.createElement('div');
+        d.className = 'ai-ask';
+        d._question = ev.question;
+
+        var head = document.createElement('div');
+        head.className = 'askhead';
+        head.innerHTML = (ev.step && ev.steps ? '<span class="askstep">' + ev.step + ' / ' + ev.steps + '</span>' : '') + esc(ev.question);
+        d.appendChild(head);
+
+        var answered = false;
+        function answer(text, skipped) {
+            if (answered) return;
+            answered = true;
+            d.classList.add('sent');
+            post('answer', { id: ev.id, answer: text || '', skipped: !!skipped }).catch(function () { answered = false; d.classList.remove('sent'); });
+        }
+
+        var list = document.createElement('div');
+        list.className = 'askopts';
+        (ev.options || []).forEach(function (o) {
+            var b = document.createElement('button');
+            b.className = 'askopt';
+            b.innerHTML = '<b>' + esc(o.label) + '</b>' + (o.detail ? '<span>' + esc(o.detail) + '</span>' : '');
+            b.onclick = function () { answer(o.label, false); };
+            list.appendChild(b);
+        });
+        d.appendChild(list);
+
+        var own = document.createElement('div');
+        own.className = 'askown';
+        var input = document.createElement('input');
+        input.className = 'ai-input';
+        input.placeholder = 'Or answer in your own words…';
+        input.onkeydown = function (e) { if (e.key === 'Enter' && input.value.trim()) { e.preventDefault(); answer(input.value.trim(), false); } };
+        var send = document.createElement('button');
+        send.className = 'tbtn';
+        send.textContent = 'Answer';
+        send.onclick = function () { if (input.value.trim()) answer(input.value.trim(), false); };
+        var skip = document.createElement('button');
+        skip.className = 'tbtn quiet';
+        skip.textContent = 'Skip';
+        skip.title = ev['default'] ? 'The agent decides: ' + ev['default'] : 'The agent decides itself';
+        skip.onclick = function () { answer('', true); };
+        own.appendChild(input); own.appendChild(send); own.appendChild(skip);
+        d.appendChild(own);
+
+        if (ev['default']) {
+            var dflt = document.createElement('div');
+            dflt.className = 'askdefault';
+            dflt.textContent = 'Skipped, the agent goes with: ' + ev['default'];
+            d.appendChild(dflt);
+        }
+        if (ev.away) {
+            var away = document.createElement('div');
+            away.className = 'permaway';
+            away.textContent = 'Asked ' + ago(ev.t || Date.now()) + ', while nobody was here — the agent has been waiting for the answer since.';
+            d.appendChild(away);
+        }
+
+        chatEl.appendChild(d);
+        questionBlocks[ev.id] = d;
+        scrollDown(true);
+        setChip('asking you', 'busy');
+        setAction('asks: ' + ev.question);
+        setPeek('ask', 'The agent has a question — tap to answer');
+        if (!sheetOpen && phoneOn) setSheet(true);
+        setTimeout(function () { try { if (!phoneOn) input.focus({ preventScroll: true }); } catch (e) {} }, 50);
+    }
+    function resolveQuestionUi(ev) {
+        var d = questionBlocks[ev.id];
+        if (!d) return;
+        var line = document.createElement('div');
+        line.className = 'ai-ask done';
+        line.innerHTML = '<span class="askq">' + esc(d._question) + '</span> <b>' +
+            (ev.skipped ? (ev.timeout ? '— no answer, the agent decided' : '— skipped, the agent decides') : '→ ' + esc(ev.answer)) + '</b>';
+        d.replaceWith(line);
+        delete questionBlocks[ev.id];
+        if (running) { setChip('working', 'busy'); setAction('working…'); }
+    }
+
     // ---------- permission prompts ----------
     var permissionBlocks = {};
     function showPermission(ev) {
@@ -3312,6 +3406,8 @@
                 hideTyping();
                 if (bubble) closeBubble();
                 thinkStep = null;
+                // the question itself is the card that follows; a tool row would say it twice
+                if (toolShort(ev.name) === 'ask_user') { steps[ev.id] = { hidden: true, name: ev.name, log: '', started: Date.now() }; break; }
                 runTools++;
                 steps[ev.id] = addToolStep(ev);
                 // the model's own tool lookups say nothing about the task
@@ -3328,7 +3424,7 @@
             }
             case 'tool_result': {
                 var st = steps[ev.id];
-                if (!st) break;
+                if (!st || st.hidden) break;
                 st.result = ev.text == null ? '' : ev.text;
                 // a tool that answers { ok: false } or { error } failed, whatever the transport says
                 var answer = /^\s*\{/.test(st.result) ? safeParse(st.result) : null;
@@ -3360,6 +3456,12 @@
             case 'permission_request':
                 hideTyping();
                 showPermission(ev);
+                break;
+            case 'question_request':
+                showQuestion(ev);
+                break;
+            case 'question_resolved':
+                resolveQuestionUi(ev);
                 break;
             case 'permission_resolved':
                 resolvePermissionUi(ev.id, ev.behavior);
@@ -3512,7 +3614,7 @@
         var fresh = !curChat;
         if (fresh) { curChat = newId(); lastSeq = 0; remember(curChat); }
         return { fresh: fresh, body: Object.assign({ text: text, model: modelDd.get() || DEFAULT_MODEL, effort: effortDd.get(),
-                                                    mode: modeDd.get(), review: !!review, chat: curChat, cid: cid, sub: subToken || undefined,
+                                                    mode: modeDd.get(), review: !!review, clarify: clarifyToggle.get(), chat: curChat, cid: cid, sub: subToken || undefined,
                                                     ownEditor: ownToggle.get() },
                                                   credentials()) };
     }
