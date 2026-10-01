@@ -43,6 +43,17 @@ state (scene, subscriptions to `o2Scene`/global signals) via guards/destructors.
 New tests go in the matching tier; shared helpers live in `o2/Tests/Sources/Support/`
 (`SceneCleanGuard`, `TickFrame`/`TickFrames` in `Scene/SceneTestHelpers.h`).
 
+## Pipeline editor - three implementations
+
+The AI pipeline editor (`.pipeline` assets, the Pipeline window) lives in the o2 editor
+(`o2/Editor/Sources/o2Editor/Pipeline/`, `o2/Editor/Sources/o2Editor/Windows/PipelineWindow/`; docs
+`o2/Docs/{en,ru}/Editor/Pipeline/`) and exists twice more: the AssetsLine web editor + server
+(`../AssetsLine/`: `shared/`, `backend/src/`, `frontend/src/nodeEditor/`) and the Unity plugin
+(`../AssetsLineUnity/Packages/com.assetsline.pipelines/`). All three share one file format and sync
+pipelines with each other. A change to pipeline behaviour, a node type, a config key, the format, the
+executor/caching rules or the node UI must be made in all three together, with their tests and docs -
+otherwise synced pipelines diverge.
+
 ## Image generation tools (MCP `imagegen`)
 
 For generating game sprites/assets use the MCP server `imagegen` (registered in `.mcp.json`,
