@@ -588,6 +588,10 @@ if(O2_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID)
         add_dependencies(${_test_target} BuildAssets)
     endforeach()
 
+    if(TARGET o2SvgRasterizer)
+        set_target_output_directories(o2SvgRasterizer)
+    endif()
+
     # Game component tests (links GameLib + shared o2 test support)
     include(GoogleTest)
 
