@@ -89,6 +89,9 @@ jobs:
 
     - name: Run tests
       if: matrix.run_ctest
+      env:
+        # Mesa would take its D3D12 driver over the runner's Basic Render Driver; the suites are kept to llvmpipe
+        GALLIUM_DRIVER: llvmpipe
       # ctest -E excludes two things on this CI runner (locally, on a real GPU, nothing is excluded):
       #  - *_NOT_BUILT: placeholder tests for targets this job intentionally doesn't build
       #    (GameUITests renders the deferred 3D scene, so it stays local/mac-CI only).
