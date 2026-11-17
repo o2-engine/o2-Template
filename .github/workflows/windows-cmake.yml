@@ -69,7 +69,9 @@ jobs:
       if: matrix.run_ctest
       shell: pwsh
       run: |
-        $tag = (Invoke-RestMethod "https://api.github.com/repos/pal1000/mesa-dist-win/releases/latest").tag_name
+        # Pinned to the last release known to carry the desktop OpenGL drivers: the msvc package of 26.2.7 has none
+        # ("systemwidedeploy.cmd 1" refuses), and the tests got the runner's OpenGL 1.1 and crashed at start.
+        $tag = "26.2.4"
         $file = "mesa3d-$tag-release-msvc.7z"
         $url  = "https://github.com/pal1000/mesa-dist-win/releases/download/$tag/$file"
         Write-Host "Downloading $url"
