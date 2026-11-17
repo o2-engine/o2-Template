@@ -115,3 +115,27 @@ jobs:
       #    texture, by pixels): never run on llvmpipe, excluded as the suites above.
       #    o2UtilTests/VectorScalableMesh (software rasterizer) stays in.
       run: ctest --test-dir build --build-config ${{ matrix.build_config }} --output-on-failure --parallel 4 -E '_NOT_BUILT$|^o2RenderTests/(Render3D|RenderChunkedDraw|Mesh3DDraw|RenderPipelineDraw|TextureCopy|VectorSpriteRender|VectorSpritePerf|LayerImageRender|VectorWidgetsRender|RenderGeometryDraw|TextGlyphMeshesRender)$|^o2EditorUITests/(EditorVectorUIParity|EditorVectorUIPerf)$'
+
+    # A suite that ends without a word (an exit code, no exception) is run again on its own: its exit code in hex and,
+    # under cdb when the runner has it, the stack where it stopped.
+    - name: Crashed suites, once more
+      if: failure() && matrix.run_ctest
+      shell: pwsh
+      env:
+        GALLIUM_DRIVER: llvmpipe
+      run: |
+        $failed = Get-Content build/Testing/Temporary/LastTestsFailed.log -ErrorAction SilentlyContinue
+        $cdb = "C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe"
+        foreach ($line in $failed) {
+          $name = ($line -split ':', 2)[1]
+          if ($name -notmatch '^([^/]+)/(.+)$') { continue }
+          $exe = Get-ChildItem -Recurse -Filter "$($Matches[1]).exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) { continue }
+          $filter = "--gtest_filter=$($Matches[2]).*"
+          Push-Location $exe.Directory.FullName
+          Write-Host "=== $name"
+          & $exe.FullName $filter
+          Write-Host ("exit code: 0x{0:X8}" -f $LASTEXITCODE)
+          if (Test-Path $cdb) { & $cdb -g -lines -y $exe.Directory.FullName -c "kp 60; q" $exe.FullName $filter }
+          Pop-Location
+        }
