@@ -114,7 +114,9 @@ jobs:
       #  - TextGlyphMeshesRender (a text drawn by glyph meshes against the one drawn from the font
       #    texture, by pixels): never run on llvmpipe, excluded as the suites above.
       #    o2UtilTests/VectorScalableMesh (software rasterizer) stays in.
-      run: ctest --test-dir build --build-config ${{ matrix.build_config }} --output-on-failure --parallel 4 -E '_NOT_BUILT$|^o2RenderTests/(Render3D|RenderChunkedDraw|Mesh3DDraw|RenderPipelineDraw|TextureCopy|VectorSpriteRender|VectorSpritePerf|LayerImageRender|VectorWidgetsRender|RenderGeometryDraw|TextGlyphMeshesRender)$|^o2EditorUITests/(EditorVectorUIParity|EditorVectorUIPerf)$'
+      #  - SkinnedMeshDraw (GPU skinning against the CPU reference, the deferred pipeline lighting a skinned mesh, pixels
+      #    read back): ends silently on llvmpipe after a frame of the animated mesh, excluded as the GPU suites above.
+      run: ctest --test-dir build --build-config ${{ matrix.build_config }} --output-on-failure --parallel 4 -E '_NOT_BUILT$|^o2RenderTests/(Render3D|RenderChunkedDraw|Mesh3DDraw|RenderPipelineDraw|TextureCopy|VectorSpriteRender|VectorSpritePerf|LayerImageRender|VectorWidgetsRender|RenderGeometryDraw|TextGlyphMeshesRender|SkinnedMeshDraw)$|^o2EditorUITests/(EditorVectorUIParity|EditorVectorUIPerf)$'
 
     # A suite that ends without a word (an exit code, no exception) is run again on its own: its exit code in hex and,
     # under cdb when the runner has it, the stack where it stopped.
