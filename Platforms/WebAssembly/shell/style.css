@@ -1731,3 +1731,19 @@ body.handheld #ai-settings { width: 100%; }
     body.handheld.ai-sheet #ai-inputrow { padding: 6px 10px 8px; }
     body.handheld.ai-sheet .tb-agent { height: 40px; }
 }
+
+/* ---- the agent's screen recordings and published pages (the portal's tasks) ---- */
+.ai-video { align-self: flex-start; max-width: 70%; display: flex; flex-direction: column; gap: 3px; }
+.ai-video video { width: 100%; border-radius: 10px; border: 1px solid #D9E3E1; background: #000; }
+.ai-video .cap { font-size: 11.5px; color: var(--ai-muted); }
+.ai-page {
+    align-self: flex-start; display: flex; flex-direction: column; gap: 1px; padding: 8px 12px; border-radius: 10px;
+    border: 1px solid #C9D6D4; background: #F7FAFA; text-decoration: none; color: inherit; max-width: 80%;
+}
+.ai-page b { font-size: 13px; }
+.ai-page span { font-size: 11.5px; color: var(--ai-muted); }
+.ai-page.waiting { border-color: #D9A92B; background: var(--ai-warn-bg); }
+.ai-page:hover { border-color: var(--ai-accent, #268578); }
+
+/* the portal's frames (?agent=0): the conversation lives in the portal, this page shows no agent at all */
+body.ai-off #ai, body.ai-off .tb-agent { display: none !important; }

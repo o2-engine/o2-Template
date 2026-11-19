@@ -245,7 +245,7 @@
     }
     function applyPhone() {
         var alone = isMobile() && o2Preview.isSolo();
-        var on = isMobile() && (o2Preview.isActive() || alone);
+        var on = !NOAGENT && isMobile() && (o2Preview.isActive() || alone);
         if (on !== phoneOn) {
             phoneOn = on;
             if (on) {
@@ -562,17 +562,18 @@
     var DEFAULT_MODEL = 'claude-opus-5';
     var FALLBACK_MODELS = ['claude-opus-5-5', 'claude-opus-5', 'claude-sonnet-5', 'claude-opus-4-8', 'claude-opus-4-7', 'claude-haiku-4-5'];
 
-    // settings live in cookies so they survive across tabs and sessions
-    // (localStorage is kept as a fallback for values saved earlier)
+    // Settings live in localStorage: one place for every editor of the origin and the page around them (the portal's task
+    // chat reads and writes the same keys: frontend/src/project/tasks/agentSettings.ts). They used to be cookies under this
+    // editor's own path - invisible to the portal's page and to another project's or task's editor, and a key in a cookie
+    // goes to the server with every request. Such a cookie is still read when there is nothing else, and dropped on a write.
     function setSetting(name, value) {
-        document.cookie = name + '=' + encodeURIComponent(value) +
-            ';path=' + (window.o2Base || '/') + ';max-age=' + (365 * 24 * 3600) + ';SameSite=Lax';
         try { localStorage.setItem(name, value); } catch (e) {}
+        document.cookie = name + '=;path=' + (window.o2Base || '/') + ';max-age=0;SameSite=Lax';
     }
     function getSetting(name) {
+        try { var v = localStorage.getItem(name); if (v !== null) return v; } catch (e) {}
         var m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
-        if (m) return decodeURIComponent(m[1]);
-        try { return localStorage.getItem(name) || ''; } catch (e) { return ''; }
+        return m ? decodeURIComponent(m[1]) : '';
     }
 
     keyEl.value = getSetting('o2ai_claude_key');
@@ -1922,6 +1923,40 @@
         return img;
     }
 
+    // A screen recording the agent made (the `video` tool), as the chat keeps it on the server
+    function addVideoSrc(src, seconds) {
+        clearEmptyState();
+        var box = document.createElement('div');
+        box.className = 'ai-video';
+        var v = document.createElement('video');
+        v.controls = true; v.preload = 'metadata'; v.playsInline = true; v.src = src;
+        v.onloadedmetadata = function () { scrollDown(); };
+        var cap = document.createElement('div');
+        cap.className = 'cap';
+        cap.textContent = 'recording' + (seconds ? ' · ' + Math.round(seconds) + ' s' : '');
+        box.appendChild(v); box.appendChild(cap);
+        chatEl.appendChild(box);
+        scrollDown();
+        return box;
+    }
+    // A page the agent published (backend portal/pages.ts): a report, or a form it may be waiting on. It opens in a tab of
+    // its own here; the portal's task page opens it in its viewer, which answers a form in the user's name.
+    var pageCards = {};
+    function addPageCard(ev) {
+        clearEmptyState();
+        var a = document.createElement('a');
+        a.className = 'ai-page' + (ev.waiting ? ' waiting' : '');
+        a.href = ev.url; a.target = '_blank'; a.rel = 'noopener';
+        var t = document.createElement('b'); t.textContent = ev.title || 'page';
+        var k = document.createElement('span');
+        k.textContent = ev.kind === 'form' ? (ev.waiting ? 'form · the agent waits for your answer' : 'form') : 'report';
+        a.appendChild(t); a.appendChild(k);
+        chatEl.appendChild(a);
+        pageCards[ev.id] = { el: a, kind: k };
+        scrollDown();
+        return a;
+    }
+
     // ---------- status: the chip, the progress bar, the changed files ----------
     function setChip(text, kind) {
         chipEl.textContent = text;
@@ -2548,7 +2583,75 @@
     }
 
 
+    // ---------- recording the view: the `video` tool ----------
+    // start: a MediaRecorder on the canvas the page shows (the editor's, or the game client's in the preview) - the engine
+    // is held awake for as long as it runs, so a face nobody looks at still draws; stop: the recording, as base64, which
+    // the server keeps with the chat and never hands to the model (agent.ts: keepShot). It stops by itself after `seconds`.
+    var rec = null;
+    function videoMime() {
+        // VP8 first: it encodes several times faster than VP9 on a server without a GPU, and scrubs as well
+        var all = ['video/webm;codecs=vp8', 'video/webm;codecs=vp9', 'video/webm', 'video/mp4'];
+        for (var i = 0; i < all.length; i++) try { if (MediaRecorder.isTypeSupported(all[i])) return all[i]; } catch (e) {}
+        return '';
+    }
+    function blobB64(blob) {
+        return new Promise(function (resolve, reject) {
+            var fr = new FileReader();
+            fr.onload = function () { var u = String(fr.result); resolve(u.slice(u.indexOf(',') + 1)); };
+            fr.onerror = function () { reject(fr.error || new Error('the recording could not be read')); };
+            fr.readAsDataURL(blob);
+        });
+    }
+    function toolVideo(a) {
+        if (a.action === 'start') {
+            if (rec) return { error: 'a recording is running already: stop it first' };
+            if (typeof MediaRecorder === 'undefined') return { error: 'this browser cannot record video' };
+            var v = shotView();
+            if (v.wait && v.wait !== 'resizing') return { error: 'nothing to record: ' + (SHOT_WHY[v.wait] || v.wait), reason: v.wait };
+            var c = v.canvas, max = Math.max(1, Math.min(Number(a.seconds) || 20, 60)), fps = Math.max(5, Math.min(Number(a.fps) || 30, 60));
+            var mime = videoMime();
+            if (!mime) return { error: 'this browser has no video encoder MediaRecorder can use' };
+            var stream = c.captureStream(fps), chunks = [];
+            // A key frame every ~6th frame (where the browser takes the hint): a player that scrubs frame by frame decodes a
+            // few frames to reach any of them, instead of everything since the start
+            // (Chrome takes one of the two key frame hints, never both; a browser that knows neither ignores it, one that refuses gets none)
+            var recorder;
+            try { recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4000000, videoKeyFrameIntervalCount: Math.max(1, Math.round(fps / 5)) }); }
+            catch (e) { recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4000000 }); }
+            recorder.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+            var stopped = new Promise(function (resolve) { recorder.onstop = resolve; });
+            var letGo = window.o2Power ? o2Power.hold(0) : function () {};
+            recorder.start(1000);
+            var r = { recorder: recorder, stream: stream, chunks: chunks, stopped: stopped, letGo: letGo, mime: mime, started: Date.now(), ended: 0, fps: fps,
+                      width: c.width, height: c.height, face: previewOn() ? 'preview' : 'editor' };
+            r.timer = setTimeout(function () { if (recorder.state !== 'inactive') { r.ended = Date.now(); recorder.stop(); } r.letGo(); }, max * 1000);
+            // never stopped by the agent: the recording goes after a while, and the engine is let go with it
+            r.forget = setTimeout(function () { if (rec === r) { rec = null; r.chunks.length = 0; } }, (max + 600) * 1000);
+            rec = r;
+            return { ok: true, recording: true, face: r.face, width: c.width, height: c.height, maxSeconds: max,
+                     note: 'recording: now drive the view (click, press_key, wait, restart), then video {action:"stop"}' };
+        }
+        if (a.action === 'stop') {
+            if (!rec) return { error: 'nothing is being recorded: video {action:"start"} first' };
+            var r2 = rec; rec = null;
+            clearTimeout(r2.timer); clearTimeout(r2.forget);
+            if (r2.recorder.state !== 'inactive') { r2.ended = Date.now(); r2.recorder.stop(); }
+            return r2.stopped.then(function () {
+                r2.letGo();
+                try { r2.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+                var type = r2.mime.split(';')[0], blob = new Blob(r2.chunks, { type: type });
+                var seconds = Math.round(((r2.ended || Date.now()) - r2.started) / 100) / 10;
+                if (!blob.size) return { error: 'the recording is empty: the view drew nothing while it ran' };
+                return blobB64(blob).then(function (b64) {
+                    return { video: { b64: b64, mime: type }, result: { seconds: seconds, width: r2.width, height: r2.height, bytes: blob.size, face: r2.face, fps: r2.fps } };
+                });
+            });
+        }
+        return { error: 'action is start or stop' };
+    }
+
     var EXEC = {
+        video: toolVideo,
         rebuild_assets: toolRebuild, screenshot: toolScreenshot, restart: toolRestart, set_mode: toolSetMode,
         click: toolClick, type_text: toolTypeText, press_key: toolPressKey,
         read_log: toolReadLog, wait: toolWait, play_mode: toolPlayMode,
@@ -3053,7 +3156,8 @@
                   screenshot: 'taking a screenshot', scene_tree: 'reading the scene', view_info: 'reading the view',
                   run_script: 'running a script', open_scene: 'opening a scene', save_scene: 'saving the scene',
                   play_mode: 'toggling play', rebuild_assets: 'rebuilding assets', read_log: 'reading the log',
-                  click: 'clicking', type_text: 'typing', press_key: 'pressing a key', wait: 'waiting' };
+                  click: 'clicking', type_text: 'typing', press_key: 'pressing a key', wait: 'waiting',
+                  video: 'recording the view', publish_page: 'publishing a page', pages: 'reading its pages', task: 'working on the task' };
     function humanAction(name, args) {
         var short = name.replace(/^mcp__o2__/, '');
         var verb = HUMAN[short] || toolShort(name);
@@ -3331,6 +3435,7 @@
     // "READY FOR TOOLS": the server holds the requests back until then, so the page joins only once the editor
     // runs and draws (headlessJoin).
     var HEADLESS = !!window.o2Headless;
+    var NOAGENT = !HEADLESS && /[?&]agent=0(&|$)/.test(location.search);
     var retired = false, calm = null, atWork = 0, lastTool = 0, theirs = false;
     // The tools that need the engine's loop to turn: a scene opens over several frames, a game is played and looked at.
     // The rest are answered by a call into the engine and are not worth a frame — drawn in software, one costs a third
@@ -3569,6 +3674,20 @@
                 break;
             case 'shot_note':
                 addShotNote(SHOT_WHY_SHORT[ev.reason] || ev.why || '');
+                break;
+            case 'video':
+                if (ev.dropped) addShotNote('the recording is no longer kept: the chat outgrew its size cap');
+                else addVideoSrc(o2Base + '/api/agent/' + ev.url, ev.seconds);
+                break;
+            case 'page':
+                addPageCard(ev);
+                break;
+            case 'page_answered':
+                if (pageCards[ev.id]) { pageCards[ev.id].el.classList.remove('waiting'); pageCards[ev.id].kind.textContent = 'form · answered by ' + (ev.by || 'somebody'); }
+                else addSysLine((ev.by || 'somebody') + ' answered “' + (ev.title || 'a page') + '”');
+                break;
+            case 'task':
+                addSysLine((ev.by ? ev.by + ': ' : '') + (ev.text || ''));
                 break;
             case 'init':
                 if (ev.cwd) sessionCwd = ev.cwd;
@@ -4026,6 +4145,7 @@
         });
     });
     function toggleDlg() {
+        if (NOAGENT) return;
         if (phoneOn) { setSheet(!sheetOpen); return; }
         if (document.body.classList.contains('ai-hidden')) openDlg(); else closeDlg();
     }
@@ -4094,6 +4214,9 @@
     // The agent is part of the page: it starts open on the right, in either mode.
     // (the server's own page has nobody to talk to: the stream alone, and the whole window for the canvas)
     if (HEADLESS) { document.body.classList.add('ai-hidden'); headlessJoin(); }
+    // The portal (?agent=0) talks to the agent in its own chat - a task's, the project's: no panel here at all, ever.
+    // The stream stays: what the agent writes is pulled into this running editor from it (`fs`).
+    else if (NOAGENT) { document.body.classList.add('ai-hidden', 'ai-off'); ensureStream(); }
     else openDlg();
 
     if (typeof o2Preview !== 'undefined') o2Preview.onChange(function (kind) {
