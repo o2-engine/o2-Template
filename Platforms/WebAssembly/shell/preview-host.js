@@ -242,6 +242,14 @@ var o2Preview = (function () {
         return Promise.resolve({ reloaded: true });
     }
 
+    // A new client on the files as the server has them now. A restart keeps the client's copy of them, and that has
+    // nothing of what the editor next door built after the client had loaded (boot.js: the rebuild after a page load).
+    function reload() {
+        if (!frame) return;
+        unmount();
+        mount();
+    }
+
     restartBtn.onclick = function () { restart(); };
 
     // ---- full screen -------------------------------------------------
@@ -470,6 +478,7 @@ var o2Preview = (function () {
             try { return frame.contentDocument.getElementById('canvas'); } catch (e) { return null; }
         },
         restart: restart,
+        reload: reload,
         device: function () {
             var w = screen.clientWidth, h = screen.clientHeight;
             if (mobile) return { id: 'native', label: 'This device', orientation: w > h ? 'landscape' : 'portrait', width: w, height: h };

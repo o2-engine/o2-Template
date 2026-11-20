@@ -448,7 +448,7 @@ var Module = {
             sessionStorage.removeItem('o2_rebuild_after_load');
             setStatus(neverBuilt ? 'Building the project\'s assets for the first time…' : 'Building the restored assets…');
             setTimeout(function () {
-                var ok = true;
+                var ok = true, before = builtStamp();
                 try { Module._o2_web_rebuild_assets(); }
                 catch (e) { ok = false; console.error('[shell] rebuild after load failed', e); }
                 if (neverBuilt && ok && !sessionStorage.getItem('o2_first_build:' + o2Base)) {
@@ -460,7 +460,14 @@ var Module = {
                     return;
                 }
                 setStatus(null);
+                // The game client of the Play face loaded its own copy of the files while this was building, with the
+                // built assets as they were: it starts over on the new ones (a restart would run its old copy again)
+                if (ok && builtStamp() !== before && typeof o2Preview !== 'undefined')
+                    (window.__o2DrainMirror ? window.__o2DrainMirror() : Promise.resolve()).then(function () { o2Preview.reload(); });
             }, 1500);
+        }
+        function builtStamp() {
+            try { return +Module.FS.stat('/project/BuiltAssets/WebAssembly/Data.json').mtime; } catch (e) { return 0; }
         }
     },
     onAbort: function (reason) { handleCrash('abort: ' + reason, new Error().stack); },
