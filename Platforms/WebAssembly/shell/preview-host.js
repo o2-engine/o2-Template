@@ -26,30 +26,77 @@ var o2Preview = (function () {
     // Portrait sizes; landscape swaps them. "Fit" follows the pane, which is what
     // you want while working, the fixed ones are for checking a real device — and
     // each is drawn in its own body, so the shape you are testing is on screen.
-    // CSS-pixel viewports of what people actually play on, grouped for the menu
+    // w×h: the CSS viewport the game gets; px: the real screen; inch: its diagonal;
+    // look, pad ([sides, top and bottom] in portrait), r (the screen's corners): the
+    // body; safe: [top, bottom] of the safe area a game on the whole screen gets in
+    // portrait (safeAreaOf). The portal keeps the same list (o2portal frontend ui/devices.ts).
+    function D(id, name, kind, look, w, h, px, inch, pad, r, safe) { return { id: id, name: name, kind: kind, look: look, w: w, h: h, px: px, inch: inch, pad: pad, r: r, safe: safe || [0, 0] }; }
     var DEVICES = [
-        { id: 'fit', name: 'Fit to pane', kind: 'fit' },
+        { id: 'fit', name: 'Fit to pane', kind: 'fit', look: 'fit' },
         { group: 'Phones' },
-        { id: 'iphone-se', name: 'iPhone SE', w: 375, h: 667, kind: 'phone' },
-        { id: 'iphone-15', name: 'iPhone 15 / 16', w: 393, h: 852, kind: 'phone', notch: true },
-        { id: 'iphone-16-pro', name: 'iPhone 16 Pro', w: 402, h: 874, kind: 'phone', notch: true },
-        { id: 'iphone-15-pro-max', name: 'iPhone 15 Pro Max', w: 430, h: 932, kind: 'phone', notch: true },
-        { id: 'pixel-8', name: 'Pixel 8', w: 412, h: 915, kind: 'phone', punch: true },
-        { id: 'pixel-8-pro', name: 'Pixel 8 Pro', w: 448, h: 998, kind: 'phone', punch: true },
-        { id: 'galaxy-s24', name: 'Galaxy S24', w: 360, h: 780, kind: 'phone', punch: true },
-        { id: 'galaxy-s24-ultra', name: 'Galaxy S24 Ultra', w: 384, h: 824, kind: 'phone', punch: true },
+        D('iphone-se', 'iPhone SE', 'phone', 'home', 375, 667, [750, 1334], 4.7, [16, 72], 0, [0, 0]),
+        D('iphone-16', 'iPhone 16', 'phone', 'island', 393, 852, [1179, 2556], 6.1, [12, 12], 55, [59, 34]),
+        D('iphone-16-plus', 'iPhone 16 Plus', 'phone', 'island', 430, 932, [1290, 2796], 6.7, [12, 12], 55, [59, 34]),
+        D('iphone-16-pro', 'iPhone 16 Pro', 'phone', 'island', 402, 874, [1206, 2622], 6.3, [10, 10], 62, [62, 34]),
+        D('iphone-16-pro-max', 'iPhone 16 Pro Max', 'phone', 'island', 440, 956, [1320, 2868], 6.9, [10, 10], 62, [62, 34]),
+        D('pixel-8', 'Pixel 8', 'phone', 'punch', 412, 915, [1080, 2400], 6.2, [10, 11], 42, [32, 0]),
+        D('pixel-8-pro', 'Pixel 8 Pro', 'phone', 'punch', 448, 998, [1344, 2992], 6.7, [9, 10], 40, [32, 0]),
+        D('galaxy-s24', 'Galaxy S24', 'phone', 'punch', 360, 780, [1080, 2340], 6.2, [8, 9], 36, [28, 0]),
+        D('galaxy-s24-ultra', 'Galaxy S24 Ultra', 'phone', 'punch', 384, 824, [1440, 3120], 6.8, [8, 8], 14, [28, 0]),
         { group: 'Tablets' },
-        { id: 'ipad-mini', name: 'iPad mini', w: 744, h: 1133, kind: 'tablet' },
-        { id: 'ipad', name: 'iPad', w: 820, h: 1180, kind: 'tablet' },
-        { id: 'ipad-pro-11', name: 'iPad Pro 11″', w: 834, h: 1194, kind: 'tablet' },
-        { id: 'ipad-pro-13', name: 'iPad Pro 13″', w: 1024, h: 1366, kind: 'tablet' },
-        { id: 'galaxy-tab-s9', name: 'Galaxy Tab S9', w: 800, h: 1280, kind: 'tablet' },
+        D('ipad-mini', 'iPad mini', 'tablet', 'tablet', 744, 1133, [1488, 2266], 8.3, [22, 22], 22, [24, 20]),
+        D('ipad', 'iPad', 'tablet', 'tablet', 820, 1180, [1640, 2360], 10.9, [24, 24], 22, [24, 20]),
+        D('ipad-pro-11', 'iPad Pro 11″', 'tablet', 'tablet', 834, 1210, [1668, 2420], 11, [20, 20], 22, [24, 20]),
+        D('ipad-pro-13', 'iPad Pro 13″', 'tablet', 'tablet', 1032, 1376, [2064, 2752], 13, [22, 22], 22, [24, 20]),
+        D('galaxy-tab-s9', 'Galaxy Tab S9', 'tablet', 'tablet', 800, 1280, [1600, 2560], 11, [18, 18], 14, [0, 0]),
         { group: 'Desktop' },
-        { id: 'steam-deck', name: 'Steam Deck', w: 1280, h: 800, kind: 'desktop' },
-        { id: '720p', name: 'Window 720p', w: 1280, h: 720, kind: 'desktop' },
-        { id: '1080p', name: 'Window 1080p', w: 1920, h: 1080, kind: 'desktop' },
+        D('steam-deck', 'Steam Deck', 'desktop', 'console', 1280, 800, [1280, 800], 7, [36, 190], 4),
+        D('720p', 'Window 720p', 'desktop', 'window', 1280, 720, [1280, 720], 0, [0, 0], 0),
+        D('1080p', 'Window 1080p', 'desktop', 'window', 1920, 1080, [1920, 1080], 0, [0, 0], 0),
     ];
     DEVICES.forEach(function (d) { if (d.id) d.label = d.w ? d.name + ' — ' + d.w + '×' + d.h : d.name; });
+    // what the menu says of a device: its real screen and its size
+    function specOf(d) { return d.w ? d.px[0] + '×' + d.px[1] + (d.inch ? ' · ' + d.inch + '″' : '') : ''; }
+
+    // The body around the screen, in the device's CSS pixels: padding (top, right,
+    // bottom, left), the frame, the outer corner, how far the side buttons stick out
+    function bodyOf(d, landscape) {
+        if (d.look === 'fit') return { pt: 0, pr: 0, pb: 0, pl: 0, border: 0, outer: 4, reach: 0 };
+        if (d.look === 'window') return { pt: 30, pr: 0, pb: 0, pl: 0, border: 1, outer: 10, reach: 0 };
+        if (d.look === 'console') return { pt: 40, pr: 190, pb: 40, pl: 190, border: 0, outer: 80, reach: 0 };
+        var flip = landscape && d.kind !== 'desktop';
+        var x = flip ? d.pad[1] : d.pad[0], y = flip ? d.pad[0] : d.pad[1];
+        var border = d.look === 'tablet' ? 3 : 4;
+        return { pt: y, pr: x, pb: y, pl: x, border: border, outer: d.look === 'home' ? 60 : d.r + Math.min(x, y) + border, reach: 4 };
+    }
+    // The safe area of a game on the device's whole screen, in its CSS pixels. An
+    // iPhone SE and the Android phones hide their bars in a full-screen game, an iPad
+    // keeps them either way; a phone on its side has turned counterclockwise (the
+    // island or the camera at the left): an iPhone keeps both sides clear and a
+    // shorter home bar, an Android phone only the camera's side. (devices.ts: safeAreaOf)
+    var NO_SAFE = { top: 0, right: 0, bottom: 0, left: 0 };
+    function safeAreaOf(d, landscape) {
+        var top = d.safe ? d.safe[0] : 0, bottom = d.safe ? d.safe[1] : 0;
+        if (!top && !bottom) return NO_SAFE;
+        if (!landscape || d.kind === 'desktop' || d.look === 'tablet') return { top: top, right: 0, bottom: bottom, left: 0 };
+        return d.look === 'island' ? { top: 0, right: top, bottom: 21, left: top } : { top: 0, right: 0, bottom: 0, left: top };
+    }
+    // the side buttons: edge, where along it and how long; a body on its side has
+    // turned counterclockwise (the left edge is at the bottom, the top at the left)
+    var BUTTONS = {
+        island: [['l', .18, .045], ['l', .27, .08], ['l', .37, .08], ['r', .29, .12], ['r', .6, .07]],
+        punch: [['r', .26, .08], ['r', .38, .15]],
+        home: [['l', .15, .04], ['l', .23, .07], ['l', .32, .07], ['r', .23, .09]],
+        tablet: [['t', .82, .06], ['r', .08, .08], ['r', .18, .08]],
+    };
+    function buttonsOf(d, landscape) {
+        return (BUTTONS[d.look] || []).map(function (b) {
+            if (!landscape || d.kind === 'desktop') return b;
+            if (b[0] === 'l') return ['b', b[1], b[2]];
+            if (b[0] === 'r') return ['t', b[1], b[2]];
+            return [b[0] === 't' ? 'l' : 'r', 1 - b[1] - b[2], b[2]];
+        });
+    }
 
     // Silhouettes for the picker: the menu shows what each preset is, not just
     // its numbers
@@ -59,13 +106,25 @@ var o2Preview = (function () {
         phone: '<svg viewBox="0 0 24 24"><rect x="7.5" y="2.5" width="9" height="19" rx="2"/><path d="M10.6 4.6h2.8"/></svg>',
         tablet: '<svg viewBox="0 0 24 24"><rect x="5.5" y="2.5" width="13" height="19" rx="2"/><circle cx="12" cy="19" r=".9"/></svg>',
     };
+    // the bar's own icons (16px, stroked like the rest of the bar)
+    function svg(d) { return '<svg class="icon" viewBox="0 0 16 16"><path d="' + d + '" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
+    var ICON = {
+        portrait: svg('M5.5 1.8h5a1.2 1.2 0 011.2 1.2v10a1.2 1.2 0 01-1.2 1.2h-5A1.2 1.2 0 014.3 13V3a1.2 1.2 0 011.2-1.2zM7.2 12.3h1.6'),
+        landscape: svg('M1.8 5.5a1.2 1.2 0 011.2-1.2h10a1.2 1.2 0 011.2 1.2v5a1.2 1.2 0 01-1.2 1.2H3a1.2 1.2 0 01-1.2-1.2zM12.3 7.2v1.6'),
+        restart: svg('M13 8a5 5 0 11-1.5-3.5M13 2.5v3h-3'),
+    };
     // A game is a phone game until told otherwise: the pane opens as an upright
     // iPhone, and remembers what the visitor picked instead.
     function stored(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
     function remember(key, value) { try { localStorage.setItem(key, value); } catch (e) {} }
-    function byId(id) { for (var i = 0; i < DEVICES.length; i++) if (DEVICES[i].id === id) return DEVICES[i]; return null; }
-    var device = byId(stored('o2pv_device')) || byId('iphone-15');
-    var orientation = stored('o2pv_orient') === 'landscape' ? 'landscape' : 'portrait';  // meaningful for the fixed sizes only
+    var OLD_IDS = { 'iphone-15': 'iphone-16', 'iphone-15-pro-max': 'iphone-16-plus' };
+    function byId(id) { id = OLD_IDS[id] || id; for (var i = 0; i < DEVICES.length; i++) if (DEVICES[i].id === id) return DEVICES[i]; return null; }
+    // The portal names the project's own device and orientation (?device=&orient=: its Settings → Play): the pane
+    // opens on them every time, and a pick here lasts as long as the page. Alone, the page remembers the last pick.
+    function param(k) { var m = location.search.match(new RegExp('[?&]' + k + '=([\\w-]+)')); return m ? m[1] : ''; }
+    var given = !!byId(param('device'));
+    var device = byId(param('device')) || byId(stored('o2pv_device')) || byId('iphone-16');
+    var orientation = (given ? param('orient') : stored('o2pv_orient')) === 'landscape' ? 'landscape' : 'portrait';  // meaningful for the fixed sizes only
 
     // On a phone there is nothing to emulate: the pane is the device. One rule for
     // the whole shell — a narrow page, or a touch screen lying on its side — and
@@ -84,10 +143,26 @@ var o2Preview = (function () {
     device_el.id = 'preview-device';
     screen.parentNode.insertBefore(device_el, screen);
     device_el.appendChild(screen);
+    // the body's details (the island, the camera, the home bar, the buttons) are made for each device in layout()
     var bezel = document.createElement('div');
     bezel.className = 'pv-bezel';
-    bezel.innerHTML = '<span class="pv-notch"></span><span class="pv-speaker"></span><span class="pv-home"></span>';
     device_el.appendChild(bezel);
+    var DETAILS = {
+        island: ['pv-island', 'pv-hbar'], punch: ['pv-cam'], tablet: ['pv-cam'], home: ['pv-speaker', 'pv-cam', 'pv-home'],
+        window: ['pv-dots'], console: ['pv-stick l', 'pv-stick r', 'pv-tpad l', 'pv-tpad r', 'pv-dpad', 'pv-abxy'],
+    };
+    var builtFor = '';
+    function dressBody(d, landscape) {
+        var key = d.id + ':' + landscape;
+        if (builtFor === key) return;
+        builtFor = key;
+        var html = (DETAILS[d.look] || []).map(function (c) { return '<i class="' + c + '"></i>'; }).join('');
+        buttonsOf(d, landscape).forEach(function (b) {
+            var along = b[0] === 'l' || b[0] === 'r' ? 'top:' + (b[1] * 100) + '%;height:' + (b[2] * 100) + '%' : 'left:' + (b[1] * 100) + '%;width:' + (b[2] * 100) + '%';
+            html += '<i class="pv-btn ' + b[0] + '" style="' + along + '"></i>';
+        });
+        bezel.innerHTML = html;
+    }
 
     var progressWrap = document.createElement('div');
     progressWrap.className = 'pv-progress';
@@ -116,32 +191,81 @@ var o2Preview = (function () {
             // this device: every pixel of the pane, at the pixel ratio it really has
             screen.style.width = '100%';
             screen.style.height = '100%';
+            screen.style.borderRadius = '';
             device_el.className = 'kind-native';
-            device_el.style.transform = '';
+            device_el.removeAttribute('style');
+            bezel.innerHTML = ''; builtFor = '';
             sizeLabel.textContent = screen.clientWidth + '×' + screen.clientHeight;
+            tellSafeArea();
             return;
         }
         var pane = stage.getBoundingClientRect();
         // full screen keeps the emulated device, with air around its body, and gives
         // "Fit" the whole window
-        var pad = !immersive ? 24 : device.id === 'fit' ? 0 : 64;
+        var pad = !immersive ? 40 : device.id === 'fit' ? 0 : 64;
         var availW = Math.max(120, pane.width - pad), availH = Math.max(120, pane.height - pad);
         var w, h, scale = 1;
+        var land = orientation === 'landscape' && device.kind !== 'desktop';
+        var b = bodyOf(device, land);
         if (device.id === 'fit') {
             w = Math.round(availW); h = Math.round(availH);
         } else {
-            var short = Math.min(device.w, device.h), long = Math.max(device.w, device.h);
-            w = orientation === 'landscape' ? long : short;
-            h = orientation === 'landscape' ? short : long;
-            scale = Math.min(1, availW / w, availH / h);
+            w = land ? device.h : device.w;
+            h = land ? device.w : device.h;
+            // the whole body has to fit: the screen, the bezels, the frame and the buttons
+            var ow = w + b.pl + b.pr + 2 * (b.border + b.reach), oh = h + b.pt + b.pb + 2 * (b.border + b.reach);
+            scale = Math.min(1, availW / ow, availH / oh);
         }
         screen.style.width = w + 'px';
         screen.style.height = h + 'px';
-        device_el.className = 'kind-' + device.kind +
-            (device.notch ? ' has-notch' : '') + (device.punch ? ' has-punch' : '') +
-            ' ' + (orientation === 'landscape' ? 'is-landscape' : 'is-portrait');
+        screen.style.borderRadius = device.look === 'window' ? '0 0 9px 9px' : (device.r || 0) + 'px';
+        device_el.className = 'kind-' + device.kind + ' look-' + device.look + ' ' + (land ? 'is-landscape' : 'is-portrait');
+        var st = device_el.style;
+        st.padding = b.pt + 'px ' + b.pr + 'px ' + b.pb + 'px ' + b.pl + 'px';
+        st.borderWidth = b.border + 'px';
+        st.borderRadius = b.outer + 'px';
+        [['--pt', b.pt], ['--pr', b.pr], ['--pb', b.pb], ['--pl', b.pl], ['--bd', b.border], ['--reach', b.reach]]
+            .forEach(function (v) { st.setProperty(v[0], v[1] + 'px'); });
+        dressBody(device, land);
         device_el.style.transform = scale < 1 ? 'scale(' + scale + ')' : '';
         sizeLabel.textContent = w + '×' + h + (scale < 1 ? '  ·  ' + Math.round(scale * 100) + '%' : '');
+        tellSafeArea();
+    }
+
+    // ---- the game's safe area ----------------------------------------
+    // The client reads window.o2SafeArea = {top, right, bottom, left} (CSS pixels of
+    // its page) every frame and keeps its interface inside. A frame cannot see the
+    // screen: an emulated device's come from its table (the screen is the device's
+    // size, the body is only scaled); otherwise it is what of the screen's notch and
+    // home bar reaches into the frame - this page's own env(), or what the portal
+    // measured around this page (--o2-safe-*, the embed block below).
+    var safeProbe = null, sentSafe = '';
+    function measuredSafe() {
+        if (!safeProbe) {
+            safeProbe = document.createElement('div');
+            safeProbe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding:' +
+                ['top', 'right', 'bottom', 'left'].map(function (s) {
+                    return 'max(env(safe-area-inset-' + s + ', 0px), var(--o2-safe-' + s + ', 0px))';
+                }).join(' ');
+            document.body.appendChild(safeProbe);
+        }
+        var cs = getComputedStyle(safeProbe), r = frame.getBoundingClientRect();
+        function side(v, gap) { return Math.max(0, Math.round((parseFloat(v) || 0) - gap)); }
+        return { top: side(cs.paddingTop, r.top), right: side(cs.paddingRight, document.documentElement.clientWidth - r.right),
+                 bottom: side(cs.paddingBottom, window.innerHeight - r.bottom), left: side(cs.paddingLeft, r.left) };
+    }
+    // (a frame of a face nobody looks at has no box to measure: it is told when its face is back - setMode lays it out)
+    function tellSafeArea(force) {
+        if (!frame || mode !== 'preview') return;
+        var land = orientation === 'landscape' && device.kind !== 'desktop';
+        var s = !mobile && device.id !== 'fit' ? safeAreaOf(device, land) : measuredSafe();
+        var key = JSON.stringify(s);
+        if (!force && key === sentSafe) return;
+        sentSafe = key;
+        var win = frame.contentWindow;
+        if (!win) return;
+        try { win.o2SafeArea = { top: s.top, right: s.right, bottom: s.bottom, left: s.left }; } catch (e) {}
+        try { win.postMessage({ o2SafeArea: s }, location.origin); } catch (e) {}
     }
 
     window.addEventListener('resize', function () { if (mode === 'preview') layout(); });
@@ -251,6 +375,8 @@ var o2Preview = (function () {
     }
 
     restartBtn.onclick = function () { restart(); };
+    restartBtn.className = 'pv-btn-bar';
+    restartBtn.innerHTML = ICON.restart + 'Restart';
 
     // ---- full screen -------------------------------------------------
     // The game and nothing else: the bar and the agent go away here, the page
@@ -264,6 +390,7 @@ var o2Preview = (function () {
 
     var fullBtn = document.createElement('button');
     fullBtn.id = 'pv-full';
+    fullBtn.className = 'pv-btn-bar';
     fullBtn.title = 'Full screen: the game and nothing else';
     fullBtn.innerHTML = ICON_FULL + 'Full screen';
     fullBtn.onclick = function () { setImmersive(true); };
@@ -312,6 +439,7 @@ var o2Preview = (function () {
     document.addEventListener('pointermove', onPointer, true);
     document.addEventListener('keydown', onEscape);
     function watchFrame() {
+        tellSafeArea(true);
         try {
             var doc = frame.contentDocument;
             doc.addEventListener('pointerdown', onFramePointer, true);
@@ -363,6 +491,7 @@ var o2Preview = (function () {
         var dd = document.createElement('span');
         dd.className = 'pv-dd';
         var btn = document.createElement('button');
+        btn.className = 'pv-btn-bar';
         btn.innerHTML = '<svg class="icon" viewBox="0 0 16 16"><use href="#i-device"/></svg>' +
                         '<span class="pv-dd-label"></span>' +
                         '<svg class="icon chev" viewBox="0 0 16 16"><use href="#i-chev"/></svg>';
@@ -385,13 +514,14 @@ var o2Preview = (function () {
             item.dataset.id = d.id;
             item.innerHTML = '<span class="pv-shape">' + (SHAPES[d.kind] || '') + '</span>' +
                              '<span class="pv-name">' + d.name + '</span>' +
-                             (d.w ? '<span class="pv-dim">' + d.w + '×' + d.h + '</span>' : '');
+                             (d.w ? '<span class="pv-dim">' + specOf(d) + '</span>' : '');
+            item.title = d.w ? d.name + ': ' + d.px[0] + '×' + d.px[1] + ' px' + (d.inch ? ', ' + d.inch + '″' : '') + ' · the game gets ' + d.w + '×' + d.h : d.name;
             item.onclick = function () {
                 device = d;
-                remember('o2pv_device', d.id);
+                if (!given) remember('o2pv_device', d.id);
                 menu.classList.remove('open');
                 // a monitor lies on its side; nobody wants a 720×1280 "desktop"
-                if (d.kind === 'desktop') setOrientation('landscape');
+                setOrientation(d.kind === 'desktop' ? 'landscape' : orientation);
                 markCurrent();
                 layout();
             };
@@ -403,20 +533,24 @@ var o2Preview = (function () {
         dd.appendChild(menu);
         deviceSlot.appendChild(dd);
         markCurrent();
+        markDevice = markCurrent;
 
         var orientSlot = document.getElementById('pv-orient');
         var seg = document.createElement('span');
         seg.className = 'pv-seg';
         [['portrait', 'Portrait'], ['landscape', 'Landscape']].forEach(function (o) {
             var b = document.createElement('button');
-            b.textContent = o[1];
+            b.className = 'pv-btn-bar';
+            b.innerHTML = ICON[o[0]] + o[1];
             b.dataset.orient = o[0];
             b.onclick = function () { setOrientation(o[0]); layout(); };
             seg.appendChild(b);
         });
         setOrientation = function (next) {
             orientation = next;
-            remember('o2pv_orient', next);
+            if (!given) remember('o2pv_orient', next);
+            // a window has no portrait: the pair is not offered for one
+            seg.style.display = device.kind === 'desktop' || device.kind === 'fit' ? 'none' : '';
             seg.querySelectorAll('button').forEach(function (x) {
                 x.classList.toggle('on', x.dataset.orient === orientation);
             });
@@ -425,6 +559,18 @@ var o2Preview = (function () {
         orientSlot.appendChild(seg);
     }
     buildControls();
+
+    // the portal's setting changed while the page is up (Settings → Play)
+    var markDevice = function () {};
+    function setDevice(id, orient) {
+        var d = byId(id);
+        if (!d) return;
+        device = d;
+        given = true;
+        setOrientation(orient === 'landscape' || d.kind === 'desktop' ? 'landscape' : 'portrait');
+        markDevice();
+        layout();
+    }
 
     // ---- mode --------------------------------------------------------
     function setMode(next) {
@@ -479,12 +625,15 @@ var o2Preview = (function () {
         },
         restart: restart,
         reload: reload,
+        setDevice: setDevice,
         device: function () {
             var w = screen.clientWidth, h = screen.clientHeight;
             if (mobile) return { id: 'native', label: 'This device', orientation: w > h ? 'landscape' : 'portrait', width: w, height: h };
             return { id: device.id, label: device.label, orientation: orientation, width: w, height: h };
         },
         isMobile: function () { return mobile; },
+        // the portal measured the screen around this page again (--o2-safe-*)
+        tellSafeArea: function () { tellSafeArea(); },
         isImmersive: function () { return immersive; },
         setImmersive: setImmersive,
         isSolo: function () { return solo; },
@@ -515,6 +664,22 @@ var o2Preview = (function () {
 (function () {
     if (window.parent === window || !/[?&]embed=1/.test(location.search)) return;
     document.body.classList.add('embed');
+
+    // A tab of the portal (?title=Play): the game face's bar is that tab's header, as the portal's other tabs have it -
+    // the title, the controls as the page's own buttons, in the portal's fonts
+    var titled = location.search.match(/[?&]title=([^&]+)/);
+    if (titled) {
+        var fonts = document.createElement('link');
+        fonts.rel = 'stylesheet';
+        fonts.href = 'https://fonts.googleapis.com/css2?family=Geologica:wght@600&family=Onest:wght@400;500;600&display=swap';
+        document.head.appendChild(fonts);
+        var heading = document.createElement('h2');
+        heading.className = 'pv-title';
+        heading.textContent = decodeURIComponent(titled[1]);
+        var bar = document.getElementById('topbar');
+        bar.insertBefore(heading, bar.firstChild);
+        document.body.classList.add('portal-tab');
+    }
 
     // git moved the tree since the built assets were made: build once after boot
     var m = location.search.match(/[?&]rebuild=([\w-]+)/);
@@ -551,6 +716,8 @@ var o2Preview = (function () {
         } else if (d.o2portal === 'sync') {
             // files the portal's own browser saved or removed under Assets/
             if (window.__o2SyncFiles) window.__o2SyncFiles(d.changed || [], d.deleted || []);
+        } else if (d.o2portal === 'device') {
+            o2Preview.setDevice(d.device, d.orient);
         } else if (d.o2portal === 'solo') {
             o2Preview.setSolo(!!d.on);
         } else if (d.o2portal === 'shown') {
@@ -569,6 +736,7 @@ var o2Preview = (function () {
             st.setProperty('--o2-safe-left', px(inset.left));
             st.setProperty('--o2-kb', px(d.keyboard));
             document.documentElement.classList.toggle('kb-open', d.keyboard > 0);
+            o2Preview.tellSafeArea();
             return;
         } else if (d.o2portal === 'reload') {
             if (d.rebuild) sessionStorage.setItem('o2_rebuild_after_load', '1');

@@ -2,6 +2,11 @@
 
 console.log('[shell] editor shell; build-tag=editor-4-modular');
 
+// The portal's frames have no agent (?agent=0) and are embedded (?embed=1): said before anything is drawn, so the page
+// does not first keep the agent's place and then give it back with a slide (ai.js and preview-host.js say it again)
+if (/[?&]agent=0(&|$)/.test(location.search)) document.body.classList.add('ai-hidden', 'ai-off');
+if (window.parent !== window && /[?&]embed=1/.test(location.search)) document.body.classList.add('embed');
+
 // ---- session bootstrap (per browser tab) --------------------------
 var sid = sessionStorage.getItem('o2sid');
 if (!sid) {

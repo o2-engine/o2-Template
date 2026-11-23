@@ -1289,65 +1289,95 @@ body.mode-preview #canvas-wrap { visibility: hidden; pointer-events: none; }
         #1B2422;
 }
 
-/* The emulated device: a body drawn around the screen, so a phone preset looks
-   like a phone rather than a rectangle with numbers next to it. */
+/* The emulated device: the real thing's body drawn around the screen - frame, bezels, the island or the camera, the home
+   bar, the side buttons (preview-host.js sets the geometry: padding, the frame's width, the corners, --pt/--pr/--pb/--pl
+   the bezels, --bd the frame, --reach the buttons). The portal draws the same body: o2portal frontend styles/device.css. */
 #preview-device {
+    --metal: linear-gradient(135deg, #e2e5e7 0%, #8d9297 16%, #eceeef 33%, #6b7075 50%, #c9cdd0 67%, #7a7f84 84%, #dfe2e4 100%);
     position: relative;
     transform-origin: center center;
+    box-sizing: content-box;
     padding: 0;
+    border: 0 solid transparent;
     border-radius: 6px;
-    background: #0B0F10;
-    box-shadow: 0 18px 46px rgba(0, 0, 0, .45);
+    background: linear-gradient(#08090a, #08090a) padding-box, var(--metal) border-box;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .25), 0 30px 70px -18px rgba(6, 22, 20, .55), 0 12px 24px -10px rgba(6, 22, 20, .3);
 }
-#preview-device.kind-phone, #preview-device.kind-tablet {
-    background: linear-gradient(160deg, #2B3536 0%, #171E1F 60%, #101616 100%);
-    box-shadow: 0 24px 60px rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(255, 255, 255, .07);
-}
-#preview-device.kind-phone { padding: 13px 9px; border-radius: 30px; }
-#preview-device.kind-tablet { padding: 18px 16px 26px; border-radius: 20px; }
-#preview-device.kind-desktop {
-    padding: 12px 12px 14px;
-    border-radius: 10px 10px 4px 4px;
-    background: linear-gradient(180deg, #2A3334 0%, #1B2223 100%);
-    box-shadow: 0 24px 60px rgba(0, 0, 0, .5), inset 0 0 0 1px rgba(255, 255, 255, .06);
-}
-#preview-device.kind-fit { padding: 0; border-radius: 4px; }
+#preview-device.kind-fit { background: #0B0F10; box-shadow: 0 12px 34px rgba(0, 0, 0, .3); }
+#preview-device::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .07), inset 0 0 0 2px rgba(0, 0, 0, .6); }
+#preview-device.kind-fit::before, #preview-device.kind-native::before { display: none; }
 
 #preview-screen {
     position: relative;
     background: #0B0F10;
     border-radius: 3px;
     overflow: hidden;
+    isolation: isolate;
+    transform: translateZ(0);
 }
-#preview-device.kind-phone #preview-screen { border-radius: 20px; }
-#preview-device.kind-tablet #preview-screen { border-radius: 6px; }
 
-/* the details that make the body read as a device: notch, earpiece, home dot */
-.pv-bezel { position: absolute; inset: 0; pointer-events: none; }
-.pv-bezel > span { position: absolute; display: none; }
-#preview-device.has-notch.is-portrait .pv-notch {
-    display: block; top: 13px; left: 50%; transform: translateX(-50%);
-    width: 34%; height: 22px; background: #0B0F10; border-radius: 0 0 14px 14px;
-}
-#preview-device.has-punch.is-portrait .pv-notch {
-    display: block; top: 22px; left: 50%; transform: translateX(-50%);
-    width: 11px; height: 11px; background: #0B0F10; border-radius: 50%;
-}
-#preview-device.kind-phone .pv-speaker {
-    display: block; top: 6px; left: 50%; transform: translateX(-50%);
-    width: 46px; height: 3px; background: rgba(255,255,255,.14); border-radius: 2px;
-}
-#preview-device.kind-phone.is-landscape .pv-speaker {
-    top: 50%; left: 4px; transform: translateY(-50%); width: 3px; height: 46px;
-}
-#preview-device.kind-tablet .pv-home {
-    display: block; bottom: 8px; left: 50%; transform: translateX(-50%);
-    width: 9px; height: 9px; border-radius: 50%; border: 1px solid rgba(255,255,255,.2);
-}
-#preview-device.kind-desktop .pv-home {
-    display: block; bottom: 4px; left: 50%; transform: translateX(-50%);
-    width: 42px; height: 3px; border-radius: 2px; background: rgba(255,255,255,.14);
-}
+.pv-bezel { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.pv-bezel > i { position: absolute; display: block; }
+
+/* Pixel and Galaxy: matte aluminium, a hole for the camera */
+#preview-device.look-punch { --metal: linear-gradient(135deg, #5b6066 0%, #2d3035 25%, #6a6f75 50%, #2a2d31 75%, #50555a 100%); }
+.pv-cam { width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 40% 38%, #2d3c4f 0 18%, #0b0f14 42%, #000 70%); box-shadow: 0 0 0 1.5px #111; }
+.look-punch.is-portrait .pv-cam { top: calc(var(--pt) + 12px); left: 50%; margin-left: -6px; }
+.look-punch.is-landscape .pv-cam { left: calc(var(--pl) + 12px); top: 50%; margin-top: -6px; }
+
+/* the iPhones of now: the island over the screen, the home bar under it */
+.pv-island { background: #000; border-radius: 19px; }
+.pv-island::after { content: ""; position: absolute; width: 11px; height: 11px; border-radius: 50%; background: radial-gradient(circle at 40% 38%, #33465c 0 16%, #0d131a 45%, #000 72%); }
+.look-island.is-portrait .pv-island { top: calc(var(--pt) + 11px); left: 50%; width: 124px; height: 36px; margin-left: -62px; }
+.look-island.is-portrait .pv-island::after { right: 13px; top: 12.5px; }
+.look-island.is-landscape .pv-island { left: calc(var(--pl) + 11px); top: 50%; width: 36px; height: 124px; margin-top: -62px; }
+.look-island.is-landscape .pv-island::after { top: 13px; left: 12.5px; }
+.pv-hbar { height: 5px; border-radius: 3px; background: rgba(255, 255, 255, .78); box-shadow: 0 0 0 .5px rgba(0, 0, 0, .35); left: 50%; }
+.look-island.is-portrait .pv-hbar { bottom: calc(var(--pb) + 8px); width: 136px; margin-left: -68px; }
+.look-island.is-landscape .pv-hbar { bottom: calc(var(--pb) + 6px); width: 210px; margin-left: -105px; }
+
+/* iPhone SE: the forehead and the chin, the earpiece, the home button */
+#preview-device.look-home { --metal: linear-gradient(135deg, #3a3d41 0%, #17191b 30%, #4a4e52 55%, #151719 80%, #34373a 100%); background: linear-gradient(#0d0e10, #0d0e10) padding-box, var(--metal) border-box; }
+.pv-speaker { width: 48px; height: 6px; border-radius: 3px; background: #1d2024; box-shadow: inset 0 1px 1px rgba(0, 0, 0, .8); }
+.pv-home { width: 54px; height: 54px; border-radius: 50%; background: radial-gradient(circle, #121417 58%, #1e2125 60%, #121417 66%); box-shadow: inset 0 0 0 1.5px #2a2e33; }
+.look-home .pv-cam { width: 10px; height: 10px; }
+.look-home.is-portrait .pv-speaker { top: calc(var(--pt) / 2 - 3px); left: 50%; margin-left: -24px; }
+.look-home.is-portrait .pv-cam { top: calc(var(--pt) / 2 - 5px); left: 50%; margin-left: -46px; }
+.look-home.is-portrait .pv-home { bottom: calc(var(--pb) / 2 - 27px); left: 50%; margin-left: -27px; }
+.look-home.is-landscape .pv-speaker { left: calc(var(--pl) / 2 - 3px); top: 50%; width: 6px; height: 48px; margin-top: -24px; }
+.look-home.is-landscape .pv-cam { left: calc(var(--pl) / 2 - 5px); top: 50%; margin-top: 36px; }
+.look-home.is-landscape .pv-home { right: calc(var(--pr) / 2 - 27px); top: 50%; margin-top: -27px; }
+
+/* tablets: even bezels, a camera in the middle of one */
+#preview-device.look-tablet { --metal: linear-gradient(135deg, #d6d9dc 0%, #9a9fa4 25%, #e3e5e7 50%, #8e9398 75%, #cfd2d5 100%); }
+.look-tablet .pv-cam { width: 7px; height: 7px; }
+.look-tablet.is-portrait .pv-cam { top: calc(var(--pt) / 2 - 3.5px); left: 50%; margin-left: -3.5px; }
+.look-tablet.is-landscape .pv-cam { left: calc(var(--pl) / 2 - 3.5px); top: 50%; margin-top: -3.5px; }
+
+/* the side buttons, outside the frame: a metal bar lit across its width */
+#preview-device { --btn: #c9cdd0, #eceeef 45%, #8d9297; }
+#preview-device.look-punch, #preview-device.look-home { --btn: #2a2d31, #6a6f75 45%, #2d3035; }
+.pv-btn.l, .pv-btn.r { background: linear-gradient(90deg, var(--btn)); }
+.pv-btn.t, .pv-btn.b { background: linear-gradient(180deg, var(--btn)); }
+.pv-btn.l { left: calc(-1 * (var(--bd) + var(--reach))); width: var(--reach); border-radius: 3px 0 0 3px; }
+.pv-btn.r { right: calc(-1 * (var(--bd) + var(--reach))); width: var(--reach); border-radius: 0 3px 3px 0; }
+.pv-btn.t { top: calc(-1 * (var(--bd) + var(--reach))); height: var(--reach); border-radius: 3px 3px 0 0; }
+.pv-btn.b { bottom: calc(-1 * (var(--bd) + var(--reach))); height: var(--reach); border-radius: 0 0 3px 3px; }
+
+/* a window: its title bar and the three lights */
+#preview-device.look-window { background: linear-gradient(#e9eeed, #dfe6e5) padding-box, #b3c0be border-box; box-shadow: 0 1px 2px rgba(0, 0, 0, .12), 0 24px 56px -16px rgba(6, 22, 20, .4); }
+#preview-device.look-window::before { display: none; }
+.pv-dots { top: 9px; left: 12px; width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; box-shadow: 20px 0 #febc2e, 40px 0 #28c840; }
+
+/* Steam Deck: the grips, the sticks, the pads, the buttons */
+#preview-device.look-console { background: radial-gradient(120% 90% at 50% 0%, #3a3e43 0%, #25282c 60%, #1d1f22 100%); }
+#preview-device.look-console::before { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06), inset 0 -10px 30px rgba(0, 0, 0, .35); }
+.pv-stick { top: 36px; width: 84px; height: 84px; border-radius: 50%; background: radial-gradient(circle at 50% 45%, #3c4045 0 46%, #15171a 50% 60%, #2b2e32 63%); box-shadow: 0 3px 6px rgba(0, 0, 0, .5); }
+.pv-stick.l { left: 54px; } .pv-stick.r { right: 54px; }
+.pv-tpad { bottom: 40px; width: 104px; height: 104px; border-radius: 18px; background: linear-gradient(160deg, #2a2d31, #1c1e21); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), inset 0 0 0 1px rgba(0, 0, 0, .5); }
+.pv-tpad.l { left: 44px; } .pv-tpad.r { right: 44px; }
+.pv-dpad { top: 178px; left: 70px; width: 52px; height: 52px; background: linear-gradient(#17191c, #17191c) center / 18px 52px no-repeat, linear-gradient(#17191c, #17191c) center / 52px 18px no-repeat; }
+.pv-abxy { top: 182px; right: 78px; width: 17px; height: 17px; border-radius: 50%; background: #17191c; box-shadow: -22px 22px #17191c, 22px 22px #17191c, 0 44px #17191c; }
 
 /* what the client reports while it loads */
 .pv-progress {
@@ -1369,15 +1399,18 @@ body.mode-preview #canvas-wrap { visibility: hidden; pointer-events: none; }
     background: #0B0F10;
 }
 
-/* device picker and orientation, in the preview bar's own key */
+/* the game face's controls: the device, the orientation, restart, full screen - one height, one look, an icon each */
 .pv-dd { position: relative; display: inline-flex; }
-.pv-dd > button, .pv-seg button, #pv-restart {
-    display: inline-flex; align-items: center; gap: 6px;
-    background: rgba(255,255,255,.08); color: #DCEAE8;
-    border: 1px solid rgba(255,255,255,.14); border-radius: 7px;
-    padding: 4px 9px; font: inherit; font-size: 12px; cursor: pointer;
+.pv-btn-bar, #topbar button.pv-btn-bar {
+    display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box;
+    height: 28px; padding: 0 10px;
+    background: rgba(255,255,255,.10); color: #EAF5F3;
+    border: 1px solid rgba(255,255,255,.18); border-radius: 8px;
+    font: inherit; font-size: 12px; font-weight: 500; line-height: 1; white-space: nowrap; cursor: pointer;
 }
-.pv-dd > button:hover, .pv-seg button:hover, #pv-restart:hover { background: rgba(255,255,255,.15); }
+.pv-btn-bar:hover, #topbar button.pv-btn-bar:hover { background: rgba(255,255,255,.2); border-color: rgba(255,255,255,.32); }
+.pv-btn-bar .icon { width: 14px; height: 14px; flex: none; display: block; }
+#topbar .pv-seg button.pv-btn-bar.on, .pv-seg button.pv-btn-bar.on { background: #FAFCFC; border-color: #FAFCFC; color: var(--teal-darker); font-weight: 600; }
 .pv-dd .chev { width: 11px; height: 11px; opacity: .7; }
 .pv-menu {
     display: none; position: absolute; top: calc(100% + 9px); left: 0; z-index: 60;
@@ -1402,10 +1435,8 @@ body.mode-preview #canvas-wrap { visibility: hidden; pointer-events: none; }
     padding: 8px 9px 3px; font-size: 10.5px; font-weight: 600; letter-spacing: .08em;
     text-transform: uppercase; color: #7A8A88;
 }
-.pv-dd > button .icon, .pv-dd > button .chev { flex: none; display: block; }
-.pv-dd > button, .pv-seg button, #pv-restart { line-height: 1.2; white-space: nowrap; }
-.pv-seg { display: inline-flex; gap: 3px; }
-.pv-seg button.on { background: #FAFCFC; border-color: #FAFCFC; color: var(--teal-darker); font-weight: 600; }
+.pv-seg { display: inline-flex; gap: 4px; }
+#pv-controls { gap: 6px; }
 
 /* ---------- resizing the agent panel ----------
    A grip in the corner and two edges; docked, the left edge is the splitter
@@ -1500,32 +1531,21 @@ body.ai-hidden #ai-toggle .icon { transform: rotate(180deg); }
    agent's header sits over its own panel), the device controls over the game. */
 body.embed #topbar .tb-brand, body.embed #modeswitch, body.embed #assets-state,
 body.embed #btn-changes, body.embed #btn-browser, body.embed #btn-work,
-body.embed #btn-download, body.embed #btn-upload, body.embed #btn-reset { display: none; }
+body.embed #btn-download, body.embed #btn-upload, body.embed #btn-reset, body.embed #btn-reload { display: none; }
 body.embed:not(.mode-preview) #topbar { left: auto; width: var(--ai-dock, 420px); padding: 0; }
 body.embed:not(.mode-preview) #topbar > :not(.tb-agent) { display: none; }
 body.embed:not(.mode-preview) #canvas-wrap { top: 0; }
 body.embed.ai-hidden:not(.mode-preview) #topbar { display: none; }
-body.embed #preview { background: #DCE4E3; }
-body.embed #preview-stage {
-    background:
-        linear-gradient(45deg, rgba(46,56,54,.035) 25%, transparent 25%, transparent 75%, rgba(46,56,54,.035) 75%) 0 0/24px 24px,
-        linear-gradient(45deg, rgba(46,56,54,.035) 25%, transparent 25%, transparent 75%, rgba(46,56,54,.035) 75%) 12px 12px/24px 24px,
-        #DCE4E3;
-}
+/* the game on the portal's own ground, plain - as the rest of its pages */
+body.embed #preview, body.embed #preview-stage { background: #EDF2F1; }
 /* (the hint is not in this list: it sits on the screen's own dark ground, not on the stage) */
-body.embed #pv-size { color: inherit; }
+/* (the size is the agent's business - view_info - not the player's: the portal shows no numbers next to the buttons) */
+body.embed #pv-size { display: none; }
 
 /* ---------- full screen ----------
    The game and nothing else (preview-host.js: setImmersive). The bar and the
    agent go; an emulated device stays what it is, on a dark ground, and "Fit"
    gets the whole window. The way back is a button in the corner that fades. */
-#pv-full {
-    display: inline-flex; align-items: center; gap: 6px;
-    background: rgba(255,255,255,.08); color: #DCEAE8;
-    border: 1px solid rgba(255,255,255,.14); border-radius: 7px;
-    padding: 4px 9px; font: inherit; font-size: 12px; cursor: pointer; line-height: 1.2; white-space: nowrap;
-}
-#pv-full:hover { background: rgba(255,255,255,.15); }
 body.immersive #topbar, body.immersive #ai, body.immersive #ai-sheet-back { display: none !important; }
 body.immersive #preview { top: 0 !important; right: 0 !important; bottom: 0 !important; transition: none; }
 body.immersive #preview, body.immersive #preview-stage { background: #07090A; }
@@ -1556,7 +1576,7 @@ body.handheld #preview { top: 0; right: 0; bottom: var(--ai-rest, 70px); transit
 body.handheld:not(.embed) #preview { top: 44px; }
 body.handheld #preview, body.handheld #preview-stage { background: #0B0F10; }
 body.handheld #preview-device {
-    width: 100%; height: 100%; padding: 0; border-radius: 0; background: none; box-shadow: none;
+    width: 100%; height: 100%; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
 }
 body.handheld #preview-screen { border-radius: 0; }
 
@@ -1747,3 +1767,39 @@ body.handheld #ai-settings { width: 100%; }
 
 /* the portal's frames (?agent=0): the conversation lives in the portal, this page shows no agent at all */
 body.ai-off #ai, body.ai-off .tb-agent { display: none !important; }
+
+/* ---------- a tab of the portal (?title=Play: preview-host.js) ----------
+   The game face's bar is the tab's header, as the portal's other tabs have it (o2portal: .devhead): on the page's ground,
+   the title, the device and its orientation, Restart and Full screen at the far end; the content's width (1320px). */
+.pv-title { display: none; }
+body.portal-tab.mode-preview #topbar {
+    height: 68px; padding: 16px max(clamp(12px, 2vw, 24px), calc((100% - 1320px) / 2));
+    background: #EDF2F1; color: #1F2927; box-shadow: none; gap: 14px;
+    font-family: "Onest", "Segoe UI", system-ui, -apple-system, sans-serif; font-size: 14px;
+}
+body.portal-tab.mode-preview #preview { top: 68px; }
+body.portal-tab .pv-title { display: block; margin: 0; flex: none; font: 600 22px "Geologica", "Segoe UI", system-ui, sans-serif; letter-spacing: -.01em; color: #1F2927; }
+body.portal-tab #topbar .tb-sep, body.portal-tab #topbar > .grow, body.portal-tab #topbar > .tb-group:not(#pv-controls) { display: none; }
+body.portal-tab .pv-dd .chev { transform: rotate(90deg); }
+body.portal-tab #pv-controls { flex: 1; gap: 8px; }
+body.portal-tab #pv-restart { margin-left: auto; }
+body.portal-tab .pv-btn-bar, body.portal-tab #topbar button.pv-btn-bar {
+    height: 32px; padding: 0 12px; border-radius: 7px; gap: 6px;
+    background: #FAFCFC; border: 1px solid #B9C6C4; color: #1F2927;
+    font: 500 13px "Onest", "Segoe UI", system-ui, sans-serif;
+}
+body.portal-tab .pv-btn-bar:hover, body.portal-tab #topbar button.pv-btn-bar:hover { background: #FAFCFC; border-color: #268578; }
+body.portal-tab .pv-btn-bar .icon { width: 15px; height: 15px; }
+/* the orientation: the portal's segmented switch */
+body.portal-tab .pv-seg { background: #E4EBEA; border-radius: 9px; padding: 3px; gap: 2px; }
+body.portal-tab .pv-seg button.pv-btn-bar, body.portal-tab #topbar .pv-seg button.pv-btn-bar { height: 30px; border: 0; background: none; color: #4A5A58; }
+body.portal-tab #topbar .pv-seg button.pv-btn-bar.on { background: #FAFCFC; color: #1F6E64; font-weight: 600; box-shadow: 0 1px 2px rgba(20, 40, 38, .12); }
+body.portal-tab .pv-menu { top: calc(100% + 6px); }
+/* the portal's tab on a phone: the device is this one (handheld), so the header keeps the title, Restart and Full
+   screen as icons - the only ways to start the game over and to give it the whole screen there */
+body.portal-tab.handheld.embed.mode-preview #topbar { display: flex; height: 52px; padding: 8px 12px; gap: 10px; }
+body.portal-tab.handheld #preview { top: 52px; bottom: 0; }
+body.portal-tab.handheld .pv-title { font-size: 18px; }
+body.portal-tab.handheld #pv-full { display: inline-flex; }
+body.portal-tab.handheld .pv-btn-bar, body.portal-tab.handheld #topbar button.pv-btn-bar { font-size: 0; gap: 0; width: 36px; height: 34px; padding: 0; justify-content: center; }
+body.portal-tab.handheld .pv-btn-bar .icon { width: 17px; height: 17px; }
