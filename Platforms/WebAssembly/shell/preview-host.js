@@ -29,7 +29,7 @@ var o2Preview = (function () {
     // w×h: the CSS viewport the game gets; px: the real screen; inch: its diagonal;
     // look, pad ([sides, top and bottom] in portrait), r (the screen's corners): the
     // body; safe: [top, bottom] of the safe area a game on the whole screen gets in
-    // portrait (safeAreaOf). The portal keeps the same list (o2portal frontend ui/devices.ts).
+    // portrait (safeAreaOf). The portal (o2portal frontend ui/devices.ts) and the o2 editor's Game window (GameDevices.cpp) keep the same list.
     function D(id, name, kind, look, w, h, px, inch, pad, r, safe) { return { id: id, name: name, kind: kind, look: look, w: w, h: h, px: px, inch: inch, pad: pad, r: r, safe: safe || [0, 0] }; }
     var DEVICES = [
         { id: 'fit', name: 'Fit to pane', kind: 'fit', look: 'fit' },
