@@ -290,6 +290,7 @@ var o2Preview = (function () {
         onScreen = on;
         applyPower();
         emit('screen');
+        if (on && mode === 'preview') refreshClient();
     }
     applyPower();
     function setSolo(on) {
@@ -312,10 +313,35 @@ var o2Preview = (function () {
     }
 
     // ---- the client --------------------------------------------------
+    // The client loads its own copy of the built assets, once. What was written or built while it stood behind the editor,
+    // another face of the portal or another tab - by the agent, by the editor - reaches it when it comes back in front:
+    // what was written and not built yet is built first, and a client older than the build loads again.
+    var loadedBuilt = 0, refreshing = false;
+    function editorBuilt() {
+        try { return +Module.FS.stat('/project/BuiltAssets/WebAssembly/Data.json').mtime; } catch (e) { return 0; }
+    }
+    function refreshClient() {
+        if (!frame || crashed || refreshing || mode !== 'preview' || !onScreen) return;
+        var sync = window.__o2aiSync ? window.__o2aiSync() : null;
+        var pending = !!sync && (sync.pulled || sync.pulling > 0);
+        if (!pending && editorBuilt() === loadedBuilt) return;
+        refreshing = true;
+        var built = pending && window.__o2BuildPulled ? window.__o2BuildPulled('the game came back in front') : Promise.resolve(false);
+        built.then(function () { return window.__o2DrainMirror ? window.__o2DrainMirror() : null; })
+            .then(function () {
+                refreshing = false;
+                if (frame && mode === 'preview' && editorBuilt() !== loadedBuilt) {
+                    console.log('[preview] the assets were built since the game loaded: loading it again');
+                    reload();
+                }
+            }, function () { refreshing = false; });
+    }
+
     function mount() {
         if (frame) return;
         ready = false;
         crashed = false;
+        loadedBuilt = editorBuilt();
         setHint('Loading the game client…', 0);
         frame = document.createElement('iframe');
         frame.id = 'preview-frame';
@@ -583,8 +609,9 @@ var o2Preview = (function () {
         applyPower();
         if (mode === 'preview') {
             if (frame && !crashed) {
-                // it kept running while the editor was in front: just show it
+                // it kept running while the editor was in front: shown as it is, or loaded again when something was built meanwhile
                 layout();
+                refreshClient();
             } else {
                 // the editor may still owe the server the tail of a build — worth
                 // a moment, never worth making the switch feel broken

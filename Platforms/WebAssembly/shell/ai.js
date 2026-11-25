@@ -2721,6 +2721,7 @@
         });
     }
     window.__o2aiSync = function () { return { pulling: pulling, pulled: pulled }; };      // debug/testing handle
+    window.__o2BuildPulled = buildPulled;   // the game client coming back in front builds what was pulled (preview-host.js)
 
     // the portal's file browser edits the same working copy from outside the frame
     window.__o2SyncFiles = function (changed, deleted) {
